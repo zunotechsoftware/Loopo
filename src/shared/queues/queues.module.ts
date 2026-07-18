@@ -19,6 +19,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
       { name: 'email' },
       { name: 'sms' },
       { name: 'notification' },
+      { name: 'profile-image-processing' },
+      { name: 'thumbnail-generation' },
     ),
   ],
   exports: [BullModule],

@@ -4,6 +4,12 @@ import request from 'supertest';
 import { AppModule } from './../src/app.module';
 import { PrismaService } from './../src/shared/database/prisma.service';
 import { getQueueToken } from '@nestjs/bullmq';
+import { EmailProcessor } from './../src/shared/queues/processors/email.processor';
+import { SmsProcessor } from './../src/shared/queues/processors/sms.processor';
+import { NotificationProcessor } from './../src/shared/queues/processors/notification.processor';
+import { ProfileImageProcessingProcessor } from './../src/shared/queues/processors/profile-image-processing.processor';
+import { TransformInterceptor } from './../src/shared/common/interceptors/transform.interceptor';
+import { AllExceptionsFilter } from './../src/shared/common/exceptions/all-exceptions.filter';
 
 describe('AuthController (e2e)', () => {
   let app: INestApplication;
@@ -21,11 +27,21 @@ describe('AuthController (e2e)', () => {
       .useValue(mockQueue)
       .overrideProvider(getQueueToken('sms'))
       .useValue(mockQueue)
+      .overrideProvider(EmailProcessor)
+      .useValue({})
+      .overrideProvider(SmsProcessor)
+      .useValue({})
+      .overrideProvider(NotificationProcessor)
+      .useValue({})
+      .overrideProvider(ProfileImageProcessingProcessor)
+      .useValue({})
       .compile();
 
     app = moduleFixture.createNestApplication();
     app.setGlobalPrefix('api/v1');
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+    app.useGlobalInterceptors(new TransformInterceptor());
+    app.useGlobalFilters(new AllExceptionsFilter());
 
     prismaService = moduleFixture.get<PrismaService>(PrismaService);
     await app.init();
