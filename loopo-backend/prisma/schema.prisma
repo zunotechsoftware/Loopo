@@ -1,0 +1,390 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Provider {
+  LOCAL
+  GOOGLE
+  APPLE
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+model User {
+  id               String      @id @default(uuid()) @db.Uuid
+  email            String?     @unique
+  phone            String?     @unique
+  password         String?
+  firstName        String?
+  lastName         String?
+  profileImage     String?
+  isEmailVerified  Boolean     @default(false)
+  isPhoneVerified  Boolean     @default(false)
+  status           UserStatus  @default(PENDING)
+  provider         Provider    @default(LOCAL)
+  providerId       String?     @unique
+  lastLoginAt      DateTime?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  deletedAt        DateTime?
+  createdBy        String?
+  updatedBy        String?
+
+  roles                   UserRole[]
+  refreshTokens           RefreshToken[]
+  emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens     PasswordResetToken[]
+  phoneOtps               PhoneOtp[]
+  sessions                Session[]
+  profile                 Profile?
+  addresses               Address[]
+  notificationSettings    NotificationSetting?
+  kycDocuments            KycDocument[]
+  auditLogs               AuditLog[]
+  mediaFiles              MediaFile[]
+
+  @@index([email])
+  @@index([phone])
+  @@index([provider, providerId])
+  @@map("users")
+}
+
+model Role {
+  id          String           @id @default(uuid()) @db.Uuid
+  name        String           @unique // e.g. CUSTOMER, MODERATOR, ADMIN, SUPER_ADMIN
+  description String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  deletedAt   DateTime?
+  createdBy   String?
+  updatedBy   String?
+  users       UserRole[]
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+model UserRole {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  roleId    String    @db.Uuid
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  createdBy String?
+  updatedBy String?
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      Role      @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@index([userId])
+  @@index([roleId])
+  @@map("user_roles")
+}
+
+model RefreshToken {
+  id              String    @id @default(uuid()) @db.Uuid
+  token           String    @unique // Hashed refresh token
+  userId          String    @db.Uuid
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt       DateTime
+  revokedAt       DateTime?
+  replacedByToken String?   // Replaced by token string/id for rotation
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([token])
+  @@map("refresh_tokens")
+}
+
+model EmailVerificationToken {
+  id         String    @id @default(uuid()) @db.Uuid
+  token      String    @unique // Secure verification token
+  userId     String    @db.Uuid
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  verifiedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+  @@index([token])
+  @@map("email_verification_tokens")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  token     String    @unique // Secure reset token
+  userId    String    @db.Uuid
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@index([token])
+  @@map("password_reset_tokens")
+}
+
+model PhoneOtp {
+  id         String    @id @default(uuid()) @db.Uuid
+  otp        String    // Hashed OTP
+  phone      String
+  userId     String    @db.Uuid
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  verifiedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([phone])
+  @@map("phone_otps")
+}
+
+model Session {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ipAddress String?
+  userAgent String?
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model Profile {
+  id                          String    @id @default(uuid()) @db.Uuid
+  userId                      String    @unique @db.Uuid
+  firstName                   String?
+  lastName                    String?
+  displayName                 String?
+  bio                         String?
+  email                       String?
+  phone                       String?
+  dateOfBirth                 DateTime?
+  gender                      String?
+  country                     String?
+  state                       String?
+  city                        String?
+  zipCode                     String?
+  preferredLanguage           String?   @default("en")
+  timezone                    String?   @default("UTC")
+  profileImageId              String?   @db.Uuid
+  coverImageId                String?   @db.Uuid
+  website                     String?
+  socialLinks                 Json?
+  lastLogin                   DateTime?
+  profileCompletionPercentage Int       @default(0)
+  verifiedBadge               Boolean   @default(false)
+  status                      String    @default("ACTIVE")
+  createdAt                   DateTime  @default(now())
+  updatedAt                   DateTime  @updatedAt
+  deletedAt                   DateTime?
+  createdBy                   String?
+  updatedBy                   String?
+
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profileImage MediaFile? @relation("ProfileImage", fields: [profileImageId], references: [id], onDelete: SetNull)
+  coverImage   MediaFile? @relation("CoverImage", fields: [coverImageId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@map("profiles")
+}
+
+enum AddressType {
+  HOME
+  WORK
+  OTHER
+}
+
+model Address {
+  id           String      @id @default(uuid()) @db.Uuid
+  userId       String      @db.Uuid
+  type         AddressType @default(HOME)
+  fullName     String
+  phone        String
+  addressLine1 String
+  addressLine2 String?
+  city         String
+  state        String
+  country      String
+  postalCode   String
+  latitude     Float?
+  longitude    Float?
+  isDefault    Boolean     @default(false)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  deletedAt    DateTime?
+  createdBy    String?
+  updatedBy    String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("addresses")
+}
+
+model Permission {
+  id          String           @id @default(uuid()) @db.Uuid
+  name        String           @unique // e.g. users.view
+  description String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  deletedAt   DateTime?
+  createdBy   String?
+  updatedBy   String?
+  roles       RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String    @id @default(uuid()) @db.Uuid
+  roleId       String    @db.Uuid
+  permissionId String    @db.Uuid
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+  createdBy    String?
+  updatedBy    String?
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+  @@map("role_permissions")
+}
+
+model NotificationSetting {
+  id                   String    @id @default(uuid()) @db.Uuid
+  userId               String    @unique @db.Uuid
+  emailNotifications   Boolean   @default(true)
+  smsNotifications     Boolean   @default(true)
+  pushNotifications    Boolean   @default(true)
+  marketingEmails      Boolean   @default(false)
+  chatNotifications    Boolean   @default(true)
+  orderNotifications   Boolean   @default(true)
+  listingNotifications Boolean   @default(true)
+  securityAlerts       Boolean   @default(true)
+  newsletter           Boolean   @default(false)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  deletedAt            DateTime?
+  createdBy            String?
+  updatedBy            String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("notification_settings")
+}
+
+enum KycDocumentType {
+  PASSPORT
+  DRIVING_LICENSE
+  NATIONAL_ID
+  PAN
+  AADHAAR
+}
+
+enum KycStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
+model KycDocument {
+  id             String          @id @default(uuid()) @db.Uuid
+  userId         String          @db.Uuid
+  documentType   KycDocumentType
+  documentNumber String
+  frontImageId   String          @db.Uuid
+  backImageId    String?         @db.Uuid
+  selfieImageId  String          @db.Uuid
+  status         KycStatus       @default(DRAFT)
+  submittedAt    DateTime?
+  approvedAt     DateTime?
+  rejectedAt     DateTime?
+  reviewedBy     String?         @db.Uuid
+  remarks        String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  deletedAt      DateTime?
+  createdBy      String?
+  updatedBy      String?
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  frontImage MediaFile  @relation("KycFront", fields: [frontImageId], references: [id], onDelete: Cascade)
+  backImage  MediaFile? @relation("KycBack", fields: [backImageId], references: [id], onDelete: SetNull)
+  selfieImage MediaFile @relation("KycSelfie", fields: [selfieImageId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("kyc_documents")
+}
+
+model AuditLog {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String?   @db.Uuid
+  action    String
+  entity    String
+  entityId  String?
+  ipAddress String?
+  userAgent String?
+  oldValues Json?
+  newValues Json?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  createdBy String?
+  updatedBy String?
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@map("audit_logs")
+}
+
+model MediaFile {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @db.Uuid
+  fileName     String
+  fileUrl      String
+  fileSize     Int
+  mimeType     String
+  category     String // e.g. "PROFILE_IMAGE", "COVER_IMAGE", "KYC_FRONT", "KYC_BACK", "KYC_SELFIE"
+  thumbnailUrl String?
+  status       String    @default("PENDING") // PENDING, PROCESSING, READY, FAILED
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+  createdBy    String?
+  updatedBy    String?
+
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profileImages Profile[]     @relation("ProfileImage")
+  coverImages   Profile[]     @relation("CoverImage")
+  kycFronts     KycDocument[] @relation("KycFront")
+  kycBacks      KycDocument[] @relation("KycBack")
+  kycSelfies    KycDocument[] @relation("KycSelfie")
+
+  @@index([userId])
+  @@map("media_files")
+}
