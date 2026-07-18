@@ -7,60 +7,52 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     super({
       log: ['info', 'warn', 'error'],
     });
+
+    const extended = this.$extends({
+      query: {
+        user: {
+          async delete({ args, query }) {
+            return (extended as any).user.update({
+              where: args.where,
+              data: { deletedAt: new Date(), status: 'DELETED' },
+            });
+          },
+          async deleteMany({ args, query }) {
+            return (extended as any).user.updateMany({
+              where: args.where,
+              data: { deletedAt: new Date(), status: 'DELETED' },
+            });
+          },
+          async findUnique({ args, query }) {
+            args.where = { ...args.where, deletedAt: null };
+            return query(args);
+          },
+          async findFirst({ args, query }) {
+            args.where = { ...args.where, deletedAt: null };
+            return query(args);
+          },
+          async findMany({ args, query }) {
+            if (args.where) {
+              if (args.where.deletedAt === undefined) {
+                args.where = { ...args.where, deletedAt: null };
+              }
+            } else {
+              args.where = { deletedAt: null };
+            }
+            return query(args);
+          },
+        },
+      },
+    });
+
+    return extended as any;
   }
 
   async onModuleInit() {
-    await this.$connect();
-    this.registerSoftDeleteMiddleware();
+    await (this as any).$connect();
   }
 
   async onModuleDestroy() {
-    await this.$disconnect();
-  }
-
-  private registerSoftDeleteMiddleware() {
-    (this as any).$use(async (params: any, next: any) => {
-      // Check if this model supports soft deletes
-      const softDeleteModels = ['User'];
-      if (softDeleteModels.includes(params.model || '')) {
-        // Soft delete actions mapping
-        if (params.action === 'delete') {
-          params.action = 'update';
-          params.args['data'] = {
-            ...params.args['data'],
-            deletedAt: new Date(),
-            status: 'DELETED',
-          };
-        }
-        if (params.action === 'deleteMany') {
-          params.action = 'updateMany';
-          if (params.args['data'] !== undefined) {
-            params.args['data']['deletedAt'] = new Date();
-            params.args['data']['status'] = 'DELETED';
-          } else {
-            params.args['data'] = {
-              deletedAt: new Date(),
-              status: 'DELETED',
-            };
-          }
-        }
-
-        // Query filtering actions mapping (only fetch non-deleted)
-        if (params.action === 'findUnique' || params.action === 'findFirst') {
-          params.action = 'findFirst';
-          params.args.where = { ...params.args.where, deletedAt: null };
-        }
-        if (params.action === 'findMany') {
-          if (params.args.where) {
-            if (params.args.where.deletedAt === undefined) {
-              params.args.where.deletedAt = null;
-            }
-          } else {
-            params.args.where = { deletedAt: null };
-          }
-        }
-      }
-      return next(params);
-    });
+    await (this as any).$disconnect();
   }
 }
