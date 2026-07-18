@@ -1,0 +1,16 @@
+# IDE and Tool settings
+.idea/
+.vscode/
+.DS_Store
+*.log
+*.tmp
+*.temp
+
+# Local environment files
+.env
+.env.local
+
+# Sub-project output directory overrides
+node_modules/
+dist/
+build/

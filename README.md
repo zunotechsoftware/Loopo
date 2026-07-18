@@ -1,17 +1,16 @@
-# loopo
+# Loopo
 
-A new Flutter project.
+This repository is organized as a monorepo containing both the Flutter mobile application and the NestJS backend API.
+
+## Repository Structure
+
+- **[loopo-flutter](file:///c:/Users/vks61/Loopo-App/Loopo/loopo-flutter)**: The frontend mobile application built with Flutter.
+- **[loopo-backend](file:///c:/Users/vks61/Loopo-App/Loopo/loopo-backend)**: The backend API service built with NestJS & Prisma.
 
 ## Getting Started
 
-This project is a starting point for a Flutter application.
+### Backend Setup
+For details on running the backend server, refer to [loopo-backend/README.md](file:///c:/Users/vks61/Loopo-App/Loopo/loopo-backend/README.md).
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+### Flutter Setup
+For details on running the Flutter application, refer to [loopo-flutter/README.md](file:///c:/Users/vks61/Loopo-App/Loopo/loopo-flutter/README.md).
