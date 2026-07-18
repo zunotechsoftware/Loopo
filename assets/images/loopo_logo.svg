@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Scalable Loopo logo (approximation). Set width/height on the <svg> tag when embedding. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 220" preserveAspectRatio="xMidYMid meet">
+  <defs>
+    <linearGradient id="gradLoop" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0%" stop-color="#58C22E"/>
+      <stop offset="55%" stop-color="#28A6E0"/>
+      <stop offset="100%" stop-color="#0F3A70"/>
+    </linearGradient>
+    <linearGradient id="gradTag" x1="0" x2="1">
+      <stop offset="0%" stop-color="#0F3A70" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#0F3A70" stop-opacity="0.95"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background transparent -->
+  <rect width="100%" height="100%" fill="transparent" />
+
+  <!-- Wordmark: stylized 'loopo' approximation -->
+  <g id="wordmark" transform="translate(40,120)">
+    <!-- 'l' -->
+    <text x="0" y="0" font-family="Poppins, Arial, sans-serif" font-weight="700" font-size="120" fill="#0F3A70">l</text>
+
+    <!-- 'oo' - gradient circle forms -->
+    <g transform="translate(50, -80)">
+      <circle cx="70" cy="70" r="52" fill="url(#gradLoop)" />
+      <circle cx="70" cy="70" r="34" fill="#ffffff" />
+      <!-- inner arrow mark to hint reuse arrow -->
+      <path d="M60 70 L80 70 L80 62" stroke="#58C22E" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none" transform="translate(0,0) rotate(-20 70 70)" />
+    </g>
+
+    <!-- second 'o' -->
+    <g transform="translate(230, -80)">
+      <circle cx="70" cy="70" r="52" fill="#0F3A70" />
+      <circle cx="70" cy="70" r="34" fill="#ffffff" />
+    </g>
+
+    <!-- 'p' and final 'o' approximations using text for legibility -->
+    <text x="420" y="0" font-family="Poppins, Arial, sans-serif" font-weight="700" font-size="120" fill="#0F3A70">po</text>
+  </g>
+
+  <!-- Tagline -->
+  <g id="tagline" transform="translate(40,190)">
+    <text x="0" y="0" font-family="Poppins, Arial, sans-serif" font-weight="600" font-size="18" fill="#0F3A70">
+      BUY. <tspan fill="#58C22E">SELL.</tspan> <tspan fill="#28A6E0">REUSE.</tspan> <tspan fill="#0F3A70">REPEAT.</tspan>
+    </text>
+  </g>
+
+  <!-- Make the svg responsive by not hardcoding width/height; users can set attributes when embedding -->
+</svg>
