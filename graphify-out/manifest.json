@@ -1,0 +1,917 @@
+{
+  ".claude/settings.json": {
+    "mtime": 1784560231.9240935,
+    "ast_hash": "93e16eed9521917ff138ea139b433fdb",
+    "semantic_hash": "93e16eed9521917ff138ea139b433fdb"
+  },
+  "loopo-backend/eslint.config.mjs": {
+    "mtime": 1784440824.039862,
+    "ast_hash": "069d66f3fd2af0b03d917cf51a1f4c42",
+    "semantic_hash": "069d66f3fd2af0b03d917cf51a1f4c42"
+  },
+  "loopo-backend/nest-cli.json": {
+    "mtime": 1784440824.039862,
+    "ast_hash": "fa439650fa28a1a7aa8c2b6d81c8cc20",
+    "semantic_hash": "fa439650fa28a1a7aa8c2b6d81c8cc20"
+  },
+  "loopo-backend/package.json": {
+    "mtime": 1784440824.0430973,
+    "ast_hash": "706cfa9fe95a4a160f4b255929c90245",
+    "semantic_hash": "706cfa9fe95a4a160f4b255929c90245"
+  },
+  "loopo-backend/prisma/migrations/20260718181804_init/migration.sql": {
+    "mtime": 1784440824.043501,
+    "ast_hash": "07f4976cd5b906b9a5cbfcc800b271cd",
+    "semantic_hash": "07f4976cd5b906b9a5cbfcc800b271cd"
+  },
+  "loopo-backend/prisma/migrations/20260719074322_initial_migration/migration.sql": {
+    "mtime": 1784447002.6276698,
+    "ast_hash": "c57bb7b8e9c6180bd2031654c1f438be",
+    "semantic_hash": "c57bb7b8e9c6180bd2031654c1f438be"
+  },
+  "loopo-backend/prisma/seed.ts": {
+    "mtime": 1784440824.0452218,
+    "ast_hash": "8b4bf7439d9a44f6e858c61765a0fb25",
+    "semantic_hash": "8b4bf7439d9a44f6e858c61765a0fb25"
+  },
+  "loopo-backend/src/app.controller.spec.ts": {
+    "mtime": 1784440824.0452218,
+    "ast_hash": "e91fed2ee35431d60d1adbf1d5739b83",
+    "semantic_hash": "e91fed2ee35431d60d1adbf1d5739b83"
+  },
+  "loopo-backend/src/app.controller.ts": {
+    "mtime": 1784440824.0452218,
+    "ast_hash": "ae15d1c5a85e6ebfad68b7193766dfb5",
+    "semantic_hash": "ae15d1c5a85e6ebfad68b7193766dfb5"
+  },
+  "loopo-backend/src/app.module.ts": {
+    "mtime": 1784440824.0452218,
+    "ast_hash": "0882c8bb2fed255653d1f9516af3c1e2",
+    "semantic_hash": "0882c8bb2fed255653d1f9516af3c1e2"
+  },
+  "loopo-backend/src/app.service.ts": {
+    "mtime": 1784440824.0452218,
+    "ast_hash": "08e985e831bca61f6be89c5c2ecef2fa",
+    "semantic_hash": "08e985e831bca61f6be89c5c2ecef2fa"
+  },
+  "loopo-backend/src/main.ts": {
+    "mtime": 1784440824.0465558,
+    "ast_hash": "31848757aaf0074ff005f18af660afac",
+    "semantic_hash": "31848757aaf0074ff005f18af660afac"
+  },
+  "loopo-backend/src/modules/addresses/addresses.module.ts": {
+    "mtime": 1784440824.046859,
+    "ast_hash": "a57199dd9887584409c9485549fc9fe0",
+    "semantic_hash": "a57199dd9887584409c9485549fc9fe0"
+  },
+  "loopo-backend/src/modules/addresses/controllers/addresses.controller.ts": {
+    "mtime": 1784440824.0474963,
+    "ast_hash": "40f04680a794dc69df8cb6de7625a964",
+    "semantic_hash": "40f04680a794dc69df8cb6de7625a964"
+  },
+  "loopo-backend/src/modules/addresses/dto/address.dto.ts": {
+    "mtime": 1784440824.0474963,
+    "ast_hash": "0f0f2322131040d0a8c8cdee80608533",
+    "semantic_hash": "0f0f2322131040d0a8c8cdee80608533"
+  },
+  "loopo-backend/src/modules/addresses/repositories/addresses.repository.ts": {
+    "mtime": 1784440824.0474963,
+    "ast_hash": "847b8e1ca5ee76309baf26d723193cb8",
+    "semantic_hash": "847b8e1ca5ee76309baf26d723193cb8"
+  },
+  "loopo-backend/src/modules/addresses/services/addresses.service.ts": {
+    "mtime": 1784440824.0474963,
+    "ast_hash": "034b8a6554d8f7231701d1204c2b57b3",
+    "semantic_hash": "034b8a6554d8f7231701d1204c2b57b3"
+  },
+  "loopo-backend/src/modules/audit-logs/audit-logs.module.ts": {
+    "mtime": 1784440824.0474963,
+    "ast_hash": "c0288b6af812c4b8f49d6d9606d92dbe",
+    "semantic_hash": "c0288b6af812c4b8f49d6d9606d92dbe"
+  },
+  "loopo-backend/src/modules/audit-logs/repositories/audit-logs.repository.ts": {
+    "mtime": 1784440824.0474963,
+    "ast_hash": "509d13ead1b992f3e2eb80712cd06437",
+    "semantic_hash": "509d13ead1b992f3e2eb80712cd06437"
+  },
+  "loopo-backend/src/modules/audit-logs/services/audit-logs.service.ts": {
+    "mtime": 1784440824.0474963,
+    "ast_hash": "26f8d2a76887267b6b44c20570a6d618",
+    "semantic_hash": "26f8d2a76887267b6b44c20570a6d618"
+  },
+  "loopo-backend/src/modules/auth/auth.module.ts": {
+    "mtime": 1784440824.0474963,
+    "ast_hash": "4444fa863f1677324c1de70e4308466a",
+    "semantic_hash": "4444fa863f1677324c1de70e4308466a"
+  },
+  "loopo-backend/src/modules/auth/controllers/auth.controller.ts": {
+    "mtime": 1784440824.0474963,
+    "ast_hash": "de7716b9002fce9274a076749cae0b29",
+    "semantic_hash": "de7716b9002fce9274a076749cae0b29"
+  },
+  "loopo-backend/src/modules/auth/dto/forgot-password.dto.ts": {
+    "mtime": 1784440824.0474963,
+    "ast_hash": "27488b3a6b608dabcd0b30fadab7ddda",
+    "semantic_hash": "27488b3a6b608dabcd0b30fadab7ddda"
+  },
+  "loopo-backend/src/modules/auth/dto/login.dto.ts": {
+    "mtime": 1784440824.0474963,
+    "ast_hash": "14dc73b1163a25e7be6bbf9e9d0d532e",
+    "semantic_hash": "14dc73b1163a25e7be6bbf9e9d0d532e"
+  },
+  "loopo-backend/src/modules/auth/dto/refresh-token.dto.ts": {
+    "mtime": 1784440824.0474963,
+    "ast_hash": "5539e401178061a5f81eabb383624b22",
+    "semantic_hash": "5539e401178061a5f81eabb383624b22"
+  },
+  "loopo-backend/src/modules/auth/dto/register.dto.ts": {
+    "mtime": 1784440824.0474963,
+    "ast_hash": "6cdfd9bc080f319b38d2cbabb3f4d90f",
+    "semantic_hash": "6cdfd9bc080f319b38d2cbabb3f4d90f"
+  },
+  "loopo-backend/src/modules/auth/dto/reset-password.dto.ts": {
+    "mtime": 1784440824.0474963,
+    "ast_hash": "141a3e1c5d6a9c8aa3e9e4d4c7e57887",
+    "semantic_hash": "141a3e1c5d6a9c8aa3e9e4d4c7e57887"
+  },
+  "loopo-backend/src/modules/auth/dto/social-login.dto.ts": {
+    "mtime": 1784440824.0474963,
+    "ast_hash": "764c2207c0ff67880c8afe53c8a84fe8",
+    "semantic_hash": "764c2207c0ff67880c8afe53c8a84fe8"
+  },
+  "loopo-backend/src/modules/auth/dto/verify-email.dto.ts": {
+    "mtime": 1784440824.0519786,
+    "ast_hash": "10e781f064faf7ccd967cd0d595226e1",
+    "semantic_hash": "10e781f064faf7ccd967cd0d595226e1"
+  },
+  "loopo-backend/src/modules/auth/dto/verify-otp.dto.ts": {
+    "mtime": 1784440824.0519786,
+    "ast_hash": "6166a3f83ddbbe9f12b06b276d2ffc04",
+    "semantic_hash": "6166a3f83ddbbe9f12b06b276d2ffc04"
+  },
+  "loopo-backend/src/modules/auth/repositories/auth.repository.ts": {
+    "mtime": 1784440824.0519786,
+    "ast_hash": "538735c93e7578dda0bbbe05a8d73b26",
+    "semantic_hash": "538735c93e7578dda0bbbe05a8d73b26"
+  },
+  "loopo-backend/src/modules/auth/services/auth.service.spec.ts": {
+    "mtime": 1784440824.0519786,
+    "ast_hash": "0e9b993bed578da2fafdb5c10c31cc41",
+    "semantic_hash": "0e9b993bed578da2fafdb5c10c31cc41"
+  },
+  "loopo-backend/src/modules/auth/services/auth.service.ts": {
+    "mtime": 1784440824.0529478,
+    "ast_hash": "d3bf80500837f05bba4a400cbbbd6b16",
+    "semantic_hash": "d3bf80500837f05bba4a400cbbbd6b16"
+  },
+  "loopo-backend/src/modules/auth/strategies/apple.strategy.ts": {
+    "mtime": 1784440824.0529478,
+    "ast_hash": "8c714d7a3fddd7276dc207b45af9392c",
+    "semantic_hash": "8c714d7a3fddd7276dc207b45af9392c"
+  },
+  "loopo-backend/src/modules/auth/strategies/google.strategy.ts": {
+    "mtime": 1784440824.0529478,
+    "ast_hash": "ac254e5e206a4cbc0766e04354cbcb0c",
+    "semantic_hash": "ac254e5e206a4cbc0766e04354cbcb0c"
+  },
+  "loopo-backend/src/modules/auth/strategies/jwt-refresh.strategy.ts": {
+    "mtime": 1784440824.0529478,
+    "ast_hash": "647777856ae18298c50bb64a0b03b4cd",
+    "semantic_hash": "647777856ae18298c50bb64a0b03b4cd"
+  },
+  "loopo-backend/src/modules/auth/strategies/jwt.strategy.ts": {
+    "mtime": 1784440824.0529478,
+    "ast_hash": "369422b8adf9202b5975a55a638410a3",
+    "semantic_hash": "369422b8adf9202b5975a55a638410a3"
+  },
+  "loopo-backend/src/modules/auth/strategies/local.strategy.ts": {
+    "mtime": 1784440824.0529478,
+    "ast_hash": "9d73c2f827411ecd45311cb02b84aa37",
+    "semantic_hash": "9d73c2f827411ecd45311cb02b84aa37"
+  },
+  "loopo-backend/src/modules/kyc/controllers/admin-kyc.controller.ts": {
+    "mtime": 1784440824.0529478,
+    "ast_hash": "b2bfbede0509b32faa7d279a2d4dd02c",
+    "semantic_hash": "b2bfbede0509b32faa7d279a2d4dd02c"
+  },
+  "loopo-backend/src/modules/kyc/controllers/kyc.controller.ts": {
+    "mtime": 1784440824.0529478,
+    "ast_hash": "20a44bf0a2b34edcbb3d3378fa950c21",
+    "semantic_hash": "20a44bf0a2b34edcbb3d3378fa950c21"
+  },
+  "loopo-backend/src/modules/kyc/dto/kyc.dto.ts": {
+    "mtime": 1784440824.0529478,
+    "ast_hash": "ef6ae3e13bf44acd4617b3fc6af3052a",
+    "semantic_hash": "ef6ae3e13bf44acd4617b3fc6af3052a"
+  },
+  "loopo-backend/src/modules/kyc/kyc.module.ts": {
+    "mtime": 1784440824.0529478,
+    "ast_hash": "8235bffcdc0bcce3ad76cd3a3e662ec8",
+    "semantic_hash": "8235bffcdc0bcce3ad76cd3a3e662ec8"
+  },
+  "loopo-backend/src/modules/kyc/repositories/kyc.repository.ts": {
+    "mtime": 1784440824.0529478,
+    "ast_hash": "07f0d9bdc4a51cd5b0296ffedcb40b3e",
+    "semantic_hash": "07f0d9bdc4a51cd5b0296ffedcb40b3e"
+  },
+  "loopo-backend/src/modules/kyc/services/kyc.service.ts": {
+    "mtime": 1784440824.0529478,
+    "ast_hash": "594d5e2a84b83d12d539de116072a9ac",
+    "semantic_hash": "594d5e2a84b83d12d539de116072a9ac"
+  },
+  "loopo-backend/src/modules/notification-settings/controllers/notification-settings.controller.ts": {
+    "mtime": 1784440824.0529478,
+    "ast_hash": "f583e21a1b1e2a93f0952e7125fc8bb9",
+    "semantic_hash": "f583e21a1b1e2a93f0952e7125fc8bb9"
+  },
+  "loopo-backend/src/modules/notification-settings/dto/notification-settings.dto.ts": {
+    "mtime": 1784440824.0529478,
+    "ast_hash": "78db636ae89538d2a8a3f6f442a9a4fd",
+    "semantic_hash": "78db636ae89538d2a8a3f6f442a9a4fd"
+  },
+  "loopo-backend/src/modules/notification-settings/notification-settings.module.ts": {
+    "mtime": 1784440824.0529478,
+    "ast_hash": "6cc5c213af8c8c4ba6ce1f8e112a4fa5",
+    "semantic_hash": "6cc5c213af8c8c4ba6ce1f8e112a4fa5"
+  },
+  "loopo-backend/src/modules/notification-settings/repositories/notification-settings.repository.ts": {
+    "mtime": 1784440824.0582707,
+    "ast_hash": "b0327a890154056ac3effd8faeb520cf",
+    "semantic_hash": "b0327a890154056ac3effd8faeb520cf"
+  },
+  "loopo-backend/src/modules/notification-settings/services/notification-settings.service.ts": {
+    "mtime": 1784440824.0582707,
+    "ast_hash": "4d0290c4c25e6b66e825b20cbb91e8a0",
+    "semantic_hash": "4d0290c4c25e6b66e825b20cbb91e8a0"
+  },
+  "loopo-backend/src/modules/rbac/controllers/permissions.controller.ts": {
+    "mtime": 1784440824.0593395,
+    "ast_hash": "14973dd77f83ae81e29f36ea831a7fd2",
+    "semantic_hash": "14973dd77f83ae81e29f36ea831a7fd2"
+  },
+  "loopo-backend/src/modules/rbac/controllers/roles.controller.ts": {
+    "mtime": 1784440824.0593395,
+    "ast_hash": "63b1ae45976d6bf7eb82844a002ef723",
+    "semantic_hash": "63b1ae45976d6bf7eb82844a002ef723"
+  },
+  "loopo-backend/src/modules/rbac/controllers/user-roles.controller.ts": {
+    "mtime": 1784440824.0593395,
+    "ast_hash": "785a1613d2f818f9708afcd83e18f529",
+    "semantic_hash": "785a1613d2f818f9708afcd83e18f529"
+  },
+  "loopo-backend/src/modules/rbac/dto/permission.dto.ts": {
+    "mtime": 1784440824.0603347,
+    "ast_hash": "85ef93b722870ffd2532a93a2b38a7ec",
+    "semantic_hash": "85ef93b722870ffd2532a93a2b38a7ec"
+  },
+  "loopo-backend/src/modules/rbac/dto/role.dto.ts": {
+    "mtime": 1784440824.0603347,
+    "ast_hash": "bbb4263dc56b1b5bd69332846f7398b9",
+    "semantic_hash": "bbb4263dc56b1b5bd69332846f7398b9"
+  },
+  "loopo-backend/src/modules/rbac/rbac.module.ts": {
+    "mtime": 1784440824.0603347,
+    "ast_hash": "974f8aa2ff43f4799ab1a86d9a2eada0",
+    "semantic_hash": "974f8aa2ff43f4799ab1a86d9a2eada0"
+  },
+  "loopo-backend/src/modules/rbac/repositories/rbac.repository.ts": {
+    "mtime": 1784440824.0603347,
+    "ast_hash": "6b46a39fe1433102c869bf7cd4d65493",
+    "semantic_hash": "6b46a39fe1433102c869bf7cd4d65493"
+  },
+  "loopo-backend/src/modules/rbac/services/rbac.service.ts": {
+    "mtime": 1784440824.0603347,
+    "ast_hash": "d1531b3368a113b77b5383d338ba3de1",
+    "semantic_hash": "d1531b3368a113b77b5383d338ba3de1"
+  },
+  "loopo-backend/src/modules/users/controllers/users.controller.ts": {
+    "mtime": 1784440824.0603347,
+    "ast_hash": "bb7de24056f25f038b4320107e1f665d",
+    "semantic_hash": "bb7de24056f25f038b4320107e1f665d"
+  },
+  "loopo-backend/src/modules/users/dto/image-upload.dto.ts": {
+    "mtime": 1784440824.0603347,
+    "ast_hash": "568a984e18e5d1f635fe2240dcf3780b",
+    "semantic_hash": "568a984e18e5d1f635fe2240dcf3780b"
+  },
+  "loopo-backend/src/modules/users/dto/profile.dto.ts": {
+    "mtime": 1784440824.0603347,
+    "ast_hash": "3f71d018456beee07243db6540bb4fa3",
+    "semantic_hash": "3f71d018456beee07243db6540bb4fa3"
+  },
+  "loopo-backend/src/modules/users/repositories/users.repository.ts": {
+    "mtime": 1784440824.0629873,
+    "ast_hash": "b62c8823cd772f16435782e129f28b1d",
+    "semantic_hash": "b62c8823cd772f16435782e129f28b1d"
+  },
+  "loopo-backend/src/modules/users/services/users.service.ts": {
+    "mtime": 1784440824.0629873,
+    "ast_hash": "44582608adeb1adcee3fc48475fe82cf",
+    "semantic_hash": "44582608adeb1adcee3fc48475fe82cf"
+  },
+  "loopo-backend/src/modules/users/users.module.ts": {
+    "mtime": 1784440824.0629873,
+    "ast_hash": "a20daffda62e46021347a92e32164b49",
+    "semantic_hash": "a20daffda62e46021347a92e32164b49"
+  },
+  "loopo-backend/src/shared/common/decorators/audit-log.decorator.ts": {
+    "mtime": 1784440824.0629873,
+    "ast_hash": "58b84533eaffd6d5a086dd148b7aea88",
+    "semantic_hash": "58b84533eaffd6d5a086dd148b7aea88"
+  },
+  "loopo-backend/src/shared/common/decorators/current-user.decorator.ts": {
+    "mtime": 1784440824.0629873,
+    "ast_hash": "76a09ab1a9c0c0b313b3b42b6d22e811",
+    "semantic_hash": "76a09ab1a9c0c0b313b3b42b6d22e811"
+  },
+  "loopo-backend/src/shared/common/decorators/permissions.decorator.ts": {
+    "mtime": 1784440824.0629873,
+    "ast_hash": "156193e85f3e23061b358048b286db22",
+    "semantic_hash": "156193e85f3e23061b358048b286db22"
+  },
+  "loopo-backend/src/shared/common/decorators/public.decorator.ts": {
+    "mtime": 1784440824.0629873,
+    "ast_hash": "82c29e3a7a0a8de27073960842a01c53",
+    "semantic_hash": "82c29e3a7a0a8de27073960842a01c53"
+  },
+  "loopo-backend/src/shared/common/decorators/roles.decorator.ts": {
+    "mtime": 1784440824.0629873,
+    "ast_hash": "6ecfd73c2d7490b4a9b3192a8d31d310",
+    "semantic_hash": "6ecfd73c2d7490b4a9b3192a8d31d310"
+  },
+  "loopo-backend/src/shared/common/exceptions/all-exceptions.filter.ts": {
+    "mtime": 1784440824.0629873,
+    "ast_hash": "139288ef55c22214e791245eb7a84a05",
+    "semantic_hash": "139288ef55c22214e791245eb7a84a05"
+  },
+  "loopo-backend/src/shared/common/guards/jwt-auth.guard.ts": {
+    "mtime": 1784440824.0629873,
+    "ast_hash": "1c266adb14148aa211022b356b96ad8c",
+    "semantic_hash": "1c266adb14148aa211022b356b96ad8c"
+  },
+  "loopo-backend/src/shared/common/guards/local-auth.guard.ts": {
+    "mtime": 1784440824.0629873,
+    "ast_hash": "5237be53092340ea6947d9b22da0cce9",
+    "semantic_hash": "5237be53092340ea6947d9b22da0cce9"
+  },
+  "loopo-backend/src/shared/common/guards/permissions.guard.ts": {
+    "mtime": 1784440824.0629873,
+    "ast_hash": "0a622f4a337f7e0d3039115a1bce70b0",
+    "semantic_hash": "0a622f4a337f7e0d3039115a1bce70b0"
+  },
+  "loopo-backend/src/shared/common/guards/refresh-token.guard.ts": {
+    "mtime": 1784440824.0629873,
+    "ast_hash": "7a4c0dfde94b0e740ec953bd8209e0d1",
+    "semantic_hash": "7a4c0dfde94b0e740ec953bd8209e0d1"
+  },
+  "loopo-backend/src/shared/common/guards/roles.guard.ts": {
+    "mtime": 1784440824.0629873,
+    "ast_hash": "f5b5c9ebd509bdeb82f4f9bf74bc57ad",
+    "semantic_hash": "f5b5c9ebd509bdeb82f4f9bf74bc57ad"
+  },
+  "loopo-backend/src/shared/common/interceptors/audit-log.interceptor.ts": {
+    "mtime": 1784440824.0629873,
+    "ast_hash": "1275a20e776cb02fff80cc260f0c5291",
+    "semantic_hash": "1275a20e776cb02fff80cc260f0c5291"
+  },
+  "loopo-backend/src/shared/common/interceptors/transform.interceptor.ts": {
+    "mtime": 1784440824.0629873,
+    "ast_hash": "b9413b8ec679b04dd2fcd221a2c5a7fe",
+    "semantic_hash": "b9413b8ec679b04dd2fcd221a2c5a7fe"
+  },
+  "loopo-backend/src/shared/database/prisma.module.ts": {
+    "mtime": 1784440824.0629873,
+    "ast_hash": "0d14fad4b4742f49ea6d9d9c48069e8b",
+    "semantic_hash": "0d14fad4b4742f49ea6d9d9c48069e8b"
+  },
+  "loopo-backend/src/shared/database/prisma.service.ts": {
+    "mtime": 1784440824.0629873,
+    "ast_hash": "d20e0359de772bfc107f77b193e50edc",
+    "semantic_hash": "d20e0359de772bfc107f77b193e50edc"
+  },
+  "loopo-backend/src/shared/queues/processors/email.processor.ts": {
+    "mtime": 1784440824.0675051,
+    "ast_hash": "498d705c86b35238f3ed60ce416dee30",
+    "semantic_hash": "498d705c86b35238f3ed60ce416dee30"
+  },
+  "loopo-backend/src/shared/queues/processors/notification.processor.ts": {
+    "mtime": 1784440824.0675051,
+    "ast_hash": "3b8e774c3424e4a9930976753cf5a7a0",
+    "semantic_hash": "3b8e774c3424e4a9930976753cf5a7a0"
+  },
+  "loopo-backend/src/shared/queues/processors/profile-image-processing.processor.ts": {
+    "mtime": 1784440824.0675051,
+    "ast_hash": "9dbc37baa5bfdbbe06d736cc1d91b624",
+    "semantic_hash": "9dbc37baa5bfdbbe06d736cc1d91b624"
+  },
+  "loopo-backend/src/shared/queues/processors/sms.processor.ts": {
+    "mtime": 1784440824.0675051,
+    "ast_hash": "a86385e9cb50350cfa8e443bfd512845",
+    "semantic_hash": "a86385e9cb50350cfa8e443bfd512845"
+  },
+  "loopo-backend/src/shared/queues/queues.module.ts": {
+    "mtime": 1784440824.0675051,
+    "ast_hash": "d9c125bbe0d93c85d0826855173a3eb5",
+    "semantic_hash": "d9c125bbe0d93c85d0826855173a3eb5"
+  },
+  "loopo-backend/src/shared/redis/redis.module.ts": {
+    "mtime": 1784440824.0675051,
+    "ast_hash": "5f451300b875ed46df7196960bd7544b",
+    "semantic_hash": "5f451300b875ed46df7196960bd7544b"
+  },
+  "loopo-backend/src/shared/redis/redis.service.ts": {
+    "mtime": 1784440824.0675051,
+    "ast_hash": "b6b62f87f324d77b9edab2a17aae489c",
+    "semantic_hash": "b6b62f87f324d77b9edab2a17aae489c"
+  },
+  "loopo-backend/src/shared/services/s3.module.ts": {
+    "mtime": 1784440824.0675051,
+    "ast_hash": "e3339413fdce9d5a08b8297bd22c61d5",
+    "semantic_hash": "e3339413fdce9d5a08b8297bd22c61d5"
+  },
+  "loopo-backend/src/shared/services/s3.service.ts": {
+    "mtime": 1784440824.0675051,
+    "ast_hash": "250c48a36af4890a58f1fd58707062f2",
+    "semantic_hash": "250c48a36af4890a58f1fd58707062f2"
+  },
+  "loopo-backend/test/app.e2e-spec.ts": {
+    "mtime": 1784440824.0702703,
+    "ast_hash": "668094bf268e0395763312620e5638e8",
+    "semantic_hash": "668094bf268e0395763312620e5638e8"
+  },
+  "loopo-backend/test/auth.e2e-spec.ts": {
+    "mtime": 1784440824.0702703,
+    "ast_hash": "43c542611bfd4a9259e4396319ba1d01",
+    "semantic_hash": "43c542611bfd4a9259e4396319ba1d01"
+  },
+  "loopo-backend/test/jest-e2e.json": {
+    "mtime": 1784440824.0702703,
+    "ast_hash": "707a50895cb1c565825637916e9cf290",
+    "semantic_hash": "707a50895cb1c565825637916e9cf290"
+  },
+  "loopo-backend/test/profile.e2e-spec.ts": {
+    "mtime": 1784440824.0702703,
+    "ast_hash": "9dff437bf67d12673330035e020f8184",
+    "semantic_hash": "9dff437bf67d12673330035e020f8184"
+  },
+  "loopo-backend/tsconfig.build.json": {
+    "mtime": 1784440824.0702703,
+    "ast_hash": "d23fc4aff02c91ce9c424c15aea9b49b",
+    "semantic_hash": "d23fc4aff02c91ce9c424c15aea9b49b"
+  },
+  "loopo-backend/tsconfig.json": {
+    "mtime": 1784440824.0702703,
+    "ast_hash": "e99b998156dc99eda85378413a794718",
+    "semantic_hash": "e99b998156dc99eda85378413a794718"
+  },
+  "loopo-flutter/android/app/build.gradle.kts": {
+    "mtime": 1784440824.07191,
+    "ast_hash": "2349a42d191c9258d6df71dd6ce3e061",
+    "semantic_hash": "2349a42d191c9258d6df71dd6ce3e061"
+  },
+  "loopo-flutter/android/app/src/main/kotlin/com/example/loopo/MainActivity.kt": {
+    "mtime": 1784440824.0734785,
+    "ast_hash": "545dadf6723b76ed82c3e7f023ad6d22",
+    "semantic_hash": "545dadf6723b76ed82c3e7f023ad6d22"
+  },
+  "loopo-flutter/android/build.gradle.kts": {
+    "mtime": 1784440824.0745482,
+    "ast_hash": "803fe22651fbe96ed401eb0b66a492d1",
+    "semantic_hash": "803fe22651fbe96ed401eb0b66a492d1"
+  },
+  "loopo-flutter/android/settings.gradle.kts": {
+    "mtime": 1784440824.0745482,
+    "ast_hash": "087a01c04d081ae02a8e5db89f4bf3f3",
+    "semantic_hash": "087a01c04d081ae02a8e5db89f4bf3f3"
+  },
+  "loopo-flutter/ios/RunnerTests/RunnerTests.swift": {
+    "mtime": 1784440824.0924296,
+    "ast_hash": "24e5d095048eb86c30423f4e04b6e57b",
+    "semantic_hash": "24e5d095048eb86c30423f4e04b6e57b"
+  },
+  "loopo-flutter/ios/Runner/AppDelegate.swift": {
+    "mtime": 1784440824.0836618,
+    "ast_hash": "9e1de9c329a3fe4931876063de95132b",
+    "semantic_hash": "9e1de9c329a3fe4931876063de95132b"
+  },
+  "loopo-flutter/ios/Runner/Assets.xcassets/AppIcon.appiconset/Contents.json": {
+    "mtime": 1784440824.0848033,
+    "ast_hash": "31a08e429403e265cabfb31b3d65f049",
+    "semantic_hash": "31a08e429403e265cabfb31b3d65f049"
+  },
+  "loopo-flutter/ios/Runner/Assets.xcassets/LaunchImage.imageset/Contents.json": {
+    "mtime": 1784440824.0895958,
+    "ast_hash": "b9e927ac17345f2d5f052fe68a3487f9",
+    "semantic_hash": "b9e927ac17345f2d5f052fe68a3487f9"
+  },
+  "loopo-flutter/ios/Runner/Runner-Bridging-Header.h": {
+    "mtime": 1784440824.0924296,
+    "ast_hash": "7ad7b5cea096132de13ba526b2b9efbe",
+    "semantic_hash": "7ad7b5cea096132de13ba526b2b9efbe"
+  },
+  "loopo-flutter/ios/Runner/SceneDelegate.swift": {
+    "mtime": 1784440824.0924296,
+    "ast_hash": "0c3e86af131f6a9e547c80b5ed058914",
+    "semantic_hash": "0c3e86af131f6a9e547c80b5ed058914"
+  },
+  "loopo-flutter/lib/constants/strings.dart": {
+    "mtime": 1784440824.1027064,
+    "ast_hash": "6c3c55da59563f83916f16e4aaaa630f",
+    "semantic_hash": "6c3c55da59563f83916f16e4aaaa630f"
+  },
+  "loopo-flutter/lib/main.dart": {
+    "mtime": 1784440824.1027064,
+    "ast_hash": "9f1eb64b9fd3d7752b39412afd3de37c",
+    "semantic_hash": "9f1eb64b9fd3d7752b39412afd3de37c"
+  },
+  "loopo-flutter/lib/screens/home_screen.dart": {
+    "mtime": 1784440824.1027064,
+    "ast_hash": "b2187742d30d5fa864c963a3a4751d4e",
+    "semantic_hash": "b2187742d30d5fa864c963a3a4751d4e"
+  },
+  "loopo-flutter/lib/screens/login_screen.dart": {
+    "mtime": 1784440824.1027064,
+    "ast_hash": "2839ffc6a0f1752cc6d3e55de3bfbd2c",
+    "semantic_hash": "2839ffc6a0f1752cc6d3e55de3bfbd2c"
+  },
+  "loopo-flutter/lib/screens/onboarding_screen.dart": {
+    "mtime": 1784440824.1027064,
+    "ast_hash": "5e303c3fd973b22f3585b25fac08cb00",
+    "semantic_hash": "5e303c3fd973b22f3585b25fac08cb00"
+  },
+  "loopo-flutter/lib/screens/splash_screen.dart": {
+    "mtime": 1784440824.1027064,
+    "ast_hash": "f9ba9d660cc922c66c735b49af220400",
+    "semantic_hash": "f9ba9d660cc922c66c735b49af220400"
+  },
+  "loopo-flutter/lib/theme/app_colors.dart": {
+    "mtime": 1784440824.1027064,
+    "ast_hash": "562209a0854b0656d9e8c02625986de7",
+    "semantic_hash": "562209a0854b0656d9e8c02625986de7"
+  },
+  "loopo-flutter/lib/theme/app_theme.dart": {
+    "mtime": 1784440824.1027064,
+    "ast_hash": "2d331f86a26975f9de1aa129dcf55ae8",
+    "semantic_hash": "2d331f86a26975f9de1aa129dcf55ae8"
+  },
+  "loopo-flutter/lib/widgets/form_input.dart": {
+    "mtime": 1784440824.10678,
+    "ast_hash": "0bae90b58ae5ca18287e99b0621adf2b",
+    "semantic_hash": "0bae90b58ae5ca18287e99b0621adf2b"
+  },
+  "loopo-flutter/lib/widgets/primary_button.dart": {
+    "mtime": 1784440824.10678,
+    "ast_hash": "3cb9602eaee5d218ea46c5f29a3e47b8",
+    "semantic_hash": "3cb9602eaee5d218ea46c5f29a3e47b8"
+  },
+  "loopo-flutter/linux/flutter/generated_plugin_registrant.cc": {
+    "mtime": 1784440827.5669057,
+    "ast_hash": "d07afe003d5837167bdd357d593f20a0",
+    "semantic_hash": "d07afe003d5837167bdd357d593f20a0"
+  },
+  "loopo-flutter/linux/flutter/generated_plugin_registrant.h": {
+    "mtime": 1784440827.5669057,
+    "ast_hash": "d295462c9da9f7fef22dc86c34492318",
+    "semantic_hash": "d295462c9da9f7fef22dc86c34492318"
+  },
+  "loopo-flutter/linux/runner/main.cc": {
+    "mtime": 1784440824.109117,
+    "ast_hash": "539395bcd63dba20afed0838d136189f",
+    "semantic_hash": "539395bcd63dba20afed0838d136189f"
+  },
+  "loopo-flutter/linux/runner/my_application.cc": {
+    "mtime": 1784440824.109117,
+    "ast_hash": "80c9b9f7aa83e22936dfea1789cca60e",
+    "semantic_hash": "80c9b9f7aa83e22936dfea1789cca60e"
+  },
+  "loopo-flutter/linux/runner/my_application.h": {
+    "mtime": 1784440824.109117,
+    "ast_hash": "ffa1a7c0a2ad45a2c14a921596516ff8",
+    "semantic_hash": "ffa1a7c0a2ad45a2c14a921596516ff8"
+  },
+  "loopo-flutter/macos/Flutter/GeneratedPluginRegistrant.swift": {
+    "mtime": 1784440827.5910943,
+    "ast_hash": "c840bc53b61279c2fb631741134c2ed7",
+    "semantic_hash": "c840bc53b61279c2fb631741134c2ed7"
+  },
+  "loopo-flutter/macos/RunnerTests/RunnerTests.swift": {
+    "mtime": 1784440824.1222486,
+    "ast_hash": "8059f5d27a19c556eeafb49b3f9b7bdd",
+    "semantic_hash": "8059f5d27a19c556eeafb49b3f9b7bdd"
+  },
+  "loopo-flutter/macos/Runner/AppDelegate.swift": {
+    "mtime": 1784440824.109117,
+    "ast_hash": "4b52e0b89ebfef9baf45b04548c463d6",
+    "semantic_hash": "4b52e0b89ebfef9baf45b04548c463d6"
+  },
+  "loopo-flutter/macos/Runner/Assets.xcassets/AppIcon.appiconset/Contents.json": {
+    "mtime": 1784440824.109117,
+    "ast_hash": "1d48e925145d4b573a3b5d7960a1c585",
+    "semantic_hash": "1d48e925145d4b573a3b5d7960a1c585"
+  },
+  "loopo-flutter/macos/Runner/MainFlutterWindow.swift": {
+    "mtime": 1784440824.1186025,
+    "ast_hash": "93c22dae2d93f3dc1402e121901f582b",
+    "semantic_hash": "93c22dae2d93f3dc1402e121901f582b"
+  },
+  "loopo-flutter/test/widget_test.dart": {
+    "mtime": 1784440824.1232417,
+    "ast_hash": "c604cb28332f9750d05aa292432e4691",
+    "semantic_hash": "c604cb28332f9750d05aa292432e4691"
+  },
+  "loopo-flutter/web/manifest.json": {
+    "mtime": 1784440824.1232417,
+    "ast_hash": "ec9b72ca555c9a36e42528fbf807af28",
+    "semantic_hash": "ec9b72ca555c9a36e42528fbf807af28"
+  },
+  "loopo-flutter/windows/flutter/generated_plugin_registrant.cc": {
+    "mtime": 1784440827.5805702,
+    "ast_hash": "a8f91348d8d9090f22ec69d597c41e1f",
+    "semantic_hash": "a8f91348d8d9090f22ec69d597c41e1f"
+  },
+  "loopo-flutter/windows/flutter/generated_plugin_registrant.h": {
+    "mtime": 1784440827.5781543,
+    "ast_hash": "0ea33875f9f8e118f9c2ded03e2e2835",
+    "semantic_hash": "0ea33875f9f8e118f9c2ded03e2e2835"
+  },
+  "loopo-flutter/windows/runner/flutter_window.cpp": {
+    "mtime": 1784440824.1296527,
+    "ast_hash": "2f463f9b7da67a2d692a012f9ea85e0c",
+    "semantic_hash": "2f463f9b7da67a2d692a012f9ea85e0c"
+  },
+  "loopo-flutter/windows/runner/flutter_window.h": {
+    "mtime": 1784440824.1296527,
+    "ast_hash": "7defcc89d4a26d56e801241d624d48fb",
+    "semantic_hash": "7defcc89d4a26d56e801241d624d48fb"
+  },
+  "loopo-flutter/windows/runner/main.cpp": {
+    "mtime": 1784440824.1296527,
+    "ast_hash": "183193a61010d0614ac27a90f72dddca",
+    "semantic_hash": "183193a61010d0614ac27a90f72dddca"
+  },
+  "loopo-flutter/windows/runner/resource.h": {
+    "mtime": 1784440824.1296527,
+    "ast_hash": "1ade5dd15e613479a15e8832ed276f2b",
+    "semantic_hash": "1ade5dd15e613479a15e8832ed276f2b"
+  },
+  "loopo-flutter/windows/runner/utils.cpp": {
+    "mtime": 1784440824.131162,
+    "ast_hash": "e18900a4c2c2962ad732d3b83f0396b9",
+    "semantic_hash": "e18900a4c2c2962ad732d3b83f0396b9"
+  },
+  "loopo-flutter/windows/runner/utils.h": {
+    "mtime": 1784440824.131162,
+    "ast_hash": "fd81e143f5614eb6fd75efe539002853",
+    "semantic_hash": "fd81e143f5614eb6fd75efe539002853"
+  },
+  "loopo-flutter/windows/runner/win32_window.cpp": {
+    "mtime": 1784440824.131162,
+    "ast_hash": "571eb8234dbc2661be03aa5f2a4d2fca",
+    "semantic_hash": "571eb8234dbc2661be03aa5f2a4d2fca"
+  },
+  "loopo-flutter/windows/runner/win32_window.h": {
+    "mtime": 1784440824.131162,
+    "ast_hash": "7569387d58711ab975940f4df3b4bcda",
+    "semantic_hash": "7569387d58711ab975940f4df3b4bcda"
+  },
+  ".agents/rules/graphify.md": {
+    "mtime": 1784560286.6372044,
+    "ast_hash": "a0e4d192b9e2e17256124dbfc8e24e6a",
+    "semantic_hash": "a0e4d192b9e2e17256124dbfc8e24e6a"
+  },
+  ".agents/workflows/graphify.md": {
+    "mtime": 1784560286.6384985,
+    "ast_hash": "637776aa6f7496d069afe7520c845c8a",
+    "semantic_hash": "637776aa6f7496d069afe7520c845c8a"
+  },
+  "CLAUDE.md": {
+    "mtime": 1784560231.9240935,
+    "ast_hash": "8a6643a420fdad6bfb583523bc6cef16",
+    "semantic_hash": "8a6643a420fdad6bfb583523bc6cef16"
+  },
+  "loopo-backend/README.md": {
+    "mtime": 1784440824.039862,
+    "ast_hash": "ad12c0560e2e514d356da443998e8208",
+    "semantic_hash": "ad12c0560e2e514d356da443998e8208"
+  },
+  "loopo-backend/docker-compose.yml": {
+    "mtime": 1784440824.039862,
+    "ast_hash": "a6a8ae4607318fa190169c6b14e8ea41",
+    "semantic_hash": "a6a8ae4607318fa190169c6b14e8ea41"
+  },
+  "loopo-backend/task.md": {
+    "mtime": 1784440824.0702703,
+    "ast_hash": "edd4fcff49c4eda214d0dd670593d94d",
+    "semantic_hash": "edd4fcff49c4eda214d0dd670593d94d"
+  },
+  "loopo-flutter/analysis_options.yaml": {
+    "mtime": 1784440824.07191,
+    "ast_hash": "9e65f4b9beebb674c0dc252f70a5c177",
+    "semantic_hash": "9e65f4b9beebb674c0dc252f70a5c177"
+  },
+  "loopo-flutter/linux/CMakeLists.txt": {
+    "mtime": 1784440824.107899,
+    "ast_hash": "5681905fd3cb06c0876a5b4dae4da562",
+    "semantic_hash": "5681905fd3cb06c0876a5b4dae4da562"
+  },
+  "loopo-flutter/pubspec.yaml": {
+    "mtime": 1784440824.1232417,
+    "ast_hash": "7b151284b07317c2c095ba4e12c0020c",
+    "semantic_hash": "7b151284b07317c2c095ba4e12c0020c"
+  },
+  "loopo-flutter/web/index.html": {
+    "mtime": 1784440824.1232417,
+    "ast_hash": "774e34a762369b4a74dd6ec68be74402",
+    "semantic_hash": "774e34a762369b4a74dd6ec68be74402"
+  },
+  "loopo-flutter/windows/CMakeLists.txt": {
+    "mtime": 1784440824.1232417,
+    "ast_hash": "e8d22b8a50cd684c90c777ab61fbf257",
+    "semantic_hash": "e8d22b8a50cd684c90c777ab61fbf257"
+  },
+  "loopo-flutter/android/app/src/main/res/mipmap-hdpi/ic_launcher.png": {
+    "mtime": 1784440824.0745482,
+    "ast_hash": "13e9c72ec37fac220397aa819fa1ef2d",
+    "semantic_hash": "13e9c72ec37fac220397aa819fa1ef2d"
+  },
+  "loopo-flutter/android/app/src/main/res/mipmap-mdpi/ic_launcher.png": {
+    "mtime": 1784440824.0745482,
+    "ast_hash": "6270344430679711b81476e29878caa7",
+    "semantic_hash": "6270344430679711b81476e29878caa7"
+  },
+  "loopo-flutter/android/app/src/main/res/mipmap-xhdpi/ic_launcher.png": {
+    "mtime": 1784440824.0745482,
+    "ast_hash": "a0a8db5985280b3679d99a820ae2db79",
+    "semantic_hash": "a0a8db5985280b3679d99a820ae2db79"
+  },
+  "loopo-flutter/android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png": {
+    "mtime": 1784440824.0745482,
+    "ast_hash": "afe1b655b9f32da22f9a4301bb8e6ba8",
+    "semantic_hash": "afe1b655b9f32da22f9a4301bb8e6ba8"
+  },
+  "loopo-flutter/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png": {
+    "mtime": 1784440824.0745482,
+    "ast_hash": "57838d52c318faff743130c3fcfae0c6",
+    "semantic_hash": "57838d52c318faff743130c3fcfae0c6"
+  },
+  "loopo-flutter/assets/images/loopo_logo.svg": {
+    "mtime": 1784440824.0745482,
+    "ast_hash": "26e62f92edc2c006e3248b5e38d9ed3b",
+    "semantic_hash": "26e62f92edc2c006e3248b5e38d9ed3b"
+  },
+  "loopo-flutter/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png": {
+    "mtime": 1784440824.085629,
+    "ast_hash": "c785f8932297af4acd5f5ccb7630f01c",
+    "semantic_hash": "c785f8932297af4acd5f5ccb7630f01c"
+  },
+  "loopo-flutter/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@1x.png": {
+    "mtime": 1784440824.085629,
+    "ast_hash": "a2f8558fb1d42514111fbbb19fb67314",
+    "semantic_hash": "a2f8558fb1d42514111fbbb19fb67314"
+  },
+  "loopo-flutter/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@2x.png": {
+    "mtime": 1784440824.085629,
+    "ast_hash": "2247a840b6ee72b8a069208af170e5b1",
+    "semantic_hash": "2247a840b6ee72b8a069208af170e5b1"
+  },
+  "loopo-flutter/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@3x.png": {
+    "mtime": 1784440824.085629,
+    "ast_hash": "1b3b1538136316263c7092951e923e9d",
+    "semantic_hash": "1b3b1538136316263c7092951e923e9d"
+  },
+  "loopo-flutter/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@1x.png": {
+    "mtime": 1784440824.085629,
+    "ast_hash": "be8887071dd7ec39cb754d236aa9584f",
+    "semantic_hash": "be8887071dd7ec39cb754d236aa9584f"
+  },
+  "loopo-flutter/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@2x.png": {
+    "mtime": 1784440824.085629,
+    "ast_hash": "043119ef4faa026ff82bd03f241e5338",
+    "semantic_hash": "043119ef4faa026ff82bd03f241e5338"
+  },
+  "loopo-flutter/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@3x.png": {
+    "mtime": 1784440824.085629,
+    "ast_hash": "2b1452c4c1bda6177b4fbbb832df217f",
+    "semantic_hash": "2b1452c4c1bda6177b4fbbb832df217f"
+  },
+  "loopo-flutter/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@1x.png": {
+    "mtime": 1784440824.085629,
+    "ast_hash": "2247a840b6ee72b8a069208af170e5b1",
+    "semantic_hash": "2247a840b6ee72b8a069208af170e5b1"
+  },
+  "loopo-flutter/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@2x.png": {
+    "mtime": 1784440824.0880892,
+    "ast_hash": "8245359312aea1b0d2412f79a07b0ca5",
+    "semantic_hash": "8245359312aea1b0d2412f79a07b0ca5"
+  },
+  "loopo-flutter/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@3x.png": {
+    "mtime": 1784440824.0880892,
+    "ast_hash": "5b3c0902200ce596e9848f22e1f0fe0e",
+    "semantic_hash": "5b3c0902200ce596e9848f22e1f0fe0e"
+  },
+  "loopo-flutter/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-60x60@2x.png": {
+    "mtime": 1784440824.0880892,
+    "ast_hash": "5b3c0902200ce596e9848f22e1f0fe0e",
+    "semantic_hash": "5b3c0902200ce596e9848f22e1f0fe0e"
+  },
+  "loopo-flutter/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-60x60@3x.png": {
+    "mtime": 1784440824.0895958,
+    "ast_hash": "e419d22a37bc40ba185aca1acb6d4ac6",
+    "semantic_hash": "e419d22a37bc40ba185aca1acb6d4ac6"
+  },
+  "loopo-flutter/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-76x76@1x.png": {
+    "mtime": 1784440824.0895958,
+    "ast_hash": "36c0d7a7132bdde18898ffdfcfcdc4d2",
+    "semantic_hash": "36c0d7a7132bdde18898ffdfcfcdc4d2"
+  },
+  "loopo-flutter/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-76x76@2x.png": {
+    "mtime": 1784440824.0895958,
+    "ast_hash": "643842917530acf4c5159ae851b0baf2",
+    "semantic_hash": "643842917530acf4c5159ae851b0baf2"
+  },
+  "loopo-flutter/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-83.5x83.5@2x.png": {
+    "mtime": 1784440824.0895958,
+    "ast_hash": "665cb5e3c5729da6d639d26eff47a503",
+    "semantic_hash": "665cb5e3c5729da6d639d26eff47a503"
+  },
+  "loopo-flutter/ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage.png": {
+    "mtime": 1784440824.0895958,
+    "ast_hash": "978c1bee49d7ad5fc1a4d81099b13e18",
+    "semantic_hash": "978c1bee49d7ad5fc1a4d81099b13e18"
+  },
+  "loopo-flutter/ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage@2x.png": {
+    "mtime": 1784440824.0895958,
+    "ast_hash": "978c1bee49d7ad5fc1a4d81099b13e18",
+    "semantic_hash": "978c1bee49d7ad5fc1a4d81099b13e18"
+  },
+  "loopo-flutter/ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage@3x.png": {
+    "mtime": 1784440824.0895958,
+    "ast_hash": "978c1bee49d7ad5fc1a4d81099b13e18",
+    "semantic_hash": "978c1bee49d7ad5fc1a4d81099b13e18"
+  },
+  "loopo-flutter/lib/assets/images/loopo.png": {
+    "mtime": 1784440824.1019292,
+    "ast_hash": "757e0aa6f6a681d2def01d0d9b993343",
+    "semantic_hash": "757e0aa6f6a681d2def01d0d9b993343"
+  },
+  "loopo-flutter/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_1024.png": {
+    "mtime": 1784440824.1166892,
+    "ast_hash": "c9becc9105f8cabce934d20c7bfb6aac",
+    "semantic_hash": "c9becc9105f8cabce934d20c7bfb6aac"
+  },
+  "loopo-flutter/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_128.png": {
+    "mtime": 1784440824.1166892,
+    "ast_hash": "3ded30823804caaa5ccc944067c54a36",
+    "semantic_hash": "3ded30823804caaa5ccc944067c54a36"
+  },
+  "loopo-flutter/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_16.png": {
+    "mtime": 1784440824.1166892,
+    "ast_hash": "8bf511604bc6ed0a6aeb380c5113fdcf",
+    "semantic_hash": "8bf511604bc6ed0a6aeb380c5113fdcf"
+  },
+  "loopo-flutter/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_256.png": {
+    "mtime": 1784440824.1179059,
+    "ast_hash": "dfe2c93d1536ae02f085cc63faa3430e",
+    "semantic_hash": "dfe2c93d1536ae02f085cc63faa3430e"
+  },
+  "loopo-flutter/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_32.png": {
+    "mtime": 1784440824.1179059,
+    "ast_hash": "8e0ae58e362a6636bdfccbc04da2c58c",
+    "semantic_hash": "8e0ae58e362a6636bdfccbc04da2c58c"
+  },
+  "loopo-flutter/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_512.png": {
+    "mtime": 1784440824.1186025,
+    "ast_hash": "0ad44039155424738917502c69667699",
+    "semantic_hash": "0ad44039155424738917502c69667699"
+  },
+  "loopo-flutter/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_64.png": {
+    "mtime": 1784440824.1186025,
+    "ast_hash": "04e7b6ef05346c70b663ca1d97de3ad5",
+    "semantic_hash": "04e7b6ef05346c70b663ca1d97de3ad5"
+  },
+  "loopo-flutter/web/favicon.png": {
+    "mtime": 1784440824.1232417,
+    "ast_hash": "5dcef449791fa27946b3d35ad8803796",
+    "semantic_hash": "5dcef449791fa27946b3d35ad8803796"
+  },
+  "loopo-flutter/web/icons/Icon-192.png": {
+    "mtime": 1784440824.1232417,
+    "ast_hash": "ac9a721a12bbc803b44f645561ecb1e1",
+    "semantic_hash": "ac9a721a12bbc803b44f645561ecb1e1"
+  },
+  "loopo-flutter/web/icons/Icon-512.png": {
+    "mtime": 1784440824.1232417,
+    "ast_hash": "96e752610906ba2a93c65f8abe1645f1",
+    "semantic_hash": "96e752610906ba2a93c65f8abe1645f1"
+  },
+  "loopo-flutter/web/icons/Icon-maskable-192.png": {
+    "mtime": 1784440824.1232417,
+    "ast_hash": "c457ef57daa1d16f64b27b786ec2ea3c",
+    "semantic_hash": "c457ef57daa1d16f64b27b786ec2ea3c"
+  },
+  "loopo-flutter/web/icons/Icon-maskable-512.png": {
+    "mtime": 1784440824.1232417,
+    "ast_hash": "301a7604d45b3e739efc881eb04896ea",
+    "semantic_hash": "301a7604d45b3e739efc881eb04896ea"
+  }
+}
