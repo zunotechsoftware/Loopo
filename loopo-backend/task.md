@@ -16,16 +16,21 @@
 - [x] 4. Security & RBAC Infrastructure
   - [x] Create `@Permissions()` decorator
   - [x] Create `PermissionsGuard` and update `RolesGuard`
-  - [x] Ensure guards validate Authentication, Role, Permission, and Ownership
-- [x] 5. Feature Modules Implementation
-  - [x] Roles & Permissions Module
-  - [x] Users & Profiles Module
-  - [x] Addresses Module
-  - [x] KYC Module & Workflow
-  - [x] Notification Settings Module
-- [x] 6. Background Queue Workers
-  - [x] Implement BullMQ worker for image optimization & thumbnail generation
-  - [x] Implement BullMQ worker for push notifications & security alerts
+  - [x] Update schema.prisma with Payments and Subscriptions tables
+- [x] Run database migration / generate Prisma client
+- [x] Create Payment Provider Abstractions & Interfaces
+- [x] Create Payments Repository & Database Layer
+- [x] Implement Payment Provider Services (Stripe, Razorpay, PayPal)
+- [x] Implement Payments Service & Business Logic
+- [x] Implement Subscriptions Service & Business Logic
+- [x] Create DTOs & Validation schemas for all endpoints
+- [x] Create Controllers (Payments, Subscriptions, Featured, Boost, Coupons, Refunds)
+- [x] Implement BullMQ Processors (verification, renewal, expiry, invoices, receipts)
+- [x] Implement Redis Caching & Cache Invalidation
+- [x] Register new modules in App Module and Queues Module
+- [x] Write Unit and E2E tests
+- [x] Verify test execution & build correctness
+- [x] Generate walkthrough.md summarizing updates
 - [x] 7. Verification & Documentation
   - [x] Generate unit, integration, and E2E tests
   - [x] Run test suite to verify implementation

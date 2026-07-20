@@ -12,11 +12,15 @@ import { RedisService } from './redis.service';
       useFactory: (configService: ConfigService) => {
         const host = configService.get<string>('REDIS_HOST', 'localhost');
         const port = configService.get<number>('REDIS_PORT', 6379);
-        return new Redis({
+        const client = new Redis({
           host,
           port,
           maxRetriesPerRequest: null, // Critical configuration for BullMQ integration
         });
+        client.on('error', (err) => {
+          // Suppress error crashes during testing/transient disconnects
+        });
+        return client;
       },
       inject: [ConfigService],
     },

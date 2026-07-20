@@ -11,6 +11,20 @@ import { AddressesModule } from './modules/addresses/addresses.module';
 import { KycModule } from './modules/kyc/kyc.module';
 import { NotificationSettingsModule } from './modules/notification-settings/notification-settings.module';
 import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
+import { CategoriesModule } from './modules/categories/categories.module';
+import { ProductsModule } from './modules/products/products.module';
+import { SearchModule } from './modules/search/search.module';
+import { InteractionsModule } from './modules/interactions/interactions.module';
+import { ChatModule } from './modules/chat/chat.module';
+import { PaymentsModule } from './modules/payments/payments.module';
+import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
+import { ReportsModule } from './modules/reports/reports.module';
+import { ModerationModule } from './modules/moderation/moderation.module';
+import { ReviewsModule } from './modules/reviews/reviews.module';
+import { ReputationModule } from './modules/reputation/reputation.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { AdminModule } from './modules/admin/admin.module';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { AuditLogInterceptor } from './shared/common/interceptors/audit-log.interceptor';
@@ -37,6 +51,20 @@ import { AuditLogInterceptor } from './shared/common/interceptors/audit-log.inte
     KycModule,
     NotificationSettingsModule,
     AuditLogsModule,
+    CategoriesModule,
+    ProductsModule,
+    SearchModule,
+    InteractionsModule,
+    ChatModule,
+    PaymentsModule,
+    SubscriptionsModule,
+    ReportsModule,
+    ModerationModule,
+    ReviewsModule,
+    ReputationModule,
+    AnalyticsModule,
+    DashboardModule,
+    AdminModule,
   ],
   providers: [
     {

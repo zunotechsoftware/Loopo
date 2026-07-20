@@ -5,11 +5,19 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { AllExceptionsFilter } from './shared/common/exceptions/all-exceptions.filter';
 import { TransformInterceptor } from './shared/common/interceptors/transform.interceptor';
+import { ConfigService } from '@nestjs/config';
+import { RedisIoAdapter } from './shared/redis/redis-io.adapter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  const configService = app.get(ConfigService);
+  const redisIoAdapter = new RedisIoAdapter(configService);
+  await redisIoAdapter.connectToRedis();
+  app.useWebSocketAdapter(redisIoAdapter);
+
   app.setGlobalPrefix('api/v1');
+
 
   app.use(helmet());
 
