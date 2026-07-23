@@ -1,5 +1,6 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:loopo/screens/signup_screen.dart';
 
 import '../theme/app_colors.dart';
 import '../widgets/form_input.dart';
@@ -22,6 +23,27 @@ class _LoginScreenState extends State<LoginScreen> {
 
   static const String _countryCode = '+91';
   static final RegExp _indiaMobileRegExp = RegExp(r'^[6-9]\d{9}$');
+
+  // ---- Responsive breakpoints / helpers -------------------------------
+  static const double _tabletBreakpoint = 600;
+  static const double _maxContentWidth = 480;
+
+  bool _isTablet(double width) => width >= _tabletBreakpoint;
+
+  double _horizontalPadding(double width) {
+    if (width >= _tabletBreakpoint) {
+      // center the constrained content on wide/tablet/desktop screens
+      final overflow = width - _maxContentWidth;
+      return overflow > 0 ? overflow / 2 : 24.0;
+    }
+    return 24.0;
+  }
+
+  double _logoWidth(double width) {
+    if (_isTablet(width)) return 220;
+    final proportional = width * 0.5;
+    return proportional.clamp(140.0, 220.0);
+  }
 
   bool _isValidMobile(String value) {
     final digitsOnly = value.replaceAll(RegExp(r'\D'), '');
@@ -55,6 +77,20 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  void _handleLogin() {
+    if (_loginMode == 'mobile' && !_isValidMobile(_mobileController.text)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a valid Indian mobile number')),
+      );
+      return;
+    }
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const HomeScreen()),
+    );
+  }
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -66,53 +102,146 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back_ios_new,
+            size: 20,
+            color: Colors.black,
+          ),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
       backgroundColor: Colors.white,
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
+            final width = constraints.maxWidth;
+            final hPad = _horizontalPadding(width);
+
             return Column(
               children: [
+                // ---------------- LOGO (separate, fixed at top) ----------------
+                _buildLogo(width, hPad),
+                const SizedBox(height: 30),
+
+                // ---------------- MIDDLE CONTENT (fills available space) -------
                 Expanded(
-                  child: SingleChildScrollView(
-                    physics: const ClampingScrollPhysics(),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24.0,
-                        vertical: 20.0,
-                      ),
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          minWidth: constraints.maxWidth,
-                          maxWidth: constraints.maxWidth,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Welcome Back!',
-                              style: TextStyle(
-                                fontFamily: 'Poppins',
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                              ),
+                  child: LayoutBuilder(
+                    builder: (context, innerConstraints) {
+                      return SingleChildScrollView(
+                        physics: const ClampingScrollPhysics(),
+                        padding: EdgeInsets.symmetric(horizontal: hPad),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: innerConstraints.maxHeight,
+                          ),
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(
+                              maxWidth: _maxContentWidth,
                             ),
-                            const SizedBox(height: 6),
-                            const Text(
-                              'Login to your account',
-                              style: TextStyle(color: Colors.black54),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Welcome Back!',
+                                  style: TextStyle(
+                                    fontFamily: 'Poppins',
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                const Text(
+                                  'Login to your account',
+                                  style: TextStyle(color: Colors.black54),
+                                ),
+                                const SizedBox(height: 24),
+                                _buildLoginForm(),
+                              ],
                             ),
-                            const SizedBox(height: 24),
-                            _buildLoginForm(),
-                            const SizedBox(height: 24),
-                          ],
+                          ),
                         ),
-                      ),
-                    ),
+                      );
+                    },
                   ),
                 ),
+
+                // ---------------- LOGIN BUTTON (separate, fixed at bottom) ------
+                _buildLoginButton(hPad),
+
+                // ---------------- SIGN UP PROMPT (separate, fixed at bottom) ----
+                _buildSignUpPrompt(hPad),
               ],
             );
           },
+        ),
+      ),
+    );
+  }
+
+  // -----------------------------------------------------------------------
+  // LOGO SECTION
+  // -----------------------------------------------------------------------
+  Widget _buildLogo(double width, double hPad) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(hPad, 8, hPad, 8),
+      child: Center(
+        child: Image.asset("assets/images/loopo.png", width: _logoWidth(width)),
+      ),
+    );
+  }
+
+  // -----------------------------------------------------------------------
+  // LOGIN BUTTON (pinned to bottom)
+  // -----------------------------------------------------------------------
+  Widget _buildLoginButton(double hPad) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(hPad, 0, hPad, 4),
+      child: SizedBox(
+        width: double.infinity,
+        child: PrimaryButton(text: 'Login', onPressed: _handleLogin),
+      ),
+    );
+  }
+
+  // -----------------------------------------------------------------------
+  // SIGN UP PROMPT SECTION
+  // -----------------------------------------------------------------------
+  Widget _buildSignUpPrompt(double hPad) {
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(hPad, 12, hPad, 16),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              "Don't have an account?",
+              style: TextStyle(fontSize: 14, color: Colors.black54),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SignupScreen()),
+                );
+              },
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text(
+                "Sign Up",
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -170,22 +299,13 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  // -----------------------------------------------------------------------
+  // FORM FIELDS (logo, login button, and sign-up prompt no longer live here)
+  // -----------------------------------------------------------------------
   Widget _buildLoginForm() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            _buildModeChip('Email', _loginMode == 'email', () {
-              setState(() => _loginMode = 'email');
-            }),
-            const SizedBox(width: 12),
-            _buildModeChip('Mobile', _loginMode == 'mobile', () {
-              setState(() => _loginMode = 'mobile');
-            }),
-          ],
-        ),
-        const SizedBox(height: 12),
         _fieldLabel(_loginMode == 'email' ? 'Email' : 'Mobile Number'),
         const SizedBox(height: 8),
         _loginMode == 'email'
@@ -216,106 +336,7 @@ class _LoginScreenState extends State<LoginScreen> {
             child: const Text('Forgot password?'),
           ),
         ),
-        const SizedBox(height: 12),
-        PrimaryButton(
-          text: 'Login',
-          onPressed: () {
-            if (_loginMode == 'mobile' &&
-                !_isValidMobile(_mobileController.text)) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Enter a valid Indian mobile number'),
-                ),
-              );
-              return;
-            }
-
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const HomeScreen()),
-            );
-          },
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(child: Container(height: 1, color: Colors.grey.shade300)),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 12),
-              child: Text(
-                'or continue with',
-                style: TextStyle(color: Colors.black54),
-              ),
-            ),
-            Expanded(child: Container(height: 1, color: Colors.grey.shade300)),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                onPressed: () {},
-                style: OutlinedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: Colors.black87,
-                  side: BorderSide(color: Colors.grey.shade300),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                child: const Text('Google'),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: OutlinedButton(
-                onPressed: () {},
-                style: OutlinedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: Colors.black87,
-                  side: BorderSide(color: Colors.grey.shade300),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                child: const Text('Apple'),
-              ),
-            ),
-          ],
-        ),
       ],
-    );
-  }
-
-  Widget _buildModeChip(String label, bool active, VoidCallback onTap) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: active
-                ? AppColors.appGreen.withAlpha((0.12 * 255).round())
-                : Colors.white,
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(
-              color: active ? AppColors.appGreen : Colors.grey.shade300,
-            ),
-          ),
-          child: Center(
-            child: Text(
-              label,
-              style: TextStyle(
-                color: active ? AppColors.appGreen : Colors.black54,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
