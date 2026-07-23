@@ -24,7 +24,7 @@ export class AuthService {
     private readonly configService: ConfigService,
     @InjectQueue('email') private readonly emailQueue: Queue,
     @InjectQueue('sms') private readonly smsQueue: Queue,
-  ) {}
+  ) { }
 
   // --- Local Credentials Validation ---
   async validateUser(email: string, pass: string): Promise<any> {
@@ -46,7 +46,7 @@ export class AuthService {
   // --- Login & Token Generation ---
   async login(user: any, ipAddress?: string, userAgent?: string) {
     const payload = { email: user.email, sub: user.id, roles: user.roles };
-    
+
     const accessToken = this.jwtService.sign(payload, {
       secret: this.configService.get<string>('JWT_ACCESS_SECRET'),
       expiresIn: this.configService.get<string>('JWT_ACCESS_EXPIRATION', '15m') as any,
@@ -57,7 +57,7 @@ export class AuthService {
       expiresIn: this.configService.get<string>('JWT_REFRESH_EXPIRATION', '30d') as any,
     });
     const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
-    
+
     // Refresh token expiry: 30 days
     const refreshExpiry = new Date();
     refreshExpiry.setDate(refreshExpiry.getDate() + 30);
@@ -83,31 +83,40 @@ export class AuthService {
     };
   }
 
-  // --- Register Flow ---
+  // --- Register Flow (Updated with phone number) ---
   async register(dto: RegisterDto) {
+    // Check if email already exists
     const existingEmail = await this.usersService.findByEmail(dto.email);
     if (existingEmail) {
       throw new ConflictException('Email is already registered');
     }
 
-    if (dto.phone) {
-      const existingPhone = await this.usersService.findByPhone(dto.phone);
-      if (existingPhone) {
-        throw new ConflictException('Phone number is already registered');
-      }
+    // Check if phone already exists
+    const existingPhone = await this.usersService.findByPhone(dto.phone);
+    if (existingPhone) {
+      throw new ConflictException('Phone number is already registered');
     }
 
+    // Hash the password
     const hashedPassword = await bcrypt.hash(dto.password, 12);
 
+    // Split fullName into firstName and lastName
+    const nameParts = dto.fullName.trim().split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+
+    // Create the user with phone number
     const user = await this.usersService.create(
       {
         email: dto.email,
-        phone: dto.phone || null,
+        phone: dto.phone, // Added phone number
         password: hashedPassword,
-        firstName: dto.firstName,
-        lastName: dto.lastName,
+        firstName: firstName,
+        lastName: lastName,
         status: UserStatus.PENDING,
         provider: Provider.LOCAL,
+        isEmailVerified: false,
+        isPhoneVerified: false, // Phone verification starts as false
       },
       ['CUSTOMER'],
     );
@@ -126,9 +135,21 @@ export class AuthService {
       token: verificationToken,
     });
 
+    // Optionally: Send phone OTP for verification
+    await this.sendPhoneOtp(user.id, dto.phone);
+
     return {
       success: true,
-      message: 'Registration successful. Verification email has been queued.',
+      message: 'Registration successful. Verification email and phone OTP have been queued.',
+      user: {
+        id: user.id,
+        fullName: `${user.firstName} ${user.lastName}`.trim(),
+        email: user.email,
+        phone: user.phone,
+        status: user.status,
+        isEmailVerified: user.isEmailVerified,
+        isPhoneVerified: user.isPhoneVerified,
+      },
     };
   }
 
@@ -266,7 +287,7 @@ export class AuthService {
     };
   }
 
-  // --- Email Verification Verification ---
+  // --- Email Verification ---
   async sendEmailVerification(userId: string) {
     const user = await this.usersService.findById(userId);
     if (user.isEmailVerified) {
@@ -383,6 +404,7 @@ export class AuthService {
           lastName: profile.name?.familyName || '',
           profileImage: profile.photos && profile.photos[0] ? profile.photos[0].value : null,
           isEmailVerified: true, // Social accounts are trusted as verified
+          isPhoneVerified: false,
           status: UserStatus.ACTIVE,
           provider,
           providerId,
