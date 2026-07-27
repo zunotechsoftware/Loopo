@@ -15,7 +15,7 @@ export class AddressesController {
   constructor(private readonly addressesService: AddressesService) {}
 
   @Get()
-  @Roles('SUPER_ADMIN', 'ADMIN', 'MODERATOR', 'CUSTOMER')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'USER')
   @ApiOperation({ summary: 'List all addresses for the authenticated user' })
   @ApiResponse({ status: 200, description: 'Addresses retrieved successfully.' })
   async getMyAddresses(@Request() req: any) {
@@ -24,7 +24,7 @@ export class AddressesController {
   }
 
   @Post()
-  @Roles('SUPER_ADMIN', 'ADMIN', 'CUSTOMER')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'USER')
   @ApiOperation({ summary: 'Create a new address' })
   @ApiResponse({ status: 201, description: 'Address created successfully.' })
   async createAddress(@Body() dto: CreateAddressDto, @Request() req: any) {
@@ -33,7 +33,7 @@ export class AddressesController {
   }
 
   @Put(':id')
-  @Roles('SUPER_ADMIN', 'ADMIN', 'CUSTOMER')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'USER')
   @ApiOperation({ summary: 'Update an existing address' })
   @ApiResponse({ status: 200, description: 'Address updated successfully.' })
   @ApiResponse({ status: 404, description: 'Address not found.' })
@@ -48,7 +48,7 @@ export class AddressesController {
   }
 
   @Delete(':id')
-  @Roles('SUPER_ADMIN', 'ADMIN', 'CUSTOMER')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'USER')
   @ApiOperation({ summary: 'Delete an address (soft delete)' })
   @ApiResponse({ status: 200, description: 'Address deleted successfully.' })
   @ApiResponse({ status: 404, description: 'Address not found.' })
@@ -59,7 +59,7 @@ export class AddressesController {
   }
 
   @Patch(':id/default')
-  @Roles('SUPER_ADMIN', 'ADMIN', 'CUSTOMER')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'USER')
   @ApiOperation({ summary: 'Set an address as the default' })
   @ApiResponse({ status: 200, description: 'Address set as default successfully.' })
   @ApiResponse({ status: 404, description: 'Address not found.' })

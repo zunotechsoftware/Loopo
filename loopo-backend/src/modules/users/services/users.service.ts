@@ -43,7 +43,7 @@ export class UsersService {
     return this.flattenUserRoles(user);
   }
 
-  async create(data: Prisma.UserCreateInput, roles: string[] = ['CUSTOMER']) {
+  async create(data: Prisma.UserCreateInput, roles: string[] = ['USER']) {
     const user = await this.usersRepository.create(data, roles);
     return this.flattenUserRoles(user);
   }

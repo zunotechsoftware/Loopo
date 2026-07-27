@@ -1,7 +1,7 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AdminCategoriesService } from './admin-categories.service';
-import { CreateAdminCategoryDto, UpdateAdminCategoryDto } from './dto/admin-category.dto';
+import { CreateAdminCategoryDto, UpdateAdminCategoryDto, AdminCategoryQueryDto } from './dto/admin-category.dto';
 import { JwtAuthGuard } from '../../../shared/common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../shared/common/guards/roles.guard';
 import { PermissionsGuard } from '../../../shared/common/guards/permissions.guard';
@@ -11,19 +11,34 @@ import { CurrentUser } from '../../../shared/common/decorators/current-user.deco
 @ApiTags('Admin - Categories')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
-@Controller('api/v1/admin/categories')
+@Controller('admin/categories')
 export class AdminCategoriesController {
   constructor(private readonly categoriesService: AdminCategoriesService) {}
 
   @Get()
-  @Permissions('admin.categories.manage')
-  @ApiOperation({ summary: 'Get all categories' })
-  async getCategories() {
-    return this.categoriesService.getAllCategories();
+  @Permissions('categories.manage')
+  @ApiOperation({ summary: 'Get all categories with filters' })
+  async getCategories(@Query() query: AdminCategoryQueryDto) {
+    return this.categoriesService.getAllCategories(query);
   }
 
+  @Get('stats')
+  @Permissions('categories.manage')
+  @ApiOperation({ summary: 'Get category summary metrics' })
+  async getStats() {
+    return this.categoriesService.getCategoriesStats();
+  }
+
+  @Get(':id')
+  @Permissions('categories.manage')
+  @ApiOperation({ summary: 'Get category by ID' })
+  async getCategoryById(@Param('id') id: string) {
+    return this.categoriesService.getCategoryById(id);
+  }
+
+
   @Post()
-  @Permissions('admin.categories.manage')
+  @Permissions('categories.manage')
   @ApiOperation({ summary: 'Create a category' })
   async createCategory(
     @CurrentUser('id') adminId: string,
@@ -33,7 +48,7 @@ export class AdminCategoriesController {
   }
 
   @Put(':id')
-  @Permissions('admin.categories.manage')
+  @Permissions('categories.manage')
   @ApiOperation({ summary: 'Update a category' })
   async updateCategory(
     @Param('id') id: string,
@@ -44,7 +59,7 @@ export class AdminCategoriesController {
   }
 
   @Delete(':id')
-  @Permissions('admin.categories.manage')
+  @Permissions('categories.manage')
   @ApiOperation({ summary: 'Delete a category' })
   async deleteCategory(
     @Param('id') id: string,

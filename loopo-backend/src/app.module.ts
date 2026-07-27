@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { PrismaModule } from './shared/database/prisma.module';
 import { RedisModule } from './shared/redis/redis.module';
 import { QueuesModule } from './shared/queues/queues.module';
@@ -25,6 +26,8 @@ import { ReputationModule } from './modules/reputation/reputation.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { SellerProfileModule } from './modules/seller-profile/seller-profile.module';
+import { OrdersModule } from './modules/orders/orders.module';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { AuditLogInterceptor } from './shared/common/interceptors/audit-log.interceptor';
@@ -40,6 +43,7 @@ import { AuditLogInterceptor } from './shared/common/interceptors/audit-log.inte
         limit: 100,
       },
     ]),
+    EventEmitterModule.forRoot(),
     PrismaModule,
     RedisModule,
     QueuesModule,
@@ -65,6 +69,8 @@ import { AuditLogInterceptor } from './shared/common/interceptors/audit-log.inte
     AnalyticsModule,
     DashboardModule,
     AdminModule,
+    SellerProfileModule,
+    OrdersModule,
   ],
   providers: [
     {

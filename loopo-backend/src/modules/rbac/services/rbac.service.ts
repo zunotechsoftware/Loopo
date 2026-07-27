@@ -45,7 +45,7 @@ export class RbacService {
       throw new NotFoundException(`Role with ID "${id}" not found`);
     }
     // Prevent deleting core system roles
-    const systemRoles = ['SUPER_ADMIN', 'ADMIN', 'MODERATOR', 'CUSTOMER'];
+    const systemRoles = ['SUPER_ADMIN', 'ADMIN', 'USER'];
     if (systemRoles.includes(role.name)) {
       throw new ConflictException(`System role "${role.name}" cannot be deleted`);
     }

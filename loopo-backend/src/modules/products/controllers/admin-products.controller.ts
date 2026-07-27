@@ -18,7 +18,7 @@ export class AdminProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
   @Get('pending')
-  @Roles('SUPER_ADMIN', 'ADMIN', 'MODERATOR')
+  @Roles('SUPER_ADMIN', 'ADMIN')
   @Permissions('products.approve', 'products.reject')
   @ApiOperation({ summary: 'Get listings pending moderator approval' })
   @ApiResponse({ status: 200, description: 'Paginated list of pending items.' })
@@ -30,7 +30,7 @@ export class AdminProductsController {
   }
 
   @Patch(':id/approve')
-  @Roles('SUPER_ADMIN', 'ADMIN', 'MODERATOR')
+  @Roles('SUPER_ADMIN', 'ADMIN')
   @Permissions('products.approve')
   @LogAudit('APPROVE_PRODUCT', 'Product')
   @ApiOperation({ summary: 'Approve a pending listing' })
@@ -41,7 +41,7 @@ export class AdminProductsController {
   }
 
   @Patch(':id/reject')
-  @Roles('SUPER_ADMIN', 'ADMIN', 'MODERATOR')
+  @Roles('SUPER_ADMIN', 'ADMIN')
   @Permissions('products.reject')
   @LogAudit('REJECT_PRODUCT', 'Product')
   @ApiOperation({ summary: 'Reject a pending listing' })
@@ -56,7 +56,7 @@ export class AdminProductsController {
   }
 
   @Patch(':id/suspend')
-  @Roles('SUPER_ADMIN', 'ADMIN', 'MODERATOR')
+  @Roles('SUPER_ADMIN', 'ADMIN')
   @Permissions('products.reject')
   @LogAudit('SUSPEND_PRODUCT', 'Product')
   @ApiOperation({ summary: 'Suspend an active listing' })

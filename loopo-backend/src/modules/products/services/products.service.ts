@@ -9,6 +9,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { ProductStatus, Prisma } from '@prisma/client';
 import { S3Service } from '../../../shared/services/s3.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @Injectable()
 export class ProductsService {
@@ -24,6 +25,7 @@ export class ProductsService {
     @InjectQueue('product-expiration') private readonly expirationQueue: Queue,
     @InjectQueue('search-index-update') private readonly searchIndexQueue: Queue,
     @InjectQueue('notification') private readonly notificationQueue: Queue,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async createProduct(dto: CreateProductDto, sellerId: string) {
@@ -82,6 +84,13 @@ export class ProductsService {
     // 6. Queue Search Index & Notifications
     await this.searchIndexQueue.add('index', { action: 'CREATE', productId: product!.id });
     await this.notificationQueue.add('send', { type: 'LISTING_SUBMITTED', userId: sellerId, listingId: product!.id });
+
+    // 7. Emit product created event for auto-creating seller profile
+    this.eventEmitter.emit('product.created', {
+      productId: product!.id,
+      sellerId,
+      title: product!.title,
+    });
 
     return product;
   }

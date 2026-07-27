@@ -250,7 +250,7 @@ export default function DashboardPage() {
                     tickFormatter={(v) => `₹${v}`} />
                   <Tooltip
                     contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', fontSize: 12 }}
-                    formatter={(v: number) => [`₹${v.toLocaleString()}`, 'Revenue']}
+                    formatter={(v: any) => [`₹${Number(v || 0).toLocaleString()}`, 'Revenue']}
                   />
                   <Line type="monotone" dataKey="revenue" stroke="#8b5cf6" strokeWidth={2.5}
                     dot={{ r: 3, fill: '#8b5cf6', strokeWidth: 0 }} activeDot={{ r: 5 }} />

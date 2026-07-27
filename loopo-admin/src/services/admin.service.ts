@@ -35,12 +35,14 @@ export const productsService = {
 
 // --- Categories Service ---
 export const categoriesService = {
-  getAll: () => api.get('/admin/categories'),
-  getById: (id: string) => api.get(`/admin/categories/${id}`),
-  create: (data: Partial<Category>) => api.post('/admin/categories', data),
-  update: (id: string, data: Partial<Category>) => api.patch(`/admin/categories/${id}`, data),
-  delete: (id: string) => api.delete(`/admin/categories/${id}`),
+  getAll: (params?: Record<string, unknown>) => api.get('/api/v1/admin/categories', { params }),
+  getById: (id: string) => api.get(`/api/v1/admin/categories/${id}`),
+  create: (data: Partial<Category>) => api.post('/api/v1/admin/categories', data),
+  update: (id: string, data: Partial<Category>) => api.put(`/api/v1/admin/categories/${id}`, data),
+  delete: (id: string) => api.delete(`/api/v1/admin/categories/${id}`),
+  getStats: () => api.get('/api/v1/admin/categories/stats'),
 };
+
 
 // --- Reports Service ---
 export const reportsService = {

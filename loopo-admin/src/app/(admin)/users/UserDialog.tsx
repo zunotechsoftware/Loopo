@@ -33,7 +33,7 @@ export default function UserDialog({ open, onClose, onSaved, user }: UserDialogP
     email: '',
     phone: '',
     password: '',
-    role: 'CUSTOMER',
+    role: 'USER',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,8 +42,7 @@ export default function UserDialog({ open, onClose, onSaved, user }: UserDialogP
     if (open && user) {
       const roleNames = user.roles?.map((r) => r.role.name) ?? [];
       const primaryRole = roleNames.includes('SUPER_ADMIN') ? 'SUPER_ADMIN' :
-                          roleNames.includes('ADMIN') ? 'ADMIN' :
-                          roleNames.includes('SELLER') ? 'SELLER' : 'CUSTOMER';
+                          roleNames.includes('ADMIN') ? 'ADMIN' : 'USER';
       setFormData({
         firstName: user.firstName ?? '',
         lastName: user.lastName ?? '',
@@ -59,7 +58,7 @@ export default function UserDialog({ open, onClose, onSaved, user }: UserDialogP
         email: '',
         phone: '',
         password: '',
-        role: 'CUSTOMER',
+        role: 'USER',
       });
     }
     setError(null);
@@ -169,9 +168,9 @@ export default function UserDialog({ open, onClose, onSaved, user }: UserDialogP
               value={formData.role}
               onChange={handleChange('role')}
             >
-              <MenuItem value="CUSTOMER">Buyer</MenuItem>
-              <MenuItem value="SELLER">Seller</MenuItem>
+              <MenuItem value="USER">User</MenuItem>
               <MenuItem value="ADMIN">Admin</MenuItem>
+              <MenuItem value="SUPER_ADMIN">Super Admin</MenuItem>
             </Select>
           </FormControl>
           

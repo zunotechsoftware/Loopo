@@ -18,7 +18,7 @@ export class AdminKycController {
   constructor(private readonly kycService: KycService) {}
 
   @Get()
-  @Roles('SUPER_ADMIN', 'ADMIN', 'MODERATOR')
+  @Roles('SUPER_ADMIN', 'ADMIN')
   @Permissions('kyc.review')
   @ApiOperation({ summary: 'List and filter all user KYC applications' })
   @ApiQuery({ name: 'status', enum: KycStatus, required: false })
@@ -37,7 +37,7 @@ export class AdminKycController {
   }
 
   @Get(':id')
-  @Roles('SUPER_ADMIN', 'ADMIN', 'MODERATOR')
+  @Roles('SUPER_ADMIN', 'ADMIN')
   @Permissions('kyc.review')
   @ApiOperation({ summary: 'Get details of a specific KYC application' })
   @ApiResponse({ status: 200, description: 'Application retrieved successfully.' })
@@ -48,7 +48,7 @@ export class AdminKycController {
   }
 
   @Patch(':id/approve')
-  @Roles('SUPER_ADMIN', 'ADMIN', 'MODERATOR')
+  @Roles('SUPER_ADMIN', 'ADMIN')
   @Permissions('kyc.review')
   @LogAudit('APPROVE_KYC', 'KycDocument')
   @ApiOperation({ summary: 'Approve a user\'s KYC application' })
@@ -60,7 +60,7 @@ export class AdminKycController {
   }
 
   @Patch(':id/reject')
-  @Roles('SUPER_ADMIN', 'ADMIN', 'MODERATOR')
+  @Roles('SUPER_ADMIN', 'ADMIN')
   @Permissions('kyc.review')
   @LogAudit('REJECT_KYC', 'KycDocument')
   @ApiOperation({ summary: 'Reject a user\'s KYC application with remarks' })

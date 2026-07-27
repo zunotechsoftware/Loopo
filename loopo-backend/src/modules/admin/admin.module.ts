@@ -12,6 +12,7 @@ import { AdminBannersModule } from './banners/admin-banners.module';
 import { AdminSettingsModule } from './settings/admin-settings.module';
 import { AdminFeatureFlagsModule } from './feature-flags/admin-feature-flags.module';
 import { AdminSystemModule } from './system/admin-system.module';
+import { AdminSellersModule } from './sellers/admin-sellers.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { AdminSystemModule } from './system/admin-system.module';
     AdminSettingsModule,
     AdminFeatureFlagsModule,
     AdminSystemModule,
+    AdminSellersModule,
   ],
   controllers: [],
   providers: [],

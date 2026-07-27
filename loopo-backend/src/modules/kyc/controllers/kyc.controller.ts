@@ -15,7 +15,7 @@ export class KycController {
   constructor(private readonly kycService: KycService) {}
 
   @Get('me')
-  @Roles('SUPER_ADMIN', 'ADMIN', 'MODERATOR', 'CUSTOMER')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'USER')
   @ApiOperation({ summary: 'Get current user\'s KYC application details' })
   @ApiResponse({ status: 200, description: 'KYC application details retrieved successfully.' })
   @ApiResponse({ status: 404, description: 'No KYC submission found.' })
@@ -25,7 +25,7 @@ export class KycController {
   }
 
   @Post()
-  @Roles('SUPER_ADMIN', 'ADMIN', 'CUSTOMER')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'USER')
   @ApiOperation({ summary: 'Submit KYC application (Draft or Submitted)' })
   @ApiResponse({ status: 201, description: 'KYC application created successfully.' })
   @ApiResponse({ status: 400, description: 'Active application already exists.' })
@@ -35,7 +35,7 @@ export class KycController {
   }
 
   @Put()
-  @Roles('SUPER_ADMIN', 'ADMIN', 'CUSTOMER')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'USER')
   @ApiOperation({ summary: 'Update a draft or rejected KYC application' })
   @ApiResponse({ status: 200, description: 'KYC application updated successfully.' })
   @ApiResponse({ status: 400, description: 'Application cannot be edited in current state.' })

@@ -109,7 +109,7 @@ export class AuthService {
         status: UserStatus.PENDING,
         provider: Provider.LOCAL,
       },
-      ['CUSTOMER'],
+      ['USER'],
     );
 
     // Create email verification token
@@ -387,7 +387,7 @@ export class AuthService {
           provider,
           providerId,
         },
-        ['CUSTOMER'],
+        ['USER'],
       );
     }
 

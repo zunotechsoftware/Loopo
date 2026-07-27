@@ -7,7 +7,7 @@ async function main() {
   console.log('Seeding database...');
 
   // 1. Seed Roles
-  const roleNames = ['SUPER_ADMIN', 'ADMIN', 'MODERATOR', 'CUSTOMER'];
+  const roleNames = ['SUPER_ADMIN', 'ADMIN', 'USER'];
   const rolesMap = new Map<string, any>();
 
   for (const name of roleNames) {
@@ -96,32 +96,7 @@ async function main() {
   const rolePermissions: Record<string, string[]> = {
     SUPER_ADMIN: permissionsList,
     ADMIN: permissionsList,
-    MODERATOR: [
-      'users.view',
-      'categories.view',
-      'categories.manage',
-      'products.view',
-      'products.approve',
-      'products.reject',
-      'products.feature',
-      'products.boost',
-      'products.manage',
-      'reports.manage',
-      'reports.view',
-      'reports.assign',
-      'reports.resolve',
-      'moderation.manage',
-      'users.suspend',
-      'products.suspend',
-      'kyc.review',
-      'notifications.manage',
-      'search.view',
-      'favorites.manage',
-      'wishlist.manage',
-      'reviews.view',
-      'reviews.moderate',
-    ],
-    CUSTOMER: [
+    USER: [
       'users.view',
       'categories.view',
       'products.view',

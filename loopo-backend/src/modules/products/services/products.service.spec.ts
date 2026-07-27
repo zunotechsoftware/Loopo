@@ -9,6 +9,7 @@ import { getQueueToken } from '@nestjs/bullmq';
 import { S3Service } from '../../../shared/services/s3.service';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ProductStatus } from '@prisma/client';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 describe('ProductsService Unit Tests', () => {
   let service: ProductsService;
@@ -73,6 +74,7 @@ describe('ProductsService Unit Tests', () => {
         { provide: getQueueToken('search-index-update'), useValue: mockQueue },
         { provide: getQueueToken('view-counter-sync'), useValue: mockQueue },
         { provide: getQueueToken('notification'), useValue: mockQueue },
+        { provide: EventEmitter2, useValue: { emit: jest.fn() } },
       ],
     }).compile();
 

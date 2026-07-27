@@ -65,9 +65,9 @@ function statusLabel(status: string): string {
 /** Map role name from DB → display label */
 function getRoleName(user: AdminUser): string {
   const roleNames = user.roles?.map((r) => r.role.name) ?? [];
-  if (roleNames.includes('SUPER_ADMIN') || roleNames.includes('ADMIN')) return 'Admin';
-  if (roleNames.includes('SELLER')) return 'Seller';
-  return 'Buyer';
+  if (roleNames.includes('SUPER_ADMIN')) return 'Super Admin';
+  if (roleNames.includes('ADMIN')) return 'Admin';
+  return 'User';
 }
 
 /** Format an ISO date string as "12 May 2024\n10:30 AM" */
@@ -119,9 +119,9 @@ function StatusChip({ status }: { status: string }) {
 
 function RoleChip({ role }: { role: string }) {
   const map: Record<string, { bg: string; color: string }> = {
-    Buyer:  { bg: '#eff6ff', color: '#1d4ed8' },
-    Seller: { bg: '#fdf4ff', color: '#7e22ce' },
-    Admin:  { bg: '#fff7ed', color: '#c2410c' },
+    'Super Admin': { bg: '#fef2f2', color: '#991b1b' },
+    Admin:         { bg: '#fff7ed', color: '#c2410c' },
+    User:          { bg: '#eff6ff', color: '#1d4ed8' },
   };
   const s = map[role] ?? { bg: '#f1f5f9', color: '#475569' };
   return (
@@ -162,9 +162,9 @@ const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 
 const ROLE_OPTIONS = [
   { label: 'All Roles', value: '' },
-  { label: 'Buyer',     value: 'CUSTOMER' },
-  { label: 'Seller',    value: 'SELLER' },
+  { label: 'Super Admin', value: 'SUPER_ADMIN' },
   { label: 'Admin',     value: 'ADMIN' },
+  { label: 'User',      value: 'USER' },
 ];
 
 const STATUS_OPTIONS = [
@@ -683,7 +683,7 @@ export default function UsersPage() {
         anchorEl={menuAnchor}
         open={Boolean(menuAnchor)}
         onClose={() => { setMenuAnchor(null); setMenuUser(null); }}
-        PaperProps={{ sx: { boxShadow: '0 4px 16px rgba(0,0,0,0.12)', borderRadius: 2, minWidth: 160 } }}
+        slotProps={{ paper: { sx: { boxShadow: '0 4px 16px rgba(0,0,0,0.12)', borderRadius: 2, minWidth: 160 } } }}
       >
         <MenuItem
           onClick={() => handleAction('activate')}

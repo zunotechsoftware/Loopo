@@ -8,12 +8,12 @@ import { Roles } from '../../../shared/common/decorators/roles.decorator';
 @ApiTags('User Dashboard')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Controller('v1/dashboard')
+@Controller('dashboard')
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
   @Get('summary')
-  @Roles('CUSTOMER')
+  @Roles('USER')
   @ApiOperation({ summary: 'Get dashboard summary for the logged in seller/user' })
   @ApiResponse({ status: 200, description: 'Dashboard summary returned successfully' })
   async getSummary(@Request() req: any) {
@@ -21,28 +21,28 @@ export class DashboardController {
   }
 
   @Get('listings')
-  @Roles('CUSTOMER')
+  @Roles('USER')
   @ApiOperation({ summary: 'Get recent listings for the dashboard' })
   async getListings(@Request() req: any) {
     return this.dashboardService.getDashboardListings(req.user.id);
   }
 
   @Get('views')
-  @Roles('CUSTOMER')
+  @Roles('USER')
   @ApiOperation({ summary: 'Get views over time for the dashboard' })
   async getViews(@Request() req: any) {
     return this.dashboardService.getDashboardViews(req.user.id);
   }
 
   @Get('chats')
-  @Roles('CUSTOMER')
+  @Roles('USER')
   @ApiOperation({ summary: 'Get recent chats for the dashboard' })
   async getChats(@Request() req: any) {
     return this.dashboardService.getDashboardChats(req.user.id);
   }
 
   @Get('revenue')
-  @Roles('CUSTOMER')
+  @Roles('USER')
   @ApiOperation({ summary: 'Get revenue summary for the dashboard' })
   async getRevenue(@Request() req: any) {
     return this.dashboardService.getDashboardRevenue(req.user.id);

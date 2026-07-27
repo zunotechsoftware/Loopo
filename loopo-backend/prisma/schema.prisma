@@ -91,6 +91,9 @@ model User {
   buyerStatistics         BuyerStatistics?          @relation("BuyerStats")
   reputationScore         ReputationScore?          @relation("ReputationScore")
   trustScore              TrustScore?               @relation("TrustScore")
+  sellerProfile           SellerProfile?
+  buyerOrders             Order[]                   @relation("BuyerOrders")
+  sellerOrders            Order[]                   @relation("SellerOrders")
 
   // Admin Module Relations
   adminSessions           AdminSession[]            @relation("AdminSessions")
@@ -653,6 +656,7 @@ model Product {
   conversations  Conversation[]
   payments       Payment[]
   reviews        Review[]
+  orders         Order[]
 
 
   @@index([sellerId])
@@ -2055,4 +2059,56 @@ model SystemAnnouncement {
   creator     User?    @relation("AnnouncementsCreated", fields: [createdBy], references: [id], onDelete: SetNull)
 
   @@map("system_announcements")
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+model SellerProfile {
+  id                  String           @id @default(uuid()) @db.Uuid
+  userId              String           @unique @db.Uuid
+  displayName         String
+  storeName           String?
+  bio                 String?
+  profileImage        String?
+  verificationStatus  String           @default("PENDING") // PENDING, VERIFIED, SUSPENDED
+  kycStatus           KycStatus        @default(DRAFT)
+  trustScore          Float            @default(50.0)
+  sellerRating        Float            @default(0.0)
+  totalSales          Int              @default(0)
+  totalListings       Int              @default(0)
+  responseRate        Float            @default(0.0)
+  averageResponseTime Float            @default(0.0) // in seconds
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  user                User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("seller_profiles")
+}
+
+model Order {
+  id           String      @id @default(uuid()) @db.Uuid
+  buyerId      String      @db.Uuid
+  sellerId     String      @db.Uuid
+  productId    String      @db.Uuid
+  quantity     Int         @default(1)
+  price        Float
+  totalAmount  Float
+  currency     String      @default("INR")
+  status       OrderStatus @default(PENDING)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  buyer        User        @relation("BuyerOrders", fields: [buyerId], references: [id], onDelete: Restrict)
+  seller       User        @relation("SellerOrders", fields: [sellerId], references: [id], onDelete: Restrict)
+  product      Product     @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@map("orders")
 }

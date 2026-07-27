@@ -67,7 +67,7 @@ export class UsersRepository {
     });
   }
 
-  async create(data: Prisma.UserCreateInput, roleNames: string[] = ['CUSTOMER']) {
+  async create(data: Prisma.UserCreateInput, roleNames: string[] = ['USER']) {
     return this.prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data,

@@ -15,7 +15,7 @@ export class NotificationSettingsController {
   constructor(private readonly settingsService: NotificationSettingsService) {}
 
   @Get()
-  @Roles('SUPER_ADMIN', 'ADMIN', 'MODERATOR', 'CUSTOMER')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'USER')
   @ApiOperation({ summary: 'Get current user\'s notification preferences' })
   @ApiResponse({ status: 200, description: 'Notification settings retrieved successfully.' })
   async getMySettings(@Request() req: any) {
@@ -24,7 +24,7 @@ export class NotificationSettingsController {
   }
 
   @Put()
-  @Roles('SUPER_ADMIN', 'ADMIN', 'CUSTOMER')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'USER')
   @ApiOperation({ summary: 'Update current user\'s notification preferences' })
   @ApiResponse({ status: 200, description: 'Notification settings updated successfully.' })
   async updateMySettings(

@@ -69,7 +69,32 @@ export interface Category {
   attributes?: CategoryAttribute[];
   isActive: boolean;
   createdAt: string;
+  level?: number;
+  sortOrder?: number;
+  icon?: string;
+  bannerImage?: string;
+  seoTitle?: string;
+  seoDescription?: string;
+  _count?: {
+    products: number;
+    children: number;
+  };
 }
+
+export interface MetricDetail {
+  value: number;
+  change: number;
+  changeType: 'increase' | 'decrease';
+}
+
+export interface CategoryStats {
+  totalCategories: MetricDetail;
+  activeCategories: MetricDetail;
+  subCategories: MetricDetail;
+  totalProducts: MetricDetail;
+  inactiveCategories: MetricDetail;
+}
+
 
 export interface CategoryAttribute {
   id: string;

@@ -24,7 +24,7 @@ export class BroadcastNotificationDto {
   @IsEnum(NotificationChannel, { each: true })
   channels: NotificationChannel[];
 
-  @ApiPropertyOptional({ description: 'Target user role (e.g., CUSTOMER, SELLER, ALL)', default: 'ALL' })
+  @ApiPropertyOptional({ description: 'Target user role (e.g., USER, ALL)', default: 'ALL' })
   @IsString()
   @IsOptional()
   targetRole?: string;

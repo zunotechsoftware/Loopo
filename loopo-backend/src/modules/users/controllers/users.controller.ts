@@ -18,7 +18,7 @@ export class UsersController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Get('me')
-  @Roles('SUPER_ADMIN', 'ADMIN', 'MODERATOR', 'CUSTOMER')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'USER')
   @ApiOperation({ summary: 'Get current authenticated user details and profile' })
   @ApiResponse({ status: 200, description: 'Details retrieved successfully.' })
   async getMe(@Request() req: any) {
@@ -36,7 +36,7 @@ export class UsersController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Put('me')
-  @Roles('SUPER_ADMIN', 'ADMIN', 'CUSTOMER')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'USER')
   @ApiOperation({ summary: 'Update current user\'s profile details' })
   @ApiResponse({ status: 200, description: 'Profile updated successfully.' })
   async updateMe(@Body() dto: UpdateProfileDto, @Request() req: any) {
@@ -47,13 +47,13 @@ export class UsersController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Get(':id')
-  @Roles('SUPER_ADMIN', 'ADMIN', 'MODERATOR', 'CUSTOMER')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'USER')
   @ApiOperation({ summary: 'Get a user\'s profile by ID' })
   @ApiResponse({ status: 200, description: 'Profile retrieved successfully.' })
   @ApiResponse({ status: 403, description: 'Forbidden: Insufficient privileges.' })
   @ApiResponse({ status: 404, description: 'User not found.' })
   async findOne(@Param('id') id: string, @Request() req: any) {
-    const isAdmin = req.user.roles.includes('SUPER_ADMIN') || req.user.roles.includes('ADMIN') || req.user.roles.includes('MODERATOR');
+    const isAdmin = req.user.roles.includes('SUPER_ADMIN') || req.user.roles.includes('ADMIN');
     const isOwner = req.user.id === id;
 
     if (!isOwner && !isAdmin) {
@@ -84,7 +84,7 @@ export class UsersController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Delete('me')
-  @Roles('SUPER_ADMIN', 'ADMIN', 'CUSTOMER')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'USER')
   @ApiOperation({ summary: 'Soft delete current user\'s account' })
   @ApiResponse({ status: 200, description: 'Account deactivated successfully.' })
   async deleteMe(@Request() req: any) {
@@ -96,7 +96,7 @@ export class UsersController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Post('profile-image/upload-url')
-  @Roles('SUPER_ADMIN', 'ADMIN', 'CUSTOMER')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'USER')
   @ApiOperation({ summary: 'Request signed S3 upload URL for profile picture' })
   @ApiResponse({ status: 201, description: 'Signed upload URL generated successfully.' })
   async getProfileImageUploadUrl(@Body() dto: GetUploadUrlDto, @Request() req: any) {
@@ -107,7 +107,7 @@ export class UsersController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Post('profile-image')
-  @Roles('SUPER_ADMIN', 'ADMIN', 'CUSTOMER')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'USER')
   @ApiOperation({ summary: 'Confirm upload and set uploaded image as profile picture' })
   @ApiResponse({ status: 201, description: 'Profile picture updated successfully.' })
   async confirmProfileImageUpload(@Body() dto: ConfirmUploadDto, @Request() req: any) {
@@ -118,7 +118,7 @@ export class UsersController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Delete('profile-image')
-  @Roles('SUPER_ADMIN', 'ADMIN', 'CUSTOMER')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'USER')
   @ApiOperation({ summary: 'Delete current profile picture' })
   @ApiResponse({ status: 200, description: 'Profile picture deleted successfully.' })
   async deleteProfileImage(@Request() req: any) {
@@ -130,7 +130,7 @@ export class UsersController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Post('cover-image/upload-url')
-  @Roles('SUPER_ADMIN', 'ADMIN', 'CUSTOMER')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'USER')
   @ApiOperation({ summary: 'Request signed S3 upload URL for cover image' })
   @ApiResponse({ status: 201, description: 'Signed upload URL generated successfully.' })
   async getCoverImageUploadUrl(@Body() dto: GetUploadUrlDto, @Request() req: any) {
@@ -141,7 +141,7 @@ export class UsersController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Post('cover-image')
-  @Roles('SUPER_ADMIN', 'ADMIN', 'CUSTOMER')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'USER')
   @ApiOperation({ summary: 'Confirm upload and set uploaded image as cover picture' })
   @ApiResponse({ status: 201, description: 'Cover picture updated successfully.' })
   async confirmCoverImageUpload(@Body() dto: ConfirmUploadDto, @Request() req: any) {
@@ -152,7 +152,7 @@ export class UsersController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Delete('cover-image')
-  @Roles('SUPER_ADMIN', 'ADMIN', 'CUSTOMER')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'USER')
   @ApiOperation({ summary: 'Delete current cover image' })
   @ApiResponse({ status: 200, description: 'Cover picture deleted successfully.' })
   async deleteCoverImage(@Request() req: any) {
