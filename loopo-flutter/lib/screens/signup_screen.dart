@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:loopo/screens/location_screen.dart';
+import 'package:loopo/screens/login_screen.dart';
 import '../theme/app_colors.dart';
 import '../widgets/form_input.dart';
 import '../widgets/primary_button.dart';
@@ -11,7 +13,7 @@ import 'home_screen.dart';
 bool _isLoading = false;
 
 // ============================================================
-// ADDED: Country Model
+// Country Model
 // ============================================================
 class CountryOption {
   final String flag;
@@ -26,7 +28,7 @@ class CountryOption {
 }
 
 // ============================================================
-// ADDED: Mobile Validator
+// Mobile Validator
 // ============================================================
 class MobileValidator {
   static final RegExp _indiaMobileRegExp = RegExp(r'^[6-9]\d{9}$');
@@ -58,7 +60,7 @@ class MobileValidator {
 }
 
 // ============================================================
-// ADDED: Country Dropdown Widget
+// Country Dropdown Widget
 // ============================================================
 class CountryDropdown extends StatelessWidget {
   final CountryOption selectedCountry;
@@ -107,7 +109,7 @@ class CountryDropdown extends StatelessWidget {
 }
 
 // ============================================================
-// ADDED: Mobile Input Field Widget
+// Mobile Input Field Widget
 // ============================================================
 class MobileInputField extends StatefulWidget {
   final TextEditingController controller;
@@ -215,7 +217,7 @@ class _MobileInputFieldState extends State<MobileInputField> {
 }
 
 // ============================================================
-// ADDED: Country Constants
+// Country Constants
 // ============================================================
 const List<CountryOption> _countryOptions = [
   CountryOption(flag: '🇮🇳', dialCode: '+91', name: 'India'),
@@ -246,13 +248,11 @@ class _SignupScreenState extends State<SignupScreen> {
 
   final TextEditingController _fullNameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
-  // ADDED: Mobile controller
   final TextEditingController _mobileController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
       TextEditingController();
 
-  // ADDED: Selected country
   CountryOption _selectedCountry = _countryOptions.first;
 
   // ---- Responsive breakpoints / helpers -------------------------------
@@ -279,11 +279,18 @@ class _SignupScreenState extends State<SignupScreen> {
   void dispose() {
     _fullNameController.dispose();
     _emailController.dispose();
-    // ADDED: Dispose mobile controller
     _mobileController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
+  }
+
+  // Helper method to split fullName into firstName and lastName
+  Map<String, String> _splitFullName(String fullName) {
+    final nameParts = fullName.trim().split(' ');
+    final firstName = nameParts.isNotEmpty ? nameParts[0] : '';
+    final lastName = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '';
+    return {'firstName': firstName, 'lastName': lastName};
   }
 
   Future<void> _handleCreateAccount() async {
@@ -292,7 +299,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
     // Validate form fields first
     final fullName = _fullNameController.text.trim();
-    // ADDED: Get mobile value
+    final email = _emailController.text.trim();
     final mobile = _mobileController.text.trim();
     final password = _passwordController.text.trim();
     final confirmPassword = _confirmPasswordController.text.trim();
@@ -304,7 +311,13 @@ class _SignupScreenState extends State<SignupScreen> {
       return;
     }
 
-    // ADDED: Mobile validation
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your email address')),
+      );
+      return;
+    }
+
     if (!MobileValidator.isValid(mobile, _selectedCountry.dialCode)) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -345,11 +358,8 @@ class _SignupScreenState extends State<SignupScreen> {
     });
 
     try {
-      // Wait for registration to complete
       await _registerUser();
-      // Navigation is now handled inside _registerUser on success
     } catch (e) {
-      // Handle any unexpected errors
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -359,7 +369,6 @@ class _SignupScreenState extends State<SignupScreen> {
         );
       }
     } finally {
-      // Reset loading state
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -369,10 +378,8 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   Future<void> _registerUser() async {
-    // Validate form fields first
     final fullName = _fullNameController.text.trim();
     final email = _emailController.text.trim();
-    // ADDED: Get mobile value
     final mobile = _mobileController.text.trim();
     final password = _passwordController.text.trim();
     final confirmPassword = _confirmPasswordController.text.trim();
@@ -385,7 +392,13 @@ class _SignupScreenState extends State<SignupScreen> {
       return;
     }
 
-    // ADDED: Mobile validation
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your email address')),
+      );
+      return;
+    }
+
     if (!MobileValidator.isValid(mobile, _selectedCountry.dialCode)) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -420,7 +433,6 @@ class _SignupScreenState extends State<SignupScreen> {
       return;
     }
 
-    // Show loading indicator
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -431,55 +443,43 @@ class _SignupScreenState extends State<SignupScreen> {
       final String baseUrl;
 
       if (Platform.isAndroid) {
-        // Check if running on emulator
         final isEmulator =
             Platform.environment.containsKey('ANDROID_EMULATOR') ||
             Platform.environment.containsKey('EMULATOR');
+
         if (isEmulator) {
-          baseUrl = 'http://10.0.2.2:3000'; // Android emulator
+          baseUrl = 'http://10.0.2.2:3000';
         } else {
-          baseUrl =
-              'http://192.168.1.100:3000'; // CHANGE THIS - Your computer's IP
+          baseUrl = 'http://192.168.1.100:3000'; // CHANGE THIS
         }
       } else if (Platform.isIOS) {
-        // iOS simulator or device
-        baseUrl =
-            'http://192.168.1.100:3000'; // CHANGE THIS - Your computer's IP
+        baseUrl = 'http://192.168.1.100:3000'; // CHANGE THIS
       } else {
         baseUrl = 'http://localhost:3000';
       }
-      // Prepare the request body
+
+      // Split fullName into firstName and lastName
+      final nameParts = _splitFullName(fullName);
+      final firstName = nameParts['firstName'] ?? '';
+      final lastName = nameParts['lastName'] ?? '';
+
+      // ✅ Prepare the request body matching your DTO exactly
       final Map<String, dynamic> requestBody = {
-        'fullName': fullName,
-        // ADDED: Phone with country code
+        'email': email,
         'phone':
             '${_selectedCountry.dialCode}${MobileValidator.cleanMobileNumber(mobile)}',
         'password': password,
+        'firstName': firstName,
+        'lastName': lastName,
       };
 
-      // Only add email if it's not empty
-      if (email.isNotEmpty) {
-        requestBody['email'] = email;
-      }
+      final uri = Uri.parse('http://10.0.2.2:3000/api/v1/auth/register');
 
-      // CORRECT WAY: Build URL dynamically using Uri class
-      final uri = Uri(
-        scheme: 'http',
-        host: '10.0.2.2',
-        port: 3000,
-        path: '/api/v1/auth/register',
-      );
-
-      // OR using Uri.parse with proper string interpolation
-      // final baseUrl = 'http://10.0.2.2:3000';
-      // final uri = Uri.parse('$baseUrl/api/v1/auth/register');
-
-      // Debug: Print the URL to verify it's correct
       print('Request URL: $uri');
+      // print('Request Body: $requestBody');
 
-      // Make the POST request
       final response = await http.post(
-        uri, // Use the Uri object directly
+        uri,
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -487,12 +487,10 @@ class _SignupScreenState extends State<SignupScreen> {
         body: jsonEncode(requestBody),
       );
 
-      // Close loading indicator
       if (mounted) {
         Navigator.pop(context);
       }
 
-      // Handle response
       if (response.statusCode == 200 || response.statusCode == 201) {
         final responseData = jsonDecode(response.body);
 
@@ -510,7 +508,7 @@ class _SignupScreenState extends State<SignupScreen> {
             if (mounted) {
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (_) => const HomeScreen()),
+                MaterialPageRoute(builder: (_) => const LocationScreen()),
               );
             }
           });
@@ -598,10 +596,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
             return Column(
               children: [
-                // ---------------- LOGO (separate, fixed at top) ----------------
                 _buildLogo(width, hPad),
-
-                // ---------------- MIDDLE CONTENT (fills available space) -------
                 Expanded(
                   child: LayoutBuilder(
                     builder: (context, innerConstraints) {
@@ -645,8 +640,6 @@ class _SignupScreenState extends State<SignupScreen> {
                     },
                   ),
                 ),
-
-                // ---------------- LOGIN PROMPT (separate, fixed at bottom) ------
                 _buildLoginPrompt(hPad),
               ],
             );
@@ -656,9 +649,6 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
-  // -----------------------------------------------------------------------
-  // LOGO SECTION
-  // -----------------------------------------------------------------------
   Widget _buildLogo(double width, double hPad) {
     return Padding(
       padding: EdgeInsets.fromLTRB(hPad, 8, hPad, 8),
@@ -668,9 +658,6 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
-  // -----------------------------------------------------------------------
-  // LOGIN PROMPT SECTION
-  // -----------------------------------------------------------------------
   Widget _buildLoginPrompt(double hPad) {
     return SafeArea(
       top: false,
@@ -684,7 +671,10 @@ class _SignupScreenState extends State<SignupScreen> {
               style: TextStyle(fontSize: 14, color: Colors.black54),
             ),
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+              ),
               style: TextButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 minimumSize: Size.zero,
@@ -711,13 +701,11 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
-  // -----------------------------------------------------------------------
-  // FORM FIELDS
-  // -----------------------------------------------------------------------
   Widget _buildSignupForm() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Full Name field (user enters full name)
         _fieldLabel('Full Name'),
         const SizedBox(height: 8),
         FormInput(
@@ -727,7 +715,8 @@ class _SignupScreenState extends State<SignupScreen> {
         ),
         const SizedBox(height: 12),
 
-        Row(children: [_fieldLabel('Email Address'), const SizedBox(width: 4)]),
+        // Email field (matches DTO 'email')
+        _fieldLabel('Email Address'),
         const SizedBox(height: 8),
         FormInput(
           hintText: 'Enter your email address',
@@ -736,8 +725,7 @@ class _SignupScreenState extends State<SignupScreen> {
         ),
         const SizedBox(height: 12),
 
-        // ADDED: Mobile Number Input
-        const SizedBox(height: 8),
+        // Mobile Number field (matches DTO 'phone')
         MobileInputField(
           controller: _mobileController,
           selectedCountry: _selectedCountry,
@@ -751,6 +739,7 @@ class _SignupScreenState extends State<SignupScreen> {
         ),
         const SizedBox(height: 12),
 
+        // Password field (matches DTO 'password')
         _fieldLabel('Password'),
         const SizedBox(height: 8),
         FormInput(
@@ -767,6 +756,7 @@ class _SignupScreenState extends State<SignupScreen> {
         ),
         const SizedBox(height: 12),
 
+        // Confirm Password
         _fieldLabel('Confirm Password'),
         const SizedBox(height: 8),
         FormInput(
@@ -784,6 +774,7 @@ class _SignupScreenState extends State<SignupScreen> {
         ),
         const SizedBox(height: 16),
 
+        // Terms & Conditions
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
@@ -823,11 +814,11 @@ class _SignupScreenState extends State<SignupScreen> {
         ),
         const SizedBox(height: 20),
 
+        // Create Account Button
         SizedBox(
           width: double.infinity,
           child: PrimaryButton(
-            text: 'Create Account',
-            // color: AppColors.appGreen,
+            text: _isLoading ? 'Creating Account...' : 'Create Account',
             onPressed: _handleCreateAccount,
           ),
         ),
