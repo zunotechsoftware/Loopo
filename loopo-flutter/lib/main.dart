@@ -3,8 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:loopo/screens/home_screen.dart';
+import 'package:loopo/screens/location_screen.dart';
 import 'package:loopo/screens/login_mobile.dart';
 import 'package:loopo/screens/login_screen.dart';
+import 'package:loopo/screens/profile_setup.dart';
 import 'package:loopo/screens/signup_screen.dart';
 import 'package:loopo/screens/welcome_screen.dart';
 
