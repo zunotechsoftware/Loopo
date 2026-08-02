@@ -30,8 +30,22 @@ class ApiConfig {
   // API endpoints
   static const String loginEndpoint = '/api/v1/auth/login';
   static const String registerEndpoint = '/api/v1/auth/register';
+  static const String forgotPasswordEndpoint = '/api/v1/auth/forgot-password';
+  static const String resetPasswordEndpoint = '/api/v1/auth/reset-password';
+  static const String categoriesEndpoint = '/api/v1/categories';
+  static const String categoryTreeEndpoint = '/api/v1/categories/tree';
+  static const String meEndpoint = '/api/v1/users/me';
+  static const String updateProfileEndpoint = '/api/v1/users/me';
+  static const String notificationSettingsEndpoint = '/api/v1/notification-settings';
 
   // Full URLs
   static String get loginUrl => '$baseUrl$loginEndpoint';
   static String get registerUrl => '$baseUrl$registerEndpoint';
+  static String get forgotPasswordUrl => '$baseUrl$forgotPasswordEndpoint';
+  static String get resetPasswordUrl => '$baseUrl$resetPasswordEndpoint';
+  static String get categoriesUrl => '$baseUrl$categoriesEndpoint';
+  static String get categoryTreeUrl => '$baseUrl$categoryTreeEndpoint';
+  static String get meUrl => '$baseUrl$meEndpoint';
+  static String get updateProfileUrl => '$baseUrl$updateProfileEndpoint';
+  static String get notificationSettingsUrl => '$baseUrl$notificationSettingsEndpoint';
 }

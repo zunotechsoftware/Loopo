@@ -5,6 +5,10 @@ import 'package:loopo/screens/signup_screen.dart';
 
 import '../theme/app_colors.dart';
 
+// TODO: [Backend Integration] Support OAuth2 Social logins (Google / Apple Sign-In) via POST /api/v1/auth/social
+// TODO: [Backend Integration] Auto-restore session token on launch via GET /api/v1/users/me
+
+
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
 

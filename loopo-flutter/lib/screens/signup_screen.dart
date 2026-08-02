@@ -1,14 +1,16 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:loopo/screens/location_screen.dart';
 import 'package:loopo/screens/login_screen.dart';
+
+// TODO: [Backend Integration] Register user via POST /api/v1/auth/register
+// TODO: [Backend Integration] Handle duplicate email/phone conflict (409 Conflict) from backend
+
+import '../config/debug_config.dart';
+import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/form_input.dart';
 import '../widgets/primary_button.dart';
-import 'home_screen.dart';
 
 bool _isLoading = false;
 
@@ -276,6 +278,19 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    if (DebugConfig.isActive) {
+      _fullNameController.text = DebugConfig.signupFullName;
+      _emailController.text = DebugConfig.signupEmail;
+      _mobileController.text = DebugConfig.signupMobile;
+      _passwordController.text = DebugConfig.signupPassword;
+      _confirmPasswordController.text = DebugConfig.signupPassword;
+      _agreedToTerms = true;
+    }
+  }
+
+  @override
   void dispose() {
     _fullNameController.dispose();
     _emailController.dispose();
@@ -296,6 +311,15 @@ class _SignupScreenState extends State<SignupScreen> {
   Future<void> _handleCreateAccount() async {
     // Prevent multiple submissions
     if (_isLoading) return;
+
+    // ── Debug bypass: skip all validation, go straight to next screen ────────
+    if (DebugConfig.isActive) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LocationScreen()),
+      );
+      return;
+    }
 
     // Validate form fields first
     final fullName = _fullNameController.text.trim();
@@ -440,129 +464,50 @@ class _SignupScreenState extends State<SignupScreen> {
     );
 
     try {
-      final String baseUrl;
-
-      if (Platform.isAndroid) {
-        final isEmulator =
-            Platform.environment.containsKey('ANDROID_EMULATOR') ||
-            Platform.environment.containsKey('EMULATOR');
-
-        if (isEmulator) {
-          baseUrl = 'http://10.0.2.2:3000';
-        } else {
-          baseUrl = 'http://192.168.1.100:3000'; // CHANGE THIS
-        }
-      } else if (Platform.isIOS) {
-        baseUrl = 'http://192.168.1.100:3000'; // CHANGE THIS
-      } else {
-        baseUrl = 'http://localhost:3000';
-      }
-
-      // Split fullName into firstName and lastName
       final nameParts = _splitFullName(fullName);
       final firstName = nameParts['firstName'] ?? '';
       final lastName = nameParts['lastName'] ?? '';
+      final phone = '${_selectedCountry.dialCode}${MobileValidator.cleanMobileNumber(mobile)}';
 
-      // ✅ Prepare the request body matching your DTO exactly
-      final Map<String, dynamic> requestBody = {
-        'email': email,
-        'phone':
-            '${_selectedCountry.dialCode}${MobileValidator.cleanMobileNumber(mobile)}',
-        'password': password,
-        'firstName': firstName,
-        'lastName': lastName,
-      };
-
-      final uri = Uri.parse('http://10.0.2.2:3000/api/v1/auth/register');
-
-      print('Request URL: $uri');
-      // print('Request Body: $requestBody');
-
-      final response = await http.post(
-        uri,
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: jsonEncode(requestBody),
+      final response = await AuthService().register(
+        firstName: firstName,
+        lastName: lastName,
+        email: email,
+        password: password,
+        phone: phone,
       );
 
       if (mounted) {
-        Navigator.pop(context);
+        Navigator.pop(context); // Close loading dialog
       }
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final responseData = jsonDecode(response.body);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(response['message'] ?? 'Account created successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                responseData['message'] ?? 'Account created successfully!',
-              ),
-              backgroundColor: Colors.green,
-            ),
-          );
-
-          Future.delayed(const Duration(milliseconds: 500), () {
-            if (mounted) {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => const LocationScreen()),
-              );
-            }
-          });
-        }
-      } else {
-        String errorMessage = 'Registration failed';
-        try {
-          final responseData = jsonDecode(response.body);
-          errorMessage =
-              responseData['message'] ??
-              responseData['error'] ??
-              responseData['msg'] ??
-              'Registration failed';
-
-          if (responseData['errors'] != null &&
-              responseData['errors'] is List) {
-            final errors = responseData['errors'] as List;
-            if (errors.isNotEmpty) {
-              errorMessage = errors.join(', ');
-            }
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const LocationScreen()),
+            );
           }
-        } catch (e) {
-          errorMessage = 'Server error: ${response.statusCode}';
-        }
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(errorMessage),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        }
+        });
       }
     } catch (e) {
       if (mounted) {
-        Navigator.pop(context);
+        Navigator.pop(context); // Close loading dialog
+      }
 
-        String errorMessage = 'Connection error';
-        if (e.toString().contains('SocketException')) {
-          errorMessage =
-              'Unable to connect to server. Please check your internet connection.';
-        } else if (e.toString().contains('TimeoutException')) {
-          errorMessage = 'Connection timeout. Please try again.';
-        } else if (e.toString().contains('FormatException')) {
-          errorMessage = 'Invalid server response. Please try again.';
-        } else {
-          errorMessage = 'Error: ${e.toString()}';
-        }
-
+      final message = e.toString().replaceFirst('Exception: ', '');
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(errorMessage),
+            content: Text(message),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 3),
           ),

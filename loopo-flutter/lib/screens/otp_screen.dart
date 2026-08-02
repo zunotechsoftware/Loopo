@@ -3,8 +3,15 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+// TODO: [Backend Integration] Send phone OTP via POST /api/v1/auth/send-otp
+// TODO: [Backend Integration] Verify 6-digit phone OTP via POST /api/v1/auth/verify-otp
+
+
+import '../config/debug_config.dart';
 import '../theme/app_colors.dart';
 import '../widgets/primary_button.dart';
+import '../services/auth_service.dart';
+import '../services/auth_session.dart';
 import 'home_screen.dart';
 
 class OtpScreen extends StatefulWidget {
@@ -61,6 +68,13 @@ class _OtpScreenState extends State<OtpScreen> {
   void initState() {
     super.initState();
     _startTimer();
+    // ── Debug: pre-fill OTP boxes ─────────────────────────────────
+    if (DebugConfig.isActive) {
+      final code = DebugConfig.otpCode;
+      for (var i = 0; i < _otpControllers.length && i < code.length; i++) {
+        _otpControllers[i].text = code[i];
+      }
+    }
   }
 
   void _startTimer() {
@@ -113,7 +127,16 @@ class _OtpScreenState extends State<OtpScreen> {
     ).showSnackBar(const SnackBar(content: Text('OTP resent successfully')));
   }
 
-  void _handleVerify() {
+  void _handleVerify() async {
+    // ── Debug bypass: OTP already pre-filled, skip verify API ──────────────
+    if (DebugConfig.isActive) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+      );
+      return;
+    }
+
     if (_enteredOtp.length != _otpLength) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter the complete 6-digit OTP')),
@@ -121,11 +144,69 @@ class _OtpScreenState extends State<OtpScreen> {
       return;
     }
 
-    // TODO: Call the verify-OTP API before navigating forward.
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const HomeScreen()),
+    if (_enteredOtp != '123456') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Invalid verification code. Please try again with code 123456.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
     );
+
+    try {
+      final phone = '${widget.dialCode}${widget.mobileNumber}';
+      final result = await AuthService().loginOrRegisterPhone(phone: phone);
+
+      final data = result['data'] ?? result;
+      final token = data['token'] ?? data['accessToken'] ?? result['accessToken'];
+      if (token != null) {
+        AuthSession.setToken(token.toString());
+      }
+
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Verification successful!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 1),
+          ),
+        );
+
+        Future.delayed(const Duration(milliseconds: 400), () {
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const HomeScreen()),
+            );
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+      }
+
+      final message = e.toString().replaceFirst('Exception: ', '');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override

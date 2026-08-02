@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../config/debug_config.dart';
 import 'package:loopo/screens/otp_screen.dart';
 
 import '../theme/app_colors.dart';
 import '../widgets/form_input.dart';
 import '../widgets/primary_button.dart';
-import 'home_screen.dart';
 
 class _CountryOption {
   final String flag;
@@ -96,18 +96,57 @@ class _LoginMobileState extends State<LoginMobile> {
     }
   }
 
-  void _handleSendOtp() {
-    if (!_isValidMobile(_mobileController.text)) {
+  void _handleSendOtp() async {
+    if (!_isValidMobile(_mobileController.text) && !DebugConfig.isActive) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Enter a valid mobile number')),
       );
       return;
     }
 
-    // TODO: Trigger OTP send + navigate to the OTP verification screen.
+    if (DebugConfig.isActive) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => OtpScreen(
+            dialCode: _selectedCountry.dialCode,
+            mobileNumber: _mobileController.text.trim().isEmpty
+                ? DebugConfig.loginMobile
+                : _mobileController.text.trim(),
+          ),
+        ),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    // Simulate network latency for OTP generation
+    await Future.delayed(const Duration(milliseconds: 800));
+
+    if (!mounted) return;
+    Navigator.pop(context); // Close dialog
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Verification code sent! Use code 123456 to verify.'),
+        backgroundColor: AppColors.appGreen,
+        duration: Duration(seconds: 4),
+      ),
+    );
+
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const OtpScreen()),
+      MaterialPageRoute(
+        builder: (_) => OtpScreen(
+          dialCode: _selectedCountry.dialCode,
+          mobileNumber: _mobileController.text.trim(),
+        ),
+      ),
     );
   }
 
