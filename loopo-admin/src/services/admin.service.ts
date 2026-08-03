@@ -23,14 +23,23 @@ export const usersService = {
   block: (id: string) => api.patch(`/api/v1/admin/users/${id}/status`, { status: 'BLOCKED' }),
 };
 
+// --- Sellers Service ---
+export const sellersService = {
+  getAll: (params?: Record<string, unknown>) => api.get('/api/v1/admin/sellers', { params }),
+  getById: (id: string) => api.get(`/api/v1/admin/sellers/${id}`),
+  verify: (id: string) => api.patch(`/api/v1/admin/sellers/${id}/verify`),
+  suspend: (id: string) => api.patch(`/api/v1/admin/sellers/${id}/suspend`),
+  approveKyc: (id: string) => api.patch(`/api/v1/admin/sellers/${id}/approve-kyc`),
+};
+
 // --- Products Service ---
 export const productsService = {
-  getAll: (params?: Record<string, unknown>) => api.get('/admin/products', { params }),
-  getById: (id: string) => api.get(`/admin/products/${id}`),
-  approve: (id: string) => api.patch(`/admin/products/${id}/approve`),
-  reject: (id: string, reason: string) => api.patch(`/admin/products/${id}/reject`, { reason }),
-  feature: (id: string, featured: boolean) => api.patch(`/admin/products/${id}/feature`, { featured }),
-  remove: (id: string) => api.delete(`/admin/products/${id}`),
+  getAll: (params?: Record<string, unknown>) => api.get('/api/v1/admin/products', { params }),
+  getById: (id: string) => api.get(`/api/v1/admin/products/${id}`),
+  approve: (id: string) => api.patch(`/api/v1/admin/products/${id}/approve`),
+  reject: (id: string, reason: string) => api.patch(`/api/v1/admin/products/${id}/reject`, { reason }),
+  feature: (id: string, featured: boolean) => api.patch(`/api/v1/admin/products/${id}/feature`, { featured }),
+  remove: (id: string) => api.delete(`/api/v1/admin/products/${id}`),
 };
 
 // --- Categories Service ---

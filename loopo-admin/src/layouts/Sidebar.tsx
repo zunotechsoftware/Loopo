@@ -42,11 +42,28 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { text: 'Users', icon: <People fontSize="small" />, path: '/users' },
       { text: 'Sellers', icon: <Storefront fontSize="small" />, path: '/sellers' },
-      { text: 'Listings', icon: <Inventory fontSize="small" />, path: '/listings' },
+      { 
+        text: 'Listings', 
+        icon: <Inventory fontSize="small" />, 
+        path: '/listings',
+        children: [
+          { text: 'All Listings', icon: <Inventory fontSize="small" />, path: '/listings' },
+          { text: 'Add Listing', icon: <Inventory fontSize="small" />, path: '/listings/add' },
+          { text: 'Pending Approval', icon: <Inventory fontSize="small" />, path: '/listings/pending' },
+          { text: 'Bulk Upload', icon: <Inventory fontSize="small" />, path: '/listings/bulk' },
+        ]
+      },
       { text: 'Categories', icon: <Category fontSize="small" />, path: '/categories' },
-      { text: 'Orders', icon: <ShoppingCart fontSize="small" />, path: '/orders' },
+      { 
+        text: 'Brands', 
+        icon: <LocalOffer fontSize="small" />, 
+        path: '/brands',
+        children: [
+          { text: 'All Brands', icon: <LocalOffer fontSize="small" />, path: '/brands' },
+          { text: 'Add Brand', icon: <LocalOffer fontSize="small" />, path: '/brands/add' }
+        ]
+      },
       { text: 'Payments', icon: <Payment fontSize="small" />, path: '/payments' },
-      { text: 'Wallet', icon: <AccountBalanceWallet fontSize="small" />, path: '/wallet' },
       { text: 'Messages', icon: <Message fontSize="small" />, path: '/messages' },
       { text: 'Reviews', icon: <Star fontSize="small" />, path: '/reviews' },
       { text: 'Reports', icon: <Assessment fontSize="small" />, path: '/reports' },
@@ -82,9 +99,22 @@ const NAV_GROUPS: NavGroup[] = [
 export default function Sidebar({ drawerWidth, mobileOpen, handleDrawerToggle }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  
+  // Default expanded state based on pathname
+  const [openMenus, setOpenMenus] = React.useState<Record<string, boolean>>({
+    'Listings': pathname.startsWith('/listings')
+  });
 
-  const handleNav = (path: string) => {
-    router.push(path);
+  const handleToggleMenu = (text: string) => {
+    setOpenMenus(prev => ({ ...prev, [text]: !prev[text] }));
+  };
+
+  const handleNav = (item: NavItem) => {
+    if (item.children) {
+      handleToggleMenu(item.text);
+      return;
+    }
+    router.push(item.path);
     if (mobileOpen) handleDrawerToggle();
   };
 
@@ -124,47 +154,90 @@ export default function Sidebar({ drawerWidth, mobileOpen, handleDrawerToggle }:
             )}
             <List dense disablePadding sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
               {group.items.map((item) => {
-                const isActive = pathname === item.path || pathname.startsWith(item.path + '/');
+                const isItemActive = pathname === item.path || (item.children ? pathname.startsWith(item.path) : false);
+                const isOpen = openMenus[item.text] || false;
+                
                 return (
-                  <ListItem key={item.text} disablePadding>
-                    <ListItemButton
-                      onClick={() => handleNav(item.path)}
-                      sx={{
-                        borderRadius: 2,
-                        px: 1.5,
-                        py: 1,
-                        bgcolor: isActive ? '#1d4ed8' : 'transparent',
-                        color: isActive ? 'white' : '#cbd5e1',
-                        '&:hover': {
-                          bgcolor: isActive ? '#1d4ed8' : 'rgba(255,255,255,0.05)',
-                        },
-                        transition: 'all 0.2s ease',
-                      }}
-                    >
-                      <ListItemIcon
+                  <React.Fragment key={item.text}>
+                    <ListItem disablePadding>
+                      <ListItemButton
+                        onClick={() => handleNav(item)}
                         sx={{
-                          minWidth: 32,
-                          color: isActive ? 'white' : '#cbd5e1',
+                          borderRadius: 2,
+                          px: 1.5,
+                          py: 1,
+                          bgcolor: isItemActive && !item.children ? '#1d4ed8' : (isOpen ? 'rgba(255,255,255,0.03)' : 'transparent'),
+                          color: isItemActive ? 'white' : '#cbd5e1',
+                          '&:hover': {
+                            bgcolor: isItemActive && !item.children ? '#1d4ed8' : 'rgba(255,255,255,0.05)',
+                          },
+                          transition: 'all 0.2s ease',
                         }}
                       >
-                        {item.icon}
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={item.text}
-                        slotProps={{
-                          primary: {
-                            sx: {
-                              fontWeight: isActive ? 600 : 400,
-                              fontSize: '0.85rem'
+                        <ListItemIcon
+                          sx={{
+                            minWidth: 32,
+                            color: isItemActive ? 'white' : '#cbd5e1',
+                          }}
+                        >
+                          {item.icon}
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={item.text}
+                          slotProps={{
+                            primary: {
+                              sx: {
+                                fontWeight: isItemActive ? 600 : 400,
+                                fontSize: '0.85rem'
+                              }
                             }
-                          }
-                        }}
-                      />
-                      {group.items.some(i => i.children) && (
-                        <ExpandMore sx={{ fontSize: 16, color: '#64748b' }} />
-                      )}
-                    </ListItemButton>
-                  </ListItem>
+                          }}
+                        />
+                        {item.children && (
+                          isOpen ? <ExpandLess sx={{ fontSize: 16, color: '#64748b' }} /> : <ExpandMore sx={{ fontSize: 16, color: '#64748b' }} />
+                        )}
+                      </ListItemButton>
+                    </ListItem>
+                    {item.children && (
+                      <Collapse in={isOpen} timeout="auto" unmountOnExit>
+                        <List component="div" disablePadding sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mt: 0.5 }}>
+                          {item.children.map(child => {
+                            const isChildActive = pathname === child.path;
+                            return (
+                              <ListItemButton
+                                key={child.text}
+                                onClick={() => handleNav(child)}
+                                sx={{
+                                  borderRadius: 2,
+                                  pl: 5,
+                                  py: 0.8,
+                                  bgcolor: isChildActive ? '#1d4ed8' : 'transparent',
+                                  color: isChildActive ? 'white' : '#94a3b8',
+                                  '&:hover': {
+                                    bgcolor: isChildActive ? '#1d4ed8' : 'rgba(255,255,255,0.05)',
+                                    color: 'white'
+                                  },
+                                  transition: 'all 0.2s ease',
+                                }}
+                              >
+                                <ListItemText 
+                                  primary={child.text} 
+                                  slotProps={{
+                                    primary: {
+                                      sx: {
+                                        fontWeight: isChildActive ? 600 : 400,
+                                        fontSize: '0.8rem'
+                                      }
+                                    }
+                                  }} 
+                                />
+                              </ListItemButton>
+                            );
+                          })}
+                        </List>
+                      </Collapse>
+                    )}
+                  </React.Fragment>
                 );
               })}
             </List>

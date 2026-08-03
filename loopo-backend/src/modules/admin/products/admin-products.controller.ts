@@ -12,7 +12,7 @@ import { ProductStatus } from '@prisma/client';
 @ApiTags('Admin - Products')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
-@Controller('api/v1/admin/products')
+@Controller('admin/products')
 export class AdminProductsController {
   constructor(private readonly adminProductsService: AdminProductsService) {}
 
