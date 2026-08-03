@@ -440,7 +440,11 @@ export default function UsersPage() {
             }}
           />
           <FormControl size="small" sx={{ minWidth: 130 }}>
-            <Select value={roleFilter} onChange={handleFilterChange(setRoleFilter)}
+            <Select value={roleFilter} onChange={handleFilterChange(setRoleFilter)} displayEmpty
+              renderValue={(selected) => {
+                const opt = ROLE_OPTIONS.find(o => o.value === selected);
+                return opt ? opt.label : 'All Roles';
+              }}
               sx={{ borderRadius: 2, fontSize: '0.82rem', bgcolor: '#f8fafc' }}>
               {ROLE_OPTIONS.map((o) => (
                 <MenuItem key={o.value} value={o.value} sx={{ fontSize: '0.82rem' }}>{o.label}</MenuItem>
@@ -448,7 +452,11 @@ export default function UsersPage() {
             </Select>
           </FormControl>
           <FormControl size="small" sx={{ minWidth: 140 }}>
-            <Select value={statusFilter} onChange={handleFilterChange(setStatusFilter)}
+            <Select value={statusFilter} onChange={handleFilterChange(setStatusFilter)} displayEmpty
+              renderValue={(selected) => {
+                const opt = STATUS_OPTIONS.find(o => o.value === selected);
+                return opt ? opt.label : 'All Status';
+              }}
               sx={{ borderRadius: 2, fontSize: '0.82rem', bgcolor: '#f8fafc' }}>
               {STATUS_OPTIONS.map((o) => (
                 <MenuItem key={o.value} value={o.value} sx={{ fontSize: '0.82rem' }}>{o.label}</MenuItem>

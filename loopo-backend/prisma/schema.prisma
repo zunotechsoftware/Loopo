@@ -18,6 +18,7 @@ enum UserStatus {
   PENDING
   ACTIVE
   SUSPENDED
+  BLOCKED
   DELETED
 }
 
