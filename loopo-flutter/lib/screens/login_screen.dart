@@ -1,16 +1,18 @@
-﻿import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:http/http.dart' as http;
 import 'package:loopo/screens/signup_screen.dart';
+import 'package:loopo/screens/forgot_password_screen.dart';
+import 'package:loopo/screens/location_screen.dart';
 
-import '../config/api_config.dart';
+// TODO: [Backend Integration] Login with Email/Password via POST /api/v1/auth/login
+// TODO: [Backend Integration] Persist refresh token to flutter_secure_storage and handle token rotation
+
+
+import '../config/debug_config.dart';
 import '../services/auth_session.dart';
-import '../theme/app_colors.dart';
+import '../services/auth_service.dart';
 import '../widgets/form_input.dart';
 import '../widgets/primary_button.dart';
-import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -22,10 +24,20 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   bool _obscure = true;
   bool _isSubmitting = false;
-  String _loginMode = 'email';
+  final String _loginMode = 'email';
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _mobileController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    if (DebugConfig.isActive) {
+      _emailController.text = DebugConfig.loginEmail;
+      _passwordController.text = DebugConfig.loginPassword;
+      _mobileController.text = DebugConfig.loginMobile;
+    }
+  }
 
   static const String _countryCode = '+91';
   static final RegExp _indiaMobileRegExp = RegExp(r'^[6-9]\d{9}$');
@@ -67,7 +79,6 @@ class _LoginScreenState extends State<LoginScreen> {
         : digitsOnly;
 
     if (trimmedDigits.isNotEmpty &&
-        trimmedDigits.length >= 1 &&
         trimmedDigits[0] != '6' &&
         trimmedDigits[0] != '7' &&
         trimmedDigits[0] != '8' &&
@@ -87,43 +98,17 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  // -----------------------------------------------------------------------
-  // LOGIN API CALL
-  // -----------------------------------------------------------------------
-  // Uses ApiConfig.loginEndpoint, which resolves against ApiConfig.baseUrl.
-  // That base URL is environment-configurable via --dart-define, so this
-  // screen never needs to know or care which environment it's hitting.
-  Future<Map<String, dynamic>> _loginUser({
-    required Map<String, dynamic> payload,
-  }) async {
-    final response = await http
-        .post(
-          Uri.parse(ApiConfig.loginUrl),
-          headers: const {'Content-Type': 'application/json'},
-          body: jsonEncode(payload),
-        )
-        .timeout(const Duration(seconds: 15));
-
-    Map<String, dynamic>? decoded;
-    try {
-      final body = jsonDecode(response.body);
-      if (body is Map<String, dynamic>) decoded = body;
-    } catch (_) {
-      decoded = null;
-    }
-
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      return decoded ?? <String, dynamic>{};
-    }
-
-    final message = decoded?['message'] ?? decoded?['error'];
-    throw Exception(
-      message?.toString() ?? 'Login failed (${response.statusCode})',
-    );
-  }
-
   Future<void> _handleLogin() async {
     if (_isSubmitting) return;
+
+    // ── Debug bypass: skip validation and go directly to HomeScreen ──────────
+    if (DebugConfig.isActive) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LocationScreen()),
+      );
+      return;
+    }
 
     // ---- Client-side validation -----------------------------------------
     if (_loginMode == 'email') {
@@ -151,20 +136,19 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _isSubmitting = true);
 
-    final payload = _loginMode == 'email'
-        ? {
-            'email': _emailController.text.trim(),
-            'password': _passwordController.text,
-          }
-        : {
-            'mobileNumber': '$_countryCode${_mobileController.text.trim()}',
-            'password': _passwordController.text,
-          };
+    final email = _loginMode == 'email'
+        ? _emailController.text.trim()
+        : '$_countryCode${_mobileController.text.trim()}@loopo.com';
+    final password = _passwordController.text;
 
     try {
-      final result = await _loginUser(payload: payload);
+      final result = await AuthService().login(
+        email: email,
+        password: password,
+      );
 
-      final token = result['token'] ?? result['accessToken'];
+      final data = result['data'] ?? result;
+      final token = data['token'] ?? data['accessToken'] ?? result['accessToken'];
       if (token != null) {
         AuthSession.setToken(token.toString());
       }
@@ -184,7 +168,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(builder: (_) => const LocationScreen()),
       );
     } catch (e) {
       if (!mounted) return;
@@ -443,7 +427,14 @@ class _LoginScreenState extends State<LoginScreen> {
         Align(
           alignment: Alignment.centerRight,
           child: TextButton(
-            onPressed: () {},
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const ForgotPasswordScreen(),
+                ),
+              );
+            },
             child: const Text('Forgot password?'),
           ),
         ),

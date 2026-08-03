@@ -182,7 +182,10 @@ export class CategoriesService {
     try {
       const cachedTree = await this.redisService.get(this.TREE_CACHE_KEY);
       if (cachedTree) {
-        return JSON.parse(cachedTree);
+        const parsed = JSON.parse(cachedTree);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
       }
     } catch (err) {
       console.error('Redis read error for category tree:', err);
@@ -190,13 +193,17 @@ export class CategoriesService {
 
     // 2. Fetch all categories and build tree in memory
     const allCategories = await this.categoriesRepo.findTree();
+    console.log('Categories findTree count:', allCategories.length);
     const tree = this.buildTreeStructure(allCategories, null);
+    console.log('Built tree count:', tree.length);
 
     // 3. Write back to Redis
-    try {
-      await this.redisService.set(this.TREE_CACHE_KEY, JSON.stringify(tree), 86400); // 24 hour TTL
-    } catch (err) {
-      console.error('Redis write error for category tree:', err);
+    if (tree.length > 0) {
+      try {
+        await this.redisService.set(this.TREE_CACHE_KEY, JSON.stringify(tree), 86400); // 24 hour TTL
+      } catch (err) {
+        console.error('Redis write error for category tree:', err);
+      }
     }
 
     return tree;
@@ -315,7 +322,7 @@ export class CategoriesService {
 
   private buildTreeStructure(categories: any[], parentId: string | null): any[] {
     return categories
-      .filter((cat) => cat.parentId === parentId)
+      .filter((cat) => (parentId === null ? !cat.parentId : cat.parentId === parentId))
       .map((cat) => ({
         ...cat,
         children: this.buildTreeStructure(categories, cat.id),

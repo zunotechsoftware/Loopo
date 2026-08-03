@@ -339,7 +339,7 @@ async function main() {
   for (const pkg of featuredPackages) {
     await prisma.featuredPackage.create({
       data: pkg,
-    }).catch(() => {}); // Avoid duplicates on rerun
+    }).catch(() => { }); // Avoid duplicates on rerun
   }
   console.log('Featured packages seeded.');
 
@@ -353,7 +353,7 @@ async function main() {
   for (const pkg of boostPackages) {
     await prisma.boostPackage.create({
       data: pkg,
-    }).catch(() => {});
+    }).catch(() => { });
   }
   console.log('Boost packages seeded.');
 
