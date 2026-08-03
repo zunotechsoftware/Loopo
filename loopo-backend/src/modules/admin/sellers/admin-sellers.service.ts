@@ -51,6 +51,13 @@ export class AdminSellersService {
               profileImage: true,
               status: true,
               createdAt: true,
+              sellerStatistics: true,
+              products: {
+                include: {
+                  category: true,
+                  location: true,
+                },
+              },
             },
           },
         },

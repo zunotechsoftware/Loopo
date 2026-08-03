@@ -400,6 +400,112 @@ async function main() {
   }
   console.log('Report reasons seeded.');
 
+  // 11. Seed Categories
+  const categoryData = [
+    { name: 'Mobiles', slug: 'mobiles' },
+    { name: 'Vehicles', slug: 'vehicles' },
+    { name: 'Home & Living', slug: 'home-and-living' },
+    { name: 'Electronics', slug: 'electronics' },
+  ];
+  const categories: any = {};
+  for (const cat of categoryData) {
+    categories[cat.name] = await prisma.category.upsert({
+      where: { slug: cat.slug },
+      update: {},
+      create: { name: cat.name, slug: cat.slug, isActive: true },
+    });
+  }
+
+  const subcats = [
+    { name: 'iPhone', slug: 'iphone', parentId: categories['Mobiles'].id },
+    { name: 'Cars', slug: 'cars', parentId: categories['Vehicles'].id },
+    { name: 'Furniture', slug: 'furniture', parentId: categories['Home & Living'].id },
+    { name: 'Laptops', slug: 'laptops', parentId: categories['Electronics'].id },
+    { name: 'Cameras', slug: 'cameras', parentId: categories['Electronics'].id },
+  ];
+  for (const sub of subcats) {
+    categories[sub.name] = await prisma.category.upsert({
+      where: { slug: sub.slug },
+      update: {},
+      create: { name: sub.name, slug: sub.slug, parentId: sub.parentId, isActive: true },
+    });
+  }
+  console.log('Categories seeded.');
+
+  // 12. Seed Sellers
+  const sellersData = [
+    { email: 'ajay@example.com', firstName: 'Ajay', lastName: 'Patel', storeName: 'Ajay Electronics', phone: '+91 98765 43210', rating: 4.8, reviews: 128, sales: 876540, verification: 'VERIFIED', listings: 42, kyc: 'APPROVED' },
+    { email: 'sneha@example.com', firstName: 'Sneha', lastName: 'Reddy', storeName: 'Reddy Collections', phone: '+91 91234 56789', rating: 4.6, reviews: 95, sales: 543210, verification: 'PENDING', listings: 28, kyc: 'SUBMITTED' },
+    { email: 'rahul@example.com', firstName: 'Rahul', lastName: 'Sharma', storeName: 'Sharma Digital', phone: '+91 99887 76655', rating: 4.7, reviews: 182, sales: 1234560, verification: 'VERIFIED', listings: 56, kyc: 'APPROVED' },
+    { email: 'vikram@example.com', firstName: 'Vikram', lastName: 'Singh', storeName: 'Vikram Motors', phone: '+91 77665 54433', rating: 4.9, reviews: 210, sales: 1876800, verification: 'VERIFIED', listings: 31, kyc: 'APPROVED' },
+  ];
+  const sellers: any = {};
+  for (const s of sellersData) {
+    let user = await prisma.user.findUnique({ where: { email: s.email } });
+    if (!user) {
+      const p = await bcrypt.hash('Password123', 10);
+      user = await prisma.user.create({
+        data: {
+          email: s.email, phone: s.phone, password: p, firstName: s.firstName, lastName: s.lastName,
+          status: 'ACTIVE', provider: 'LOCAL',
+          profile: {
+            create: {
+              firstName: s.firstName, lastName: s.lastName, displayName: `${s.firstName} ${s.lastName}`,
+              verifiedBadge: s.verification === 'VERIFIED', phone: s.phone
+            }
+          },
+          sellerProfile: {
+            create: {
+              displayName: `${s.firstName} ${s.lastName}`,
+              storeName: s.storeName,
+              verificationStatus: s.verification,
+              kycStatus: s.kyc as any,
+              sellerRating: s.rating,
+              totalSales: s.sales,
+              totalListings: s.listings
+            }
+          },
+          sellerStatistics: {
+            create: {
+              averageRating: s.rating,
+              totalReviews: s.reviews
+            }
+          }
+        }
+      });
+    }
+    sellers[s.firstName] = user;
+  }
+  console.log('Sellers seeded.');
+
+  // 13. Seed Products
+  const productsData = [
+    { seller: sellers['Ajay'], categoryId: categories['Mobiles'].id, subcategoryId: categories['iPhone'].id, title: 'iPhone 13 128GB Blue', slug: 'iphone-13-128gb-blue', desc: 'Used for 1 year', condition: 'LIKE_NEW', price: 32000, status: 'APPROVED', loc: { city: 'Bangalore', state: 'Karnataka', country: 'India' } },
+    { seller: sellers['Sneha'], categoryId: categories['Vehicles'].id, subcategoryId: categories['Cars'].id, title: 'Maruti Swift VXi 2020', slug: 'maruti-swift-vxi-2020', desc: 'Good condition', condition: 'GOOD', price: 485000, status: 'APPROVED', loc: { city: 'Hyderabad', state: 'Telangana', country: 'India' } },
+    { seller: sellers['Rahul'], categoryId: categories['Home & Living'].id, subcategoryId: categories['Furniture'].id, title: 'L Shape Sofa Set', slug: 'l-shape-sofa-set', desc: 'Good condition', condition: 'GOOD', price: 18000, status: 'PENDING', loc: { city: 'Pune', state: 'Maharashtra', country: 'India' } },
+    { seller: sellers['Vikram'], categoryId: categories['Electronics'].id, subcategoryId: categories['Laptops'].id, title: 'Dell Inspiron 15', slug: 'dell-inspiron-15', desc: 'Like new', condition: 'LIKE_NEW', price: 28500, status: 'APPROVED', loc: { city: 'Delhi', state: 'Delhi', country: 'India' } },
+  ];
+
+  for (const pd of productsData) {
+    const existingP = await prisma.product.findUnique({ where: { slug: pd.slug } });
+    if (!existingP) {
+      await prisma.product.create({
+        data: {
+          sellerId: pd.seller.id, categoryId: pd.categoryId, subcategoryId: pd.subcategoryId,
+          title: pd.title, slug: pd.slug, description: pd.desc, condition: pd.condition as any, price: pd.price,
+          status: pd.status as any, viewCount: Math.floor(Math.random() * 2000),
+          location: {
+            create: { city: pd.loc.city, state: pd.loc.state, country: pd.loc.country }
+          },
+          images: {
+            create: { originalUrl: `https://ui-avatars.com/api/?name=${pd.title}&background=random`, sortOrder: 0 }
+          }
+        }
+      });
+    }
+  }
+  console.log('Products seeded.');
+
   console.log('Database seeding finished.');
 }
 

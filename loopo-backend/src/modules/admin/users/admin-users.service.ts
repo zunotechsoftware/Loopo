@@ -51,6 +51,13 @@ export class AdminUsersService {
       throw new ConflictException('A user with this email already exists.');
     }
 
+    if (dto.phone) {
+      const existingPhone = await this.prisma.user.findUnique({ where: { phone: dto.phone } });
+      if (existingPhone) {
+        throw new ConflictException('A user with this phone number already exists.');
+      }
+    }
+
     const roles = await this.prisma.role.findMany({
       where: { name: { in: dto.roles } },
     });
@@ -89,6 +96,11 @@ export class AdminUsersService {
     if (dto.email && dto.email !== user.email) {
       const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
       if (existing) throw new ConflictException('Email is already in use by another account.');
+    }
+
+    if (dto.phone && dto.phone !== user.phone) {
+      const existingPhone = await this.prisma.user.findUnique({ where: { phone: dto.phone } });
+      if (existingPhone) throw new ConflictException('Phone number is already in use by another account.');
     }
 
     const data: any = {};

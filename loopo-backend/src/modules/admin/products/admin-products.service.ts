@@ -18,7 +18,12 @@ export class AdminProductsService {
       where,
       skip,
       take,
-      include: { seller: { select: { id: true, email: true, firstName: true } }, category: true },
+      include: { 
+        seller: { include: { profile: true } }, 
+        category: true,
+        location: true,
+        images: true
+      },
       orderBy: { createdAt: 'desc' },
     });
   }
