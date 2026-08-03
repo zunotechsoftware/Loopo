@@ -37,6 +37,7 @@ class ApiConfig {
   static const String meEndpoint = '/api/v1/users/me';
   static const String updateProfileEndpoint = '/api/v1/users/me';
   static const String notificationSettingsEndpoint = '/api/v1/notification-settings';
+  static const String searchEndpoint = '/api/v1/search';
 
   // Full URLs
   static String get loginUrl => '$baseUrl$loginEndpoint';
@@ -48,4 +49,5 @@ class ApiConfig {
   static String get meUrl => '$baseUrl$meEndpoint';
   static String get updateProfileUrl => '$baseUrl$updateProfileEndpoint';
   static String get notificationSettingsUrl => '$baseUrl$notificationSettingsEndpoint';
+  static String get searchUrl => '$baseUrl$searchEndpoint';
 }

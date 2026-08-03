@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-import '../config/debug_config.dart';
 import 'categories_screen.dart';
 import 'profile_screen.dart';
 import 'notification_list_screen.dart';
+import 'product_detail_screen.dart';
+import 'subcategory_items_screen.dart';
 import '../services/category_service.dart';
+import '../services/location_service.dart';
 import '../theme/app_colors.dart';
 
 // TODO: [Backend Integration] Fetch products/listings from GET /api/v1/products?categories=...&search=...&page=1
@@ -22,13 +24,15 @@ class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
   int _selectedIndex = 0;
   final CategoryService _categoryService = CategoryService();
+  final LocationService _locationService = LocationService();
   List<dynamic> _categories = [];
   bool _isLoadingCategories = true;
+  bool _isDetectingLocation = false;
   late AnimationController _bannerController;
   int _activeBanner = 0;
 
-  // Selected filter categories for search context
-  final List<String> _selectedFilterCategories = ['Mobiles'];
+  // Selected filter categories for search context (starts empty)
+  final List<String> _selectedFilterCategories = [];
 
   static const List<Map<String, dynamic>> _staticCategories = [
     {'icon': Icons.phone_android, 'label': 'Mobiles', 'name': 'Mobiles'},
@@ -135,6 +139,7 @@ class _HomeScreenState extends State<HomeScreen>
   void initState() {
     super.initState();
     _loadCategories();
+    _detectLocationOnLaunch();
     _bannerController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 4),
@@ -147,6 +152,14 @@ class _HomeScreenState extends State<HomeScreen>
     _bannerController.forward();
   }
 
+  Future<void> _detectLocationOnLaunch() async {
+    setState(() => _isDetectingLocation = true);
+    await _locationService.detectCurrentLocation();
+    if (mounted) {
+      setState(() => _isDetectingLocation = false);
+    }
+  }
+
   @override
   void dispose() {
     _bannerController.dispose();
@@ -155,13 +168,6 @@ class _HomeScreenState extends State<HomeScreen>
 
   Future<void> _loadCategories() async {
     setState(() => _isLoadingCategories = true);
-    if (DebugConfig.isActive) {
-      setState(() {
-        _categories = _staticCategories;
-        _isLoadingCategories = false;
-      });
-      return;
-    }
     try {
       final fetched = await _categoryService.getRootCategories();
       setState(() {
@@ -177,35 +183,16 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   IconData _getIconData(String? key) {
-    switch ((key ?? '').toLowerCase()) {
-      case 'phone_android':
-      case 'mobiles':
-        return Icons.phone_android;
-      case 'directions_car':
-      case 'cars':
-        return Icons.directions_car;
-      case 'motorcycle':
-      case 'bikes':
-        return Icons.motorcycle;
-      case 'tv':
-      case 'electronics':
-        return Icons.tv;
-      case 'chair':
-      case 'furniture':
-        return Icons.chair;
-      case 'shopping_bag':
-      case 'fashion':
-        return Icons.shopping_bag;
-      case 'book':
-      case 'books':
-        return Icons.book;
-      case 'lightbulb':
-      case 'home-living':
-      case 'home':
-        return Icons.lightbulb;
-      default:
-        return Icons.grid_view_rounded;
-    }
+    final k = (key ?? '').toLowerCase();
+    if (k.contains('phone') || k.contains('mobile')) return Icons.phone_android;
+    if (k.contains('car') || k.contains('direction')) return Icons.directions_car;
+    if (k.contains('bike') || k.contains('motorcycle')) return Icons.motorcycle;
+    if (k.contains('tv') || k.contains('electronic')) return Icons.tv;
+    if (k.contains('chair') || k.contains('furniture')) return Icons.chair;
+    if (k.contains('bag') || k.contains('fashion')) return Icons.shopping_bag;
+    if (k.contains('book')) return Icons.book;
+    if (k.contains('bulb') || k.contains('home') || k.contains('living')) return Icons.lightbulb;
+    return Icons.grid_view_rounded;
   }
 
   Color _categoryAccent(String label) {
@@ -297,12 +284,15 @@ class _HomeScreenState extends State<HomeScreen>
                   const SizedBox(height: 16),
                   Expanded(
                     child: ListView.separated(
-                      itemCount: _staticCategories.length,
+                      itemCount: (_categories.isNotEmpty ? _categories : _staticCategories).length,
                       separatorBuilder: (_, _) => const Divider(height: 1),
                       itemBuilder: (context, index) {
-                        final cat = _staticCategories[index];
-                        final label = cat['label'] as String;
-                        final icon = cat['icon'] as IconData;
+                        final catList = _categories.isNotEmpty ? _categories : _staticCategories;
+                        final cat = catList[index];
+                        final label = (cat['name'] ?? cat['label'] ?? 'Category').toString();
+                        final IconData icon = cat['icon'] is IconData
+                            ? cat['icon']
+                            : _getIconData((cat['icon'] ?? cat['name'])?.toString());
                         final isSelected = _selectedFilterCategories.contains(label);
 
                         return CheckboxListTile(
@@ -375,6 +365,220 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
+  void _showLocationPickerModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Container(
+                height: MediaQuery.of(context).size.height * 0.70,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Select Location',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.appDark,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded, size: 20),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Auto-Detect Location Button
+                    InkWell(
+                      onTap: () async {
+                        Navigator.pop(context);
+                        setState(() => _isDetectingLocation = true);
+                        final loc = await _locationService.detectCurrentLocation();
+                        if (mounted && context.mounted) {
+                          setState(() => _isDetectingLocation = false);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                _locationService.isRealGps
+                                    ? '📍 GPS Location: ${loc['city']}, ${loc['country']}'
+                                    : 'Location updated to ${loc['city']}, ${loc['country']}',
+                              ),
+                              backgroundColor: AppColors.appGreen,
+                            ),
+                          );
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: AppColors.appGreen.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppColors.appGreen.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          children: const [
+                            Icon(Icons.my_location_rounded, color: AppColors.appGreen, size: 22),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Use Current Location',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                      color: AppColors.appGreen,
+                                    ),
+                                  ),
+                                  SizedBox(height: 2),
+                                  Text(
+                                    'Using IP & Device GPS for precise city',
+                                    style: TextStyle(fontSize: 11, color: Colors.black45),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(Icons.chevron_right, color: AppColors.appGreen, size: 20),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Popular Cities',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.appDark,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Popular Cities Grid
+                    Expanded(
+                      child: GridView.builder(
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          childAspectRatio: 2.8,
+                          crossAxisSpacing: 10,
+                          mainAxisSpacing: 10,
+                        ),
+                        itemCount: LocationService.popularCities.length,
+                        itemBuilder: (context, index) {
+                          final c = LocationService.popularCities[index];
+                          final isSelected = c['city'] == _locationService.currentCity;
+
+                          return InkWell(
+                            onTap: () {
+                              setState(() {
+                                _locationService.setLocation(
+                                  city: c['city']!,
+                                  state: c['state']!,
+                                  country: c['country']!,
+                                );
+                              });
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Location changed to ${c['city']}'),
+                                  backgroundColor: AppColors.appGreen,
+                                  duration: const Duration(seconds: 1),
+                                ),
+                              );
+                            },
+                            borderRadius: BorderRadius.circular(14),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: isSelected ? AppColors.appGreen.withValues(alpha: 0.12) : const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: isSelected ? AppColors.appGreen : Colors.grey.shade200,
+                                  width: isSelected ? 1.5 : 1,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.location_city_rounded,
+                                    size: 18,
+                                    color: isSelected ? AppColors.appGreen : Colors.black45,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          c['city']!,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                                            color: isSelected ? AppColors.appGreen : AppColors.appDark,
+                                          ),
+                                        ),
+                                        Text(
+                                          c['state']!,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(fontSize: 10, color: Colors.black38),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -415,26 +619,29 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 ),
                 const SizedBox(width: 10),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: const [
-                        Icon(Icons.location_on, size: 11, color: AppColors.appGreen),
-                        SizedBox(width: 2),
-                        Text(
-                          'Bangalore, India',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.appDark,
+                GestureDetector(
+                  onTap: _showLocationPickerModal,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.location_on, size: 12, color: AppColors.appGreen),
+                          const SizedBox(width: 2),
+                          Text(
+                            _isDetectingLocation ? 'Locating...' : _locationService.formattedLocation,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.appDark,
+                            ),
                           ),
-                        ),
-                        Icon(Icons.keyboard_arrow_down, size: 14, color: Colors.black45),
-                      ],
-                    ),
-                  ],
+                          const Icon(Icons.keyboard_arrow_down, size: 14, color: Colors.black45),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
                 const Spacer(),
                 // Notification Icon -> Opens NotificationsListScreen
@@ -981,11 +1188,15 @@ class _HomeScreenState extends State<HomeScreen>
 
           return GestureDetector(
             onTap: () {
-              setState(() {
-                if (!_selectedFilterCategories.contains(label)) {
-                  _selectedFilterCategories.add(label);
-                }
-              });
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => SubcategoryItemsScreen(
+                    categoryName: label,
+                    categoryId: cat['id']?.toString() ?? '',
+                  ),
+                ),
+              );
             },
             child: Container(
               width: 76,
@@ -1151,9 +1362,18 @@ class _HomeScreenState extends State<HomeScreen>
     final accent = item['accent'] as Color;
     final icon = _getIconData(item['category'].toString());
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ProductDetailScreen(product: item),
+          ),
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -1288,8 +1508,9 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _navItem(int idx, IconData active, IconData inactive, String label) {
     final selected = _selectedIndex == idx;

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:loopo/screens/location_screen.dart';
 
 // TODO: [Backend Integration] Send phone OTP via POST /api/v1/auth/send-otp
 // TODO: [Backend Integration] Verify 6-digit phone OTP via POST /api/v1/auth/verify-otp
@@ -12,7 +13,6 @@ import '../theme/app_colors.dart';
 import '../widgets/primary_button.dart';
 import '../services/auth_service.dart';
 import '../services/auth_session.dart';
-import 'home_screen.dart';
 
 class OtpScreen extends StatefulWidget {
   final String dialCode;
@@ -132,7 +132,7 @@ class _OtpScreenState extends State<OtpScreen> {
     if (DebugConfig.isActive) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(builder: (_) => const LocationScreen()),
       );
       return;
     }
@@ -187,7 +187,7 @@ class _OtpScreenState extends State<OtpScreen> {
           if (mounted) {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (_) => const HomeScreen()),
+              MaterialPageRoute(builder: (_) => const LocationScreen()),
             );
           }
         });

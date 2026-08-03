@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/location_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/primary_button.dart';
 import 'home_screen.dart';
@@ -17,8 +18,6 @@ class _LocationScreenState extends State<LocationScreen> {
   static const double _tabletBreakpoint = 600;
   static const double _maxContentWidth = 480;
 
-  bool _isTablet(double width) => width >= _tabletBreakpoint;
-
   double _horizontalPadding(double width) {
     if (width >= _tabletBreakpoint) {
       final overflow = width - _maxContentWidth;
@@ -27,38 +26,30 @@ class _LocationScreenState extends State<LocationScreen> {
     return 24.0;
   }
 
-  // ---- Handle Find My Location ----
-  void _handleFindLocation() {
+  void _handleFindLocation() async {
     setState(() {
       _isLoading = true;
     });
 
-    // TODO: Implement location fetching
-    // - Request location permissions
-    // - Get current location
-    // - Reverse geocode to get address
+    final loc = await LocationService().detectCurrentLocation();
 
-    // Simulate location fetch
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Location found successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Location found: ${loc['city']}, ${loc['country']}'),
+          backgroundColor: Colors.green,
+        ),
+      );
 
-        // Navigate to home screen
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-        );
-      }
-    });
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+      );
+    }
   }
 
   // ---- Handle Other Location ----
@@ -195,21 +186,6 @@ class _LocationScreenState extends State<LocationScreen> {
           },
         ),
       ),
-    );
-  }
-
-  // -----------------------------------------------------------------------
-  // ILLUSTRATION
-  // -----------------------------------------------------------------------
-  Widget _buildIllustration() {
-    return Container(
-      width: 200,
-      height: 200,
-      decoration: BoxDecoration(
-        color: AppColors.appGreen.withOpacity(0.1),
-        shape: BoxShape.circle,
-      ),
-      child: Icon(Icons.location_on, size: 100, color: AppColors.appGreen),
     );
   }
 }

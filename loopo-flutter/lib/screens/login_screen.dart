@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:loopo/screens/signup_screen.dart';
 import 'package:loopo/screens/forgot_password_screen.dart';
+import 'package:loopo/screens/location_screen.dart';
 
 // TODO: [Backend Integration] Login with Email/Password via POST /api/v1/auth/login
 // TODO: [Backend Integration] Persist refresh token to flutter_secure_storage and handle token rotation
@@ -12,7 +13,6 @@ import '../services/auth_session.dart';
 import '../services/auth_service.dart';
 import '../widgets/form_input.dart';
 import '../widgets/primary_button.dart';
-import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -105,7 +105,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (DebugConfig.isActive) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(builder: (_) => const LocationScreen()),
       );
       return;
     }
@@ -168,7 +168,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(builder: (_) => const LocationScreen()),
       );
     } catch (e) {
       if (!mounted) return;

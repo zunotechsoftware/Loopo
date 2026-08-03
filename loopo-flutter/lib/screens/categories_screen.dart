@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../config/debug_config.dart';
 import '../services/category_service.dart';
 import '../theme/app_colors.dart';
+import 'subcategory_items_screen.dart';
 
 // TODO: [Backend Integration] Fetch root categories from GET /api/v1/categories
 // TODO: [Backend Integration] Fetch nested category tree from GET /api/v1/categories/tree
@@ -126,13 +126,6 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
 
   Future<void> _fetchCategories() async {
     setState(() => _isLoading = true);
-    if (DebugConfig.isActive) {
-      setState(() {
-        _categoriesTree = _fallbackCategories;
-        _isLoading = false;
-      });
-      return;
-    }
     final tree = await _categoryService.getCategoryTree();
     setState(() {
       _categoriesTree = tree.isNotEmpty ? tree : _fallbackCategories;
@@ -375,15 +368,19 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                                             itemCount: subcategories.length,
                                             itemBuilder: (context, index) {
                                               final sub = subcategories[index];
-                                              return InkWell(
-                                                onTap: () {
-                                                  ScaffoldMessenger.of(context).showSnackBar(
-                                                    SnackBar(
-                                                      content: Text('Selected category: ${sub['name']}'),
-                                                      duration: const Duration(seconds: 1),
-                                                    ),
-                                                  );
-                                                },
+                                                return InkWell(
+                                                  onTap: () {
+                                                    Navigator.push(
+                                                      context,
+                                                      MaterialPageRoute(
+                                                        builder: (_) => SubcategoryItemsScreen(
+                                                          categoryName: (sub['name'] ?? (activeParent != null ? activeParent['name'] : 'Category')).toString(),
+                                                          categoryId: (sub['id'] ?? (activeParent != null ? activeParent['id'] : '')).toString(),
+                                                          subcategories: subcategories,
+                                                        ),
+                                                      ),
+                                                    );
+                                                  },
                                                 child: Container(
                                                   alignment: Alignment.center,
                                                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
