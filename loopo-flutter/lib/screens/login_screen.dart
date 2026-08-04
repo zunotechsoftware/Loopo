@@ -1,10 +1,18 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:loopo/screens/signup_screen.dart';
+import 'package:loopo/screens/forgot_password_screen.dart';
+import 'package:loopo/screens/location_screen.dart';
 
-import '../theme/app_colors.dart';
+// TODO: [Backend Integration] Login with Email/Password via POST /api/v1/auth/login
+// TODO: [Backend Integration] Persist refresh token to flutter_secure_storage and handle token rotation
+
+
+import '../config/debug_config.dart';
+import '../services/auth_session.dart';
+import '../services/auth_service.dart';
 import '../widgets/form_input.dart';
 import '../widgets/primary_button.dart';
-import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -15,17 +23,53 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   bool _obscure = true;
-  String _loginMode = 'email';
+  bool _isSubmitting = false;
+  final String _loginMode = 'email';
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _mobileController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
+  @override
+  void initState() {
+    super.initState();
+    if (DebugConfig.isActive) {
+      _emailController.text = DebugConfig.loginEmail;
+      _passwordController.text = DebugConfig.loginPassword;
+      _mobileController.text = DebugConfig.loginMobile;
+    }
+  }
+
   static const String _countryCode = '+91';
   static final RegExp _indiaMobileRegExp = RegExp(r'^[6-9]\d{9}$');
+
+  // ---- Responsive breakpoints / helpers -------------------------------
+  static const double _tabletBreakpoint = 600;
+  static const double _maxContentWidth = 480;
+
+  bool _isTablet(double width) => width >= _tabletBreakpoint;
+
+  double _horizontalPadding(double width) {
+    if (width >= _tabletBreakpoint) {
+      // center the constrained content on wide/tablet/desktop screens
+      final overflow = width - _maxContentWidth;
+      return overflow > 0 ? overflow / 2 : 24.0;
+    }
+    return 24.0;
+  }
+
+  double _logoWidth(double width) {
+    if (_isTablet(width)) return 220;
+    final proportional = width * 0.5;
+    return proportional.clamp(140.0, 220.0);
+  }
 
   bool _isValidMobile(String value) {
     final digitsOnly = value.replaceAll(RegExp(r'\D'), '');
     return digitsOnly.isNotEmpty && _indiaMobileRegExp.hasMatch(digitsOnly);
+  }
+
+  bool _isValidEmail(String value) {
+    return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value.trim());
   }
 
   void _onMobileChanged(String value) {
@@ -35,7 +79,6 @@ class _LoginScreenState extends State<LoginScreen> {
         : digitsOnly;
 
     if (trimmedDigits.isNotEmpty &&
-        trimmedDigits.length >= 1 &&
         trimmedDigits[0] != '6' &&
         trimmedDigits[0] != '7' &&
         trimmedDigits[0] != '8' &&
@@ -55,6 +98,89 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _handleLogin() async {
+    if (_isSubmitting) return;
+
+    // ── Debug bypass: skip validation and go directly to HomeScreen ──────────
+    if (DebugConfig.isActive) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LocationScreen()),
+      );
+      return;
+    }
+
+    // ---- Client-side validation -----------------------------------------
+    if (_loginMode == 'email') {
+      if (!_isValidEmail(_emailController.text)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Enter a valid email address')),
+        );
+        return;
+      }
+    } else {
+      if (!_isValidMobile(_mobileController.text)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Enter a valid Indian mobile number')),
+        );
+        return;
+      }
+    }
+
+    if (_passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your password')),
+      );
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+
+    final email = _loginMode == 'email'
+        ? _emailController.text.trim()
+        : '$_countryCode${_mobileController.text.trim()}@loopo.com';
+    final password = _passwordController.text;
+
+    try {
+      final result = await AuthService().login(
+        email: email,
+        password: password,
+      );
+
+      final data = result['data'] ?? result;
+      final token = data['token'] ?? data['accessToken'] ?? result['accessToken'];
+      if (token != null) {
+        AuthSession.setToken(token.toString());
+      }
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Login successful!'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 1),
+        ),
+      );
+
+      await Future.delayed(const Duration(milliseconds: 400));
+      if (!mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LocationScreen()),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      final message = e.toString().replaceFirst('Exception: ', '');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -66,53 +192,149 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back_ios_new,
+            size: 20,
+            color: Colors.black,
+          ),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
       backgroundColor: Colors.white,
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
+            final width = constraints.maxWidth;
+            final hPad = _horizontalPadding(width);
+
             return Column(
               children: [
+                // ---------------- LOGO (separate, fixed at top) ----------------
+                _buildLogo(width, hPad),
+                const SizedBox(height: 30),
+
+                // ---------------- MIDDLE CONTENT (fills available space) -------
                 Expanded(
-                  child: SingleChildScrollView(
-                    physics: const ClampingScrollPhysics(),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24.0,
-                        vertical: 20.0,
-                      ),
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          minWidth: constraints.maxWidth,
-                          maxWidth: constraints.maxWidth,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Welcome Back!',
-                              style: TextStyle(
-                                fontFamily: 'Poppins',
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                              ),
+                  child: LayoutBuilder(
+                    builder: (context, innerConstraints) {
+                      return SingleChildScrollView(
+                        physics: const ClampingScrollPhysics(),
+                        padding: EdgeInsets.symmetric(horizontal: hPad),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: innerConstraints.maxHeight,
+                          ),
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(
+                              maxWidth: _maxContentWidth,
                             ),
-                            const SizedBox(height: 6),
-                            const Text(
-                              'Login to your account',
-                              style: TextStyle(color: Colors.black54),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Welcome Back!',
+                                  style: TextStyle(
+                                    fontFamily: 'Poppins',
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                const Text(
+                                  'Login to your account',
+                                  style: TextStyle(color: Colors.black54),
+                                ),
+                                const SizedBox(height: 24),
+                                _buildLoginForm(),
+                              ],
                             ),
-                            const SizedBox(height: 24),
-                            _buildLoginForm(),
-                            const SizedBox(height: 24),
-                          ],
+                          ),
                         ),
-                      ),
-                    ),
+                      );
+                    },
                   ),
                 ),
+
+                // ---------------- LOGIN BUTTON (separate, fixed at bottom) ------
+                _buildLoginButton(hPad),
+
+                // ---------------- SIGN UP PROMPT (separate, fixed at bottom) ----
+                _buildSignUpPrompt(hPad),
               ],
             );
           },
+        ),
+      ),
+    );
+  }
+
+  // -----------------------------------------------------------------------
+  // LOGO SECTION
+  // -----------------------------------------------------------------------
+  Widget _buildLogo(double width, double hPad) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(hPad, 8, hPad, 8),
+      child: Center(
+        child: Image.asset("assets/images/loopo.png", width: _logoWidth(width)),
+      ),
+    );
+  }
+
+  // -----------------------------------------------------------------------
+  // LOGIN BUTTON (pinned to bottom)
+  // -----------------------------------------------------------------------
+  Widget _buildLoginButton(double hPad) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(hPad, 0, hPad, 4),
+      child: SizedBox(
+        width: double.infinity,
+        child: PrimaryButton(
+          text: _isSubmitting ? 'Logging in...' : 'Login',
+          onPressed: _isSubmitting ? () {} : _handleLogin,
+        ),
+      ),
+    );
+  }
+
+  // -----------------------------------------------------------------------
+  // SIGN UP PROMPT SECTION
+  // -----------------------------------------------------------------------
+  Widget _buildSignUpPrompt(double hPad) {
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(hPad, 12, hPad, 16),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              "Don't have an account?",
+              style: TextStyle(fontSize: 14, color: Colors.black54),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SignupScreen()),
+                );
+              },
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text(
+                "Sign Up",
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -170,28 +392,20 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  // -----------------------------------------------------------------------
+  // FORM FIELDS (logo, login button, and sign-up prompt no longer live here)
+  // -----------------------------------------------------------------------
   Widget _buildLoginForm() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            _buildModeChip('Email', _loginMode == 'email', () {
-              setState(() => _loginMode = 'email');
-            }),
-            const SizedBox(width: 12),
-            _buildModeChip('Mobile', _loginMode == 'mobile', () {
-              setState(() => _loginMode = 'mobile');
-            }),
-          ],
-        ),
-        const SizedBox(height: 12),
         _fieldLabel(_loginMode == 'email' ? 'Email' : 'Mobile Number'),
         const SizedBox(height: 8),
         _loginMode == 'email'
             ? FormInput(
                 hintText: 'Enter your email',
                 keyboardType: TextInputType.emailAddress,
+                controller: _emailController,
               )
             : _buildPhoneField(
                 'Enter mobile number',
@@ -203,6 +417,7 @@ class _LoginScreenState extends State<LoginScreen> {
         FormInput(
           hintText: 'Enter your password',
           obscure: _obscure,
+          controller: _passwordController,
           suffixWidget: IconButton(
             onPressed: () => setState(() => _obscure = !_obscure),
             icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility),
@@ -212,110 +427,18 @@ class _LoginScreenState extends State<LoginScreen> {
         Align(
           alignment: Alignment.centerRight,
           child: TextButton(
-            onPressed: () {},
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const ForgotPasswordScreen(),
+                ),
+              );
+            },
             child: const Text('Forgot password?'),
           ),
         ),
-        const SizedBox(height: 12),
-        PrimaryButton(
-          text: 'Login',
-          onPressed: () {
-            if (_loginMode == 'mobile' &&
-                !_isValidMobile(_mobileController.text)) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Enter a valid Indian mobile number'),
-                ),
-              );
-              return;
-            }
-
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const HomeScreen()),
-            );
-          },
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(child: Container(height: 1, color: Colors.grey.shade300)),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 12),
-              child: Text(
-                'or continue with',
-                style: TextStyle(color: Colors.black54),
-              ),
-            ),
-            Expanded(child: Container(height: 1, color: Colors.grey.shade300)),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                onPressed: () {},
-                style: OutlinedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: Colors.black87,
-                  side: BorderSide(color: Colors.grey.shade300),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                child: const Text('Google'),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: OutlinedButton(
-                onPressed: () {},
-                style: OutlinedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: Colors.black87,
-                  side: BorderSide(color: Colors.grey.shade300),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                child: const Text('Apple'),
-              ),
-            ),
-          ],
-        ),
       ],
-    );
-  }
-
-  Widget _buildModeChip(String label, bool active, VoidCallback onTap) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: active
-                ? AppColors.appGreen.withAlpha((0.12 * 255).round())
-                : Colors.white,
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(
-              color: active ? AppColors.appGreen : Colors.grey.shade300,
-            ),
-          ),
-          child: Center(
-            child: Text(
-              label,
-              style: TextStyle(
-                color: active ? AppColors.appGreen : Colors.black54,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

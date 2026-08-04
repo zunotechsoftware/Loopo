@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:loopo/screens/welcome_screen.dart';
 
-import 'screens/splash_screen.dart';
 import 'theme/app_theme.dart';
 
 class NoGlowScrollBehavior extends MaterialScrollBehavior {
@@ -15,19 +15,21 @@ class NoGlowScrollBehavior extends MaterialScrollBehavior {
     Widget child,
     ScrollableDetails details,
   ) {
-    return child; // disable glow/stretch overscroll indicator
+    return child;
   }
 
   @override
-  ScrollPhysics getScrollPhysics(BuildContext context) =>
-      const ClampingScrollPhysics();
+  ScrollPhysics getScrollPhysics(BuildContext context) {
+    return const ClampingScrollPhysics();
+  }
 }
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
-  // Show errors on-screen instead of a blank white screen.
+  // Show Flutter errors on-screen instead of a blank screen.
   ErrorWidget.builder = (FlutterErrorDetails details) {
     return Material(
       color: Colors.white,
@@ -42,12 +44,16 @@ Future<void> main() async {
                   'An error occurred',
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
+
                 const SizedBox(height: 12),
+
                 Text(
                   details.exceptionAsString(),
                   style: const TextStyle(color: Colors.red),
                 ),
+
                 const SizedBox(height: 12),
+
                 Text(
                   details.stack.toString(),
                   style: const TextStyle(fontSize: 12, color: Colors.black54),
@@ -60,13 +66,11 @@ Future<void> main() async {
     );
   };
 
-  runZonedGuarded(
-    () {
+  await runZonedGuarded(
+    () async {
       runApp(const MyApp());
     },
     (error, stack) {
-      // Print to console so logs capture it when running from IDE/device.
-      // In production, forward to error reporting service.
       debugPrint('Uncaught zone error: $error');
       debugPrintStack(stackTrace: stack);
     },
@@ -80,10 +84,14 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+
       title: 'Loopo',
+
       theme: AppTheme.lightTheme,
+
       scrollBehavior: const NoGlowScrollBehavior(),
-      home: const SplashScreen(),
+
+      home: const WelcomeScreen(),
     );
   }
 }
