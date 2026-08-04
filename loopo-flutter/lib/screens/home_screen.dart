@@ -7,6 +7,7 @@ import 'subcategory_items_screen.dart';
 import '../services/category_service.dart';
 import '../services/location_service.dart';
 import '../theme/app_colors.dart';
+import 'sell/sell_flow_screen.dart';
 
 // TODO: [Backend Integration] Fetch products/listings from GET /api/v1/products?categories=...&search=...&page=1
 // TODO: [Backend Integration] Fetch active promotional banners from GET /api/v1/admin/announcements or banners API
@@ -1557,7 +1558,11 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _sellButton() {
     return Expanded(
       child: GestureDetector(
-        onTap: () {},
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const SellFlowScreen()),
+          );
+        },
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
