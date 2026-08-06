@@ -1,0 +1,38 @@
+# Phase 2 Execution Checklist
+
+- [x] 1. Update Infrastructure
+  - [x] Add MinIO S3 service to `docker-compose.yml`
+  - [x] Add S3 configuration environment variables to `.env` and `.env.example`
+  - [x] Start S3 service (MinIO) in docker
+- [x] 2. Database Schema Updates
+  - [x] Update `prisma/schema.prisma` with Profile, Address, Permission, RolePermission, NotificationSetting, KycDocument, AuditLog, and MediaFile models
+  - [x] Implement Prisma Schema soft delete indexes and relations
+  - [x] Update `prisma/seed.ts` to insert initial roles (SUPER_ADMIN, ADMIN, MODERATOR, CUSTOMER) and granular permissions, then assign permissions to roles
+  - [x] Execute prisma db push and seed commands
+- [x] 3. Create Shared Utilities & Services
+  - [x] Create AWS S3 service (`s3.service.ts`) using `@aws-sdk/client-s3` and `@aws-sdk/s3-request-presigner`
+  - [x] Create Audit Log service (`audit-logs.service.ts`) and interceptor (`audit-log.interceptor.ts`)
+  - [x] Update QueuesModule with image processing queues
+- [x] 4. Security & RBAC Infrastructure
+  - [x] Create `@Permissions()` decorator
+  - [x] Create `PermissionsGuard` and update `RolesGuard`
+  - [x] Update schema.prisma with Payments and Subscriptions tables
+- [x] Run database migration / generate Prisma client
+- [x] Create Payment Provider Abstractions & Interfaces
+- [x] Create Payments Repository & Database Layer
+- [x] Implement Payment Provider Services (Stripe, Razorpay, PayPal)
+- [x] Implement Payments Service & Business Logic
+- [x] Implement Subscriptions Service & Business Logic
+- [x] Create DTOs & Validation schemas for all endpoints
+- [x] Create Controllers (Payments, Subscriptions, Featured, Boost, Coupons, Refunds)
+- [x] Implement BullMQ Processors (verification, renewal, expiry, invoices, receipts)
+- [x] Implement Redis Caching & Cache Invalidation
+- [x] Register new modules in App Module and Queues Module
+- [x] Write Unit and E2E tests
+- [x] Verify test execution & build correctness
+- [x] Generate walkthrough.md summarizing updates
+- [x] 7. Verification & Documentation
+  - [x] Generate unit, integration, and E2E tests
+  - [x] Run test suite to verify implementation
+  - [x] Verify API endpoints are exposed in Swagger UI
+  - [x] Write Walkthrough artifact

@@ -1,0 +1,1 @@
+const { PrismaClient } = require('@prisma/client'); const prisma = new PrismaClient(); async function main() { await prisma.role.upsert({ where: { name: 'SELLER' }, update: {}, create: { name: 'SELLER', description: 'Default role for seller' } }); console.log('SELLER role added'); } main().finally(() => prisma.$disconnect());
