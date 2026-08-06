@@ -48,12 +48,12 @@ export class AuthService {
     const payload = { email: user.email, sub: user.id, roles: user.roles };
     
     const accessToken = this.jwtService.sign(payload, {
-      secret: this.configService.get<string>('JWT_ACCESS_SECRET'),
+      secret: this.configService.get<string>('JWT_ACCESS_SECRET') || 'fallback_secret',
       expiresIn: this.configService.get<string>('JWT_ACCESS_EXPIRATION', '15m') as any,
     });
 
     const refreshToken = this.jwtService.sign(payload, {
-      secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+      secret: this.configService.get<string>('JWT_REFRESH_SECRET') || 'fallback_secret',
       expiresIn: this.configService.get<string>('JWT_REFRESH_EXPIRATION', '30d') as any,
     });
     const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
@@ -157,12 +157,12 @@ export class AuthService {
     // Issue new tokens
     const payload = { email: user.email, sub: user.id, roles: user.roles };
     const newAccessToken = this.jwtService.sign(payload, {
-      secret: this.configService.get<string>('JWT_ACCESS_SECRET'),
+      secret: this.configService.get<string>('JWT_ACCESS_SECRET') || 'fallback_secret',
       expiresIn: this.configService.get<string>('JWT_ACCESS_EXPIRATION', '15m') as any,
     });
 
     const newRefreshToken = this.jwtService.sign(payload, {
-      secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+      secret: this.configService.get<string>('JWT_REFRESH_SECRET') || 'fallback_secret',
       expiresIn: this.configService.get<string>('JWT_REFRESH_EXPIRATION', '30d') as any,
     });
     const hashedNewRefreshToken = await bcrypt.hash(newRefreshToken, 10);
