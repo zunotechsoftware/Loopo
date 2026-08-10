@@ -8,6 +8,7 @@ import '../services/category_service.dart';
 import '../services/location_service.dart';
 import '../theme/app_colors.dart';
 import 'sell/sell_flow_screen.dart';
+import 'my_ads_screen.dart';
 
 // TODO: [Backend Integration] Fetch products/listings from GET /api/v1/products?categories=...&search=...&page=1
 // TODO: [Backend Integration] Fetch active promotional banners from GET /api/v1/admin/announcements or banners API
@@ -213,7 +214,7 @@ class _HomeScreenState extends State<HomeScreen>
   void _onItemTapped(int index) {
     if (index == 1) {
       Navigator.push(context,
-          MaterialPageRoute(builder: (_) => const CategoriesScreen()));
+          MaterialPageRoute(builder: (_) => const MyAdsScreen()));
       return;
     }
     if (index == 4) {
@@ -1002,7 +1003,7 @@ class _HomeScreenState extends State<HomeScreen>
             child: Row(
               children: [
                 _navItem(0, Icons.home_filled, Icons.home_outlined, 'Home'),
-                _navItem(1, Icons.explore, Icons.explore_outlined, 'Explore'),
+                _navItem(1, Icons.inventory_2_rounded, Icons.inventory_2_outlined, 'My Ads'),
                 _sellButton(),
                 _navItem(3, Icons.message, Icons.message_outlined, 'Messages'),
                 _navItem(4, Icons.person, Icons.person_outline, 'Profile'),
