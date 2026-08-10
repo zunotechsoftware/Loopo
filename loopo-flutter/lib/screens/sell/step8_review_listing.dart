@@ -5,6 +5,8 @@ import '../../theme/app_colors.dart';
 import 'sell_widgets.dart';
 import 'sell_flow_controller.dart';
 
+import '../../services/product_service.dart';
+
 class ReviewListingScreen extends StatefulWidget {
   final SellFlowController controller;
 
@@ -19,12 +21,61 @@ class _ReviewListingScreenState extends State<ReviewListingScreen> {
 
   Future<void> _publish() async {
     setState(() => _isPublishing = true);
-    // Simulated publish delay – replace with API call
-    await Future.delayed(const Duration(seconds: 2));
-    if (!mounted) return;
-    setState(() => _isPublishing = false);
-    // Go to success screen (step index 8, the 9th page)
-    widget.controller.goToNext();
+    final d = widget.controller.data;
+    try {
+      final productService = ProductService();
+
+      String conditionEnum = 'LIKE_NEW';
+      final condLower = (d.condition).toLowerCase();
+      if (condLower.contains('new') && !condLower.contains('like')) {
+        conditionEnum = 'NEW';
+      } else if (condLower.contains('good')) {
+        conditionEnum = 'GOOD';
+      } else if (condLower.contains('fair')) {
+        conditionEnum = 'FAIR';
+      } else if (condLower.contains('refurbished')) {
+        conditionEnum = 'REFURBISHED';
+      }
+
+      final locationMap = {
+        'country': 'India',
+        'state': 'Karnataka',
+        'city': d.locationName != null && d.locationName!.isNotEmpty ? d.locationName! : 'Bengaluru',
+        'area': d.locationAddress ?? d.locationName ?? 'Koramangala',
+        if (d.latitude != null) 'latitude': d.latitude,
+        if (d.longitude != null) 'longitude': d.longitude,
+      };
+
+      final payload = {
+        'title': d.title.isNotEmpty ? d.title : 'Marketplace Listing',
+        'description': d.description.isNotEmpty ? d.description : 'Item listed via Loopo app.',
+        'categoryId': d.selectedCategoryId ?? 'a5cbe71e-01fc-4043-9828-98f5a653ccfe',
+        if (d.selectedSubcategoryId != null && d.selectedSubcategoryId!.isNotEmpty)
+          'subcategoryId': d.selectedSubcategoryId,
+        'condition': conditionEnum,
+        'price': d.price ?? 0.0,
+        'currency': 'INR',
+        'negotiable': d.isNegotiable,
+        'quantity': d.quantity > 0 ? d.quantity : 1,
+        'location': locationMap,
+      };
+
+      await productService.createListing(payload);
+
+      if (!mounted) return;
+      setState(() => _isPublishing = false);
+      widget.controller.goToNext();
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isPublishing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceFirst('Exception: ', '')),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
   }
 
   @override

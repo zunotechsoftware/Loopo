@@ -1,8 +1,9 @@
-// ─── My Ads (Selling Products) Screen ─────────────────────────────────────────
-
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../services/product_service.dart';
+import '../services/auth_session.dart';
 import 'sell/sell_flow_screen.dart';
+import 'product_detail_screen.dart';
 
 class MyAdsScreen extends StatefulWidget {
   const MyAdsScreen({super.key});
@@ -15,86 +16,12 @@ class _MyAdsScreenState extends State<MyAdsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
-  String _searchQuery = '';
+  final ProductService _productService = ProductService();
 
-  // Sample initial selling products dataset
-  List<Map<String, dynamic>> _myAds = [
-    {
-      'id': '1',
-      'title': 'iPhone 14 Pro Max - 256GB Deep Purple (Like New)',
-      'price': 78500,
-      'category': 'Mobiles',
-      'status': 'ACTIVE', // ACTIVE, PENDING, SOLD, DRAFT
-      'date': '2 days ago',
-      'views': 142,
-      'favorites': 18,
-      'chats': 5,
-      'imageUrl': 'assets/images/loopo.png',
-      'accent': const Color(0xFF7C3AED),
-      'icon': Icons.phone_iphone_rounded,
-      'location': 'Koramangala, Bengaluru',
-    },
-    {
-      'id': '2',
-      'title': 'Sony Bravia 55" 4K Ultra HD Smart OLED TV',
-      'price': 52000,
-      'category': 'Electronics',
-      'status': 'ACTIVE',
-      'date': '5 days ago',
-      'views': 89,
-      'favorites': 9,
-      'chats': 3,
-      'imageUrl': 'assets/images/loopo.png',
-      'accent': const Color(0xFF2563EB),
-      'icon': Icons.tv_rounded,
-      'location': 'Indiranagar, Bengaluru',
-    },
-    {
-      'id': '3',
-      'title': 'Royal Enfield Classic 350 (2022 Model, 12,000 km)',
-      'price': 145000,
-      'category': 'Vehicles',
-      'status': 'PENDING',
-      'date': 'Yesterday',
-      'views': 34,
-      'favorites': 4,
-      'chats': 1,
-      'imageUrl': 'assets/images/loopo.png',
-      'accent': const Color(0xFFD97706),
-      'icon': Icons.two_wheeler_rounded,
-      'location': 'HSR Layout, Bengaluru',
-    },
-    {
-      'id': '4',
-      'title': 'Ergonomic Premium Leather Office Chair (Black)',
-      'price': 6500,
-      'category': 'Furniture',
-      'status': 'SOLD',
-      'date': '2 weeks ago',
-      'views': 230,
-      'favorites': 25,
-      'chats': 12,
-      'imageUrl': 'assets/images/loopo.png',
-      'accent': const Color(0xFF059669),
-      'icon': Icons.chair_rounded,
-      'location': 'Whitefield, Bengaluru',
-    },
-    {
-      'id': '5',
-      'title': 'MacBook Pro M1 16GB 512GB Space Grey',
-      'price': 89000,
-      'category': 'Electronics',
-      'status': 'DRAFT',
-      'date': 'Saved Draft',
-      'views': 0,
-      'favorites': 0,
-      'chats': 0,
-      'imageUrl': 'assets/images/loopo.png',
-      'accent': const Color(0xFF4B5563),
-      'icon': Icons.laptop_mac_rounded,
-      'location': 'Koramangala, Bengaluru',
-    },
-  ];
+  String _searchQuery = '';
+  List<Map<String, dynamic>> _myAds = [];
+  bool _isLoading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -103,6 +30,7 @@ class _MyAdsScreenState extends State<MyAdsScreen>
     _tabController.addListener(() {
       if (mounted) setState(() {});
     });
+    _fetchMyAds();
   }
 
   @override
@@ -112,20 +40,77 @@ class _MyAdsScreenState extends State<MyAdsScreen>
     super.dispose();
   }
 
-  List<Map<String, dynamic>> _getFilteredAds(String filterStatus) {
-    return _myAds.where((ad) {
-      final matchesStatus = filterStatus == 'ALL' ||
-          (filterStatus == 'ACTIVE' && ad['status'] == 'ACTIVE') ||
-          (filterStatus == 'PENDING' && ad['status'] == 'PENDING') ||
-          (filterStatus == 'SOLD' && ad['status'] == 'SOLD') ||
-          (filterStatus == 'DRAFT' && ad['status'] == 'DRAFT');
+  Future<void> _fetchMyAds() async {
+    if (!AuthSession.isLoggedIn) {
+      if (mounted) {
+        setState(() {
+          _myAds = [];
+          _isLoading = false;
+        });
+      }
+      return;
+    }
 
-      final matchesQuery = _searchQuery.isEmpty ||
-          ad['title'].toString().toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          ad['category'].toString().toLowerCase().contains(_searchQuery.toLowerCase());
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
 
-      return matchesStatus && matchesQuery;
-    }).toList();
+    try {
+      final rawList = await _productService.getMyListings();
+      final mappedList = rawList.map<Map<String, dynamic>>((item) {
+        final category = item['category'] is Map ? item['category']['name'] : 'General';
+        final statusRaw = (item['status'] ?? 'ACTIVE').toString().toUpperCase();
+        String statusMapped = 'ACTIVE';
+        if (statusRaw == 'PENDING' || statusRaw == 'REVIEW') {
+          statusMapped = 'PENDING';
+        } else if (statusRaw == 'SOLD') {
+          statusMapped = 'SOLD';
+        } else if (statusRaw == 'DRAFT') {
+          statusMapped = 'DRAFT';
+        } else if (statusRaw == 'APPROVED' || statusRaw == 'ACTIVE') {
+          statusMapped = 'ACTIVE';
+        }
+
+        final locMap = item['location'] is Map ? item['location'] : {};
+        final city = locMap['city'] ?? locMap['area'] ?? '';
+        final state = locMap['state'] ?? locMap['country'] ?? '';
+        final locationStr = [city, state].where((s) => s.toString().isNotEmpty).join(', ');
+
+        List<dynamic> images = item['images'] is List ? item['images'] : [];
+
+        return {
+          'id': item['id']?.toString() ?? '',
+          'title': item['title'] ?? 'Untitled Listing',
+          'price': item['price'] is num ? (item['price'] as num).toDouble() : 0.0,
+          'category': category,
+          'status': statusMapped,
+          'date': 'Recent',
+          'views': item['viewCount'] ?? item['views'] ?? 0,
+          'favorites': item['favoriteCount'] ?? item['favorites'] ?? 0,
+          'chats': item['inquiryCount'] ?? item['chats'] ?? 0,
+          'imageUrl': images.isNotEmpty ? images.first.toString() : 'assets/images/loopo.png',
+          'accent': const Color(0xFF7C3AED),
+          'icon': Icons.shopping_bag_rounded,
+          'location': locationStr.isNotEmpty ? locationStr : 'Location details',
+          'raw': item,
+        };
+      }).toList();
+
+      if (mounted) {
+        setState(() {
+          _myAds = mappedList;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = 'Failed to load listings. Please try again.';
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   int _countByStatus(String status) {
@@ -133,63 +118,93 @@ class _MyAdsScreenState extends State<MyAdsScreen>
     return _myAds.where((ad) => ad['status'] == status).length;
   }
 
-  void _markAsSold(String id) {
-    setState(() {
-      final index = _myAds.indexWhere((ad) => ad['id'] == id);
-      if (index != -1) {
-        _myAds[index]['status'] = 'SOLD';
-      }
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Item marked as Sold! 🎉', style: TextStyle(fontFamily: 'Poppins')),
-        backgroundColor: AppColors.appGreen,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+  List<Map<String, dynamic>> _getFilteredAds(String statusFilter) {
+    List<Map<String, dynamic>> list = _myAds;
+    if (statusFilter != 'ALL') {
+      list = list.where((ad) => ad['status'] == statusFilter).toList();
+    }
+    if (_searchQuery.isNotEmpty) {
+      list = list
+          .where((ad) => ad['title']
+              .toString()
+              .toLowerCase()
+              .contains(_searchQuery.toLowerCase()))
+          .toList();
+    }
+    return list;
   }
 
-  void _deleteAd(String id) {
-    showDialog(
+  Future<void> _deleteAd(String id) async {
+    final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Delete Listing?', style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.bold)),
         content: const Text('Are you sure you want to delete this listing? This action cannot be undone.', style: TextStyle(fontFamily: 'Poppins')),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () => Navigator.pop(context, false),
             child: const Text('Cancel', style: TextStyle(fontFamily: 'Poppins', color: Colors.grey)),
           ),
           ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              setState(() {
-                _myAds.removeWhere((ad) => ad['id'] == id);
-              });
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Listing deleted.', style: TextStyle(fontFamily: 'Poppins')),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            },
+            onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
-            child: const Text('Delete', style: TextStyle(fontFamily: 'Poppins', color: Colors.white)),
+            child: const Text('Delete', style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.bold)),
           ),
         ],
       ),
     );
+
+    if (confirmed == true) {
+      setState(() => _isLoading = true);
+      try {
+        await _productService.deleteListing(id);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Listing deleted successfully'), backgroundColor: Colors.green),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to delete: ${e.toString()}'), backgroundColor: Colors.red),
+          );
+        }
+      } finally {
+        _fetchMyAds();
+      }
+    }
+  }
+
+  Future<void> _markAsSold(String id) async {
+    setState(() => _isLoading = true);
+    try {
+      await _productService.updateListing(id, {'status': 'SOLD'});
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Marked as Sold'), backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update status: ${e.toString()}'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      _fetchMyAds();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final activeCount = _countByStatus('ACTIVE');
-    final totalViews = _myAds.fold<int>(0, (sum, item) => sum + (item['views'] as int));
-    final totalChats = _myAds.fold<int>(0, (sum, item) => sum + (item['chats'] as int));
+    final totalViews = _myAds.fold<int>(0, (sum, ad) => sum + (ad['views'] as int? ?? 0));
+    final totalChats = _myAds.fold<int>(0, (sum, ad) => sum + (ad['chats'] as int? ?? 0));
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -197,24 +212,26 @@ class _MyAdsScreenState extends State<MyAdsScreen>
         backgroundColor: Colors.white,
         elevation: 0,
         scrolledUnderElevation: 1,
-        leading: Navigator.canPop(context)
-            ? IconButton(
-                onPressed: () => Navigator.maybePop(context),
-                icon: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(
-                    Icons.arrow_back_ios_new_rounded,
-                    color: AppColors.appDark,
-                    size: 18,
-                  ),
-                ),
-              )
-            : null,
+        leading: IconButton(
+          onPressed: () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            }
+          },
+          icon: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: AppColors.appDark,
+              size: 18,
+            ),
+          ),
+        ),
         title: const Text(
           'My Ads',
           style: TextStyle(
@@ -387,6 +404,31 @@ class _MyAdsScreenState extends State<MyAdsScreen>
   }
 
   Widget _buildAdsList(String statusFilter) {
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.appGreen),
+      );
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              _error!,
+              style: const TextStyle(fontFamily: 'Poppins', color: Colors.redAccent),
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: _fetchMyAds,
+              child: const Text('Retry', style: TextStyle(fontFamily: 'Poppins')),
+            ),
+          ],
+        ),
+      );
+    }
+
     final ads = _getFilteredAds(statusFilter);
 
     if (ads.isEmpty) {
@@ -602,21 +644,46 @@ class _AdItemCard extends StatelessWidget {
     final accent = ad['accent'] as Color? ?? AppColors.appGreen;
     final icon = ad['icon'] as IconData? ?? Icons.shopping_bag_rounded;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
+    return InkWell(
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ProductDetailScreen(
+              product: {
+                'id': ad['id'],
+                'title': ad['title'],
+                'price': priceStr,
+                'location': ad['location'] ?? 'Location details',
+                'category': ad['category'] ?? 'General',
+                'rating': '4.8',
+                'accent': accent,
+                'status': status,
+                'views': ad['views'],
+                'favorites': ad['favorites'],
+                'chats': ad['chats'],
+                'imageUrl': ad['imageUrl'],
+                'raw': ad['raw'] ?? ad,
+              },
+            ),
           ),
-        ],
-      ),
-      child: Column(
+        );
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Column(
         children: [
           Padding(
             padding: const EdgeInsets.all(14),
@@ -872,6 +939,7 @@ class _AdItemCard extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }

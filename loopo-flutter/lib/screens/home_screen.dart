@@ -4,6 +4,9 @@ import 'profile_screen.dart';
 import 'notification_list_screen.dart';
 import 'product_detail_screen.dart';
 import 'subcategory_items_screen.dart';
+import 'chat_list_screen.dart';
+import 'favorites_screen.dart';
+import 'search_screen.dart';
 import '../services/category_service.dart';
 import '../services/location_service.dart';
 import '../theme/app_colors.dart';
@@ -215,6 +218,11 @@ class _HomeScreenState extends State<HomeScreen>
     if (index == 1) {
       Navigator.push(context,
           MaterialPageRoute(builder: (_) => const MyAdsScreen()));
+      return;
+    }
+    if (index == 3) {
+      Navigator.push(context,
+          MaterialPageRoute(builder: (_) => const ChatListScreen()));
       return;
     }
     if (index == 4) {
@@ -714,65 +722,77 @@ class _HomeScreenState extends State<HomeScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(18),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.05),
-                              blurRadius: 16,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.search_rounded,
-                                color: AppColors.appGreen, size: 22),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                _selectedFilterCategories.isEmpty
-                                    ? 'Search cars, mobiles, furniture…'
-                                    : 'Searching in ${_selectedFilterCategories.join(", ")}…',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: _selectedFilterCategories.isEmpty
-                                      ? Colors.black38
-                                      : AppColors.appDark,
-                                  fontSize: 13,
-                                  fontWeight: _selectedFilterCategories.isEmpty
-                                      ? FontWeight.normal
-                                      : FontWeight.w500,
-                                ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const SearchScreen()),
                               ),
-                            ),
-                            // Filter Button
-                            GestureDetector(
-                              onTap: _showCategoryFilterModal,
                               child: Container(
-                                padding: const EdgeInsets.all(8),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 12),
                                 decoration: BoxDecoration(
-                                  color: _selectedFilterCategories.isNotEmpty
-                                      ? AppColors.appGreen
-                                      : AppColors.appGreen.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(10),
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(18),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.05),
+                                      blurRadius: 16,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
                                 ),
-                                child: Icon(
-                                  Icons.tune_rounded,
-                                  color: _selectedFilterCategories.isNotEmpty
-                                      ? Colors.white
-                                      : AppColors.appGreen,
-                                  size: 18,
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.search_rounded,
+                                        color: AppColors.appGreen, size: 22),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        _selectedFilterCategories.isEmpty
+                                            ? 'Search cars, mobiles, furniture…'
+                                            : 'Searching in ${_selectedFilterCategories.join(", ")}…',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: _selectedFilterCategories.isEmpty
+                                              ? Colors.black38
+                                              : AppColors.appDark,
+                                          fontSize: 13,
+                                          fontWeight: _selectedFilterCategories.isEmpty
+                                              ? FontWeight.normal
+                                              : FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
-                          ],
-                        ),
+                          ),
+                          const SizedBox(width: 10),
+                          GestureDetector(
+                            onTap: _showCategoryFilterModal,
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: _selectedFilterCategories.isNotEmpty
+                                    ? AppColors.appGreen
+                                    : AppColors.appGreen.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Icon(
+                                Icons.tune_rounded,
+                                color: _selectedFilterCategories.isNotEmpty
+                                    ? Colors.white
+                                    : AppColors.appGreen,
+                                size: 20,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
 
                       // ── Multiselect Category Pills with Close Button ───────
@@ -1441,14 +1461,22 @@ class _HomeScreenState extends State<HomeScreen>
                 Positioned(
                   top: 8,
                   right: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(5),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.9),
-                      shape: BoxShape.circle,
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const FavoritesScreen()),
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(5),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.favorite_border,
+                          size: 13, color: Colors.black38),
                     ),
-                    child: const Icon(Icons.favorite_border,
-                        size: 13, color: Colors.black38),
                   ),
                 ),
               ],

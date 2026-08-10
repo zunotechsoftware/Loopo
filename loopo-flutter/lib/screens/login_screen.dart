@@ -101,8 +101,16 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _handleLogin() async {
     if (_isSubmitting) return;
 
-    // ── Debug bypass: skip validation and go directly to HomeScreen ──────────
-    if (DebugConfig.isActive) {
+    // ── Bypass Mode: skip server wait and go directly to next screen ─────────
+    if (DebugConfig.isBypassAuth) {
+      AuthSession.setToken('mock_dev_bypass_token');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Bypass Mode: Logged in successfully!'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 1),
+        ),
+      );
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const LocationScreen()),
@@ -147,23 +155,17 @@ class _LoginScreenState extends State<LoginScreen> {
         password: password,
       );
 
-      final data = result['data'] ?? result;
-      final token = data['token'] ?? data['accessToken'] ?? result['accessToken'];
-      if (token != null) {
-        AuthSession.setToken(token.toString());
-      }
-
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Login successful!'),
+        SnackBar(
+          content: Text(result['message'] ?? 'Login successful!'),
           backgroundColor: Colors.green,
-          duration: Duration(seconds: 1),
+          duration: const Duration(seconds: 2),
         ),
       );
 
-      await Future.delayed(const Duration(milliseconds: 400));
+      await Future.delayed(const Duration(milliseconds: 600));
       if (!mounted) return;
 
       Navigator.pushReplacement(
@@ -173,9 +175,13 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       if (!mounted) return;
       final message = e.toString().replaceFirst('Exception: ', '');
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }

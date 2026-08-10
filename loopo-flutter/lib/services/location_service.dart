@@ -82,8 +82,8 @@ class LocationService {
       // 3. Fetch real-time GPS position from hardware sensors
       final position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          timeLimit: Duration(seconds: 8),
+          accuracy: LocationAccuracy.medium,
+          timeLimit: Duration(seconds: 3),
         ),
       );
 
@@ -91,7 +91,7 @@ class LocationService {
       final placemarks = await placemarkFromCoordinates(
         position.latitude,
         position.longitude,
-      ).timeout(const Duration(seconds: 5));
+      ).timeout(const Duration(seconds: 3));
 
       if (placemarks.isNotEmpty) {
         final place = placemarks.first;
