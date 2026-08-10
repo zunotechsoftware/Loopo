@@ -7,6 +7,7 @@ import 'package:loopo/screens/login_screen.dart';
 // TODO: [Backend Integration] Handle duplicate email/phone conflict (409 Conflict) from backend
 
 import '../config/debug_config.dart';
+import '../services/auth_session.dart';
 import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/form_input.dart';
@@ -309,11 +310,17 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   Future<void> _handleCreateAccount() async {
-    // Prevent multiple submissions
     if (_isLoading) return;
 
-    // ── Debug bypass: skip all validation, go straight to next screen ────────
-    if (DebugConfig.isActive) {
+    if (DebugConfig.isBypassAuth) {
+      AuthSession.setToken('mock_dev_bypass_token');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Bypass Mode: Account created!'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 1),
+        ),
+      );
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const LocationScreen()),
@@ -321,7 +328,6 @@ class _SignupScreenState extends State<SignupScreen> {
       return;
     }
 
-    // Validate form fields first
     final fullName = _fullNameController.text.trim();
     final email = _emailController.text.trim();
     final mobile = _mobileController.text.trim();
@@ -354,16 +360,16 @@ class _SignupScreenState extends State<SignupScreen> {
     }
 
     if (password.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Please enter a password')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a password')),
+      );
       return;
     }
 
     if (password != confirmPassword) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Passwords do not match')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Passwords do not match')),
+      );
       return;
     }
 
@@ -376,92 +382,9 @@ class _SignupScreenState extends State<SignupScreen> {
       return;
     }
 
-    // Set loading state
     setState(() {
       _isLoading = true;
     });
-
-    try {
-      await _registerUser();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Registration error: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _registerUser() async {
-    final fullName = _fullNameController.text.trim();
-    final email = _emailController.text.trim();
-    final mobile = _mobileController.text.trim();
-    final password = _passwordController.text.trim();
-    final confirmPassword = _confirmPasswordController.text.trim();
-
-    // Validation checks
-    if (fullName.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your full name')),
-      );
-      return;
-    }
-
-    if (email.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your email address')),
-      );
-      return;
-    }
-
-    if (!MobileValidator.isValid(mobile, _selectedCountry.dialCode)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            MobileValidator.getErrorMessage(_selectedCountry.dialCode),
-          ),
-        ),
-      );
-      return;
-    }
-
-    if (password.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Please enter a password')));
-      return;
-    }
-
-    if (password != confirmPassword) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Passwords do not match')));
-      return;
-    }
-
-    if (!_agreedToTerms) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please agree to the Terms & Privacy Policy'),
-        ),
-      );
-      return;
-    }
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator()),
-    );
 
     try {
       final nameParts = _splitFullName(fullName);
@@ -470,48 +393,46 @@ class _SignupScreenState extends State<SignupScreen> {
       final phone = '${_selectedCountry.dialCode}${MobileValidator.cleanMobileNumber(mobile)}';
 
       final response = await AuthService().register(
-        firstName: firstName,
-        lastName: lastName,
+        firstName: firstName.isNotEmpty ? firstName : 'User',
+        lastName: lastName.isNotEmpty ? lastName : 'Account',
         email: email,
         password: password,
         phone: phone,
       );
 
       if (mounted) {
-        Navigator.pop(context); // Close loading dialog
-      }
-
-      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(response['message'] ?? 'Account created successfully!'),
             backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
           ),
         );
 
-        Future.delayed(const Duration(milliseconds: 500), () {
-          if (mounted) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const LocationScreen()),
-            );
-          }
-        });
+        await Future.delayed(const Duration(milliseconds: 600));
+        if (!mounted) return;
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const LocationScreen()),
+        );
       }
     } catch (e) {
-      if (mounted) {
-        Navigator.pop(context); // Close loading dialog
-      }
-
       final message = e.toString().replaceFirst('Exception: ', '');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(message),
             backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
+            duration: const Duration(seconds: 5),
           ),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
   }

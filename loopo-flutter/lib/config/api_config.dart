@@ -1,30 +1,46 @@
-import 'package:flutter/foundation.dart';
+enum AppEnvironment { development, production }
 
 class ApiConfig {
-  // Override the host at build/run time when needed, e.g. testing on a
-  // physical device instead of the emulator:
+  // Override base URL directly via:
+  //   flutter run --dart-define=API_BASE_URL=https://my-custom-domain.com
+  static const String _overrideBaseUrl = String.fromEnvironment('API_BASE_URL');
+
+  // Environment mode:
+  //   flutter run --dart-define=ENVIRONMENT=production
+  static const String _envString = String.fromEnvironment('ENVIRONMENT', defaultValue: 'development');
+
+  // Legacy local IP override:
   //   flutter run --dart-define=API_HOST=192.168.1.42
   static const String _overrideHost = String.fromEnvironment('API_HOST');
 
+  // Known hosts
+  static const String _devBaseUrl = 'https://loopo-711b.onrender.com';
+  static const String _prodBaseUrl = 'https://api.loopo.com'; // Production API hostname
+
+  static AppEnvironment get environment =>
+      _envString.toLowerCase() == 'production'
+          ? AppEnvironment.production
+          : AppEnvironment.development;
+
   static String get baseUrl {
+    if (_overrideBaseUrl.isNotEmpty) {
+      return _overrideBaseUrl.endsWith('/')
+          ? _overrideBaseUrl.substring(0, _overrideBaseUrl.length - 1)
+          : _overrideBaseUrl;
+    }
+
     if (_overrideHost.isNotEmpty) {
-      return 'http://$_overrideHost:3000';
+      return _overrideHost.startsWith('http')
+          ? _overrideHost
+          : 'http://$_overrideHost:3000';
     }
 
-    if (kIsWeb) {
-      return 'http://localhost:3000';
+    switch (environment) {
+      case AppEnvironment.production:
+        return _prodBaseUrl;
+      case AppEnvironment.development:
+        return _devBaseUrl;
     }
-
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      // 10.0.2.2 is the special alias the Android emulator uses to reach
-      // "localhost" on the host machine running the dev server.
-      // For a physical Android device, run with:
-      //   flutter run --dart-define=API_HOST=<your-machine-LAN-IP>
-      return 'http://10.0.2.2:3000';
-    }
-
-    // iOS simulator (and any other platform) can reach localhost directly.
-    return 'http://localhost:3000';
   }
 
   // API endpoints
@@ -39,6 +55,18 @@ class ApiConfig {
   static const String notificationSettingsEndpoint = '/api/v1/notification-settings';
   static const String searchEndpoint = '/api/v1/search';
 
+  static const String productsEndpoint = '/api/v1/products';
+  static const String myProductsEndpoint = '/api/v1/products/my';
+
+  static const String chatConversationsEndpoint = '/api/v1/chat/conversations';
+  static const String chatMessagesEndpoint = '/api/v1/chat/messages';
+  static const String kycVerifyEndpoint = '/api/v1/kyc/verify';
+  static const String favoritesEndpoint = '/api/v1/interactions/favorites';
+  static const String notificationsEndpoint = '/api/v1/notifications';
+  static const String addressesEndpoint = '/api/v1/addresses';
+  static const String reportsEndpoint = '/api/v1/reports';
+  static const String ordersEndpoint = '/api/v1/orders';
+
   // Full URLs
   static String get loginUrl => '$baseUrl$loginEndpoint';
   static String get registerUrl => '$baseUrl$registerEndpoint';
@@ -50,4 +78,23 @@ class ApiConfig {
   static String get updateProfileUrl => '$baseUrl$updateProfileEndpoint';
   static String get notificationSettingsUrl => '$baseUrl$notificationSettingsEndpoint';
   static String get searchUrl => '$baseUrl$searchEndpoint';
+
+  static String get productsUrl => '$baseUrl$productsEndpoint';
+  static String get myProductsUrl => '$baseUrl$myProductsEndpoint';
+
+  static String get chatConversationsUrl => '$baseUrl$chatConversationsEndpoint';
+  static String get chatMessagesUrl => '$baseUrl$chatMessagesEndpoint';
+  static String get kycVerifyUrl => '$baseUrl$kycVerifyEndpoint';
+  static String get favoritesUrl => '$baseUrl$favoritesEndpoint';
+  static String get notificationsUrl => '$baseUrl$notificationsEndpoint';
+  static String get addressesUrl => '$baseUrl$addressesEndpoint';
+  static String get reportsUrl => '$baseUrl$reportsEndpoint';
+  static String get ordersUrl => '$baseUrl$ordersEndpoint';
+
+  static String productDetailUrl(String id) => '$baseUrl$productsEndpoint/$id';
+  static String publishProductUrl(String id) => '$baseUrl$productsEndpoint/$id/publish';
+  static String pauseProductUrl(String id) => '$baseUrl$productsEndpoint/$id/pause';
+  static String resumeProductUrl(String id) => '$baseUrl$productsEndpoint/$id/resume';
+  static String archiveProductUrl(String id) => '$baseUrl$productsEndpoint/$id/archive';
 }
+

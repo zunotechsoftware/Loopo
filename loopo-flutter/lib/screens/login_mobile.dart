@@ -97,14 +97,7 @@ class _LoginMobileState extends State<LoginMobile> {
   }
 
   void _handleSendOtp() async {
-    if (!_isValidMobile(_mobileController.text) && !DebugConfig.isActive) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter a valid mobile number')),
-      );
-      return;
-    }
-
-    if (DebugConfig.isActive) {
+    if (DebugConfig.isBypassAuth || DebugConfig.isActive) {
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -115,6 +108,13 @@ class _LoginMobileState extends State<LoginMobile> {
                 : _mobileController.text.trim(),
           ),
         ),
+      );
+      return;
+    }
+
+    if (!_isValidMobile(_mobileController.text)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a valid mobile number')),
       );
       return;
     }

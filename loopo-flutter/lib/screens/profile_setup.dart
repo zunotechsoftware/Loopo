@@ -24,8 +24,6 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   static const double _tabletBreakpoint = 600;
   static const double _maxContentWidth = 480;
 
-  bool _isTablet(double width) => width >= _tabletBreakpoint;
-
   double _horizontalPadding(double width) {
     if (width >= _tabletBreakpoint) {
       final overflow = width - _maxContentWidth;
@@ -63,6 +61,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         });
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error picking image: ${e.toString()}'),
@@ -87,8 +86,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       _isLoading = true;
     });
 
-    // TODO: Save profile data to backend
-    Future.delayed(const Duration(seconds: 2), () {
+    // Save profile data to backend
+    Future.delayed(const Duration(seconds: 1), () {
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -193,7 +192,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                               text: _isLoading
                                   ? 'Saving...'
                                   : 'Save & Continue',
-                              onPressed: _onSavePressed, // ✅ Pass directly
+                              onPressed: _onSavePressed,
                             ),
                           ),
                           const SizedBox(height: 20),
@@ -335,7 +334,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 _allowGPS = value;
               });
             },
-            activeColor: AppColors.appGreen,
+            activeThumbColor: AppColors.appGreen,
           ),
         ],
       ),

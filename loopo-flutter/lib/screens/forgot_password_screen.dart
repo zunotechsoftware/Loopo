@@ -49,7 +49,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     final email = _emailController.text.trim();
 
     // ── Debug bypass: immediately show reset fields ──────────────────────
-    if (DebugConfig.isActive) {
+    if (DebugConfig.isBypassAuth || DebugConfig.isActive) {
       setState(() => _showResetFields = true);
       return;
     }

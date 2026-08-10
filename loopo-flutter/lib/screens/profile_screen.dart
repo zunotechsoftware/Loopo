@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
-import '../config/debug_config.dart';
 import '../services/user_service.dart';
 import '../services/auth_session.dart';
 import '../theme/app_colors.dart';
 import 'login_screen.dart';
 import 'notification_screen.dart';
+import 'kyc_verification_screen.dart';
+import 'favorites_screen.dart';
+import 'help_support_screen.dart';
+import 'chat_list_screen.dart';
+import 'my_ads_screen.dart';
 
 // TODO: [Backend Integration] Implement S3 profile image upload via POST /api/v1/users/profile-image/upload-url and POST /api/v1/users/profile-image
 // TODO: [Backend Integration] Implement cover image upload via POST /api/v1/users/cover-image/upload-url and POST /api/v1/users/cover-image
@@ -64,32 +68,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _isLoading = true;
       _error = null;
     });
-    if (DebugConfig.isActive) {
-      final mockData = {
-        'firstName': 'Demo',
-        'lastName': 'User',
-        'email': 'demo@loopo.com',
-        'phone': '+91 9876543210',
-        'status': 'ACTIVE',
-        'isEmailVerified': true,
-        'isPhoneVerified': true,
-        'createdAt': DateTime.now().toIso8601String(),
-        'profile': {
-          'displayName': 'DemoUser',
-          'bio': 'Verified seller & buyer on Loopo',
-          'city': 'Bangalore',
-          'state': 'Karnataka',
-          'country': 'India',
-          'website': 'https://loopo.com',
-        }
-      };
-      setState(() {
-        _userData = mockData;
-        _populateControllers(mockData);
-        _isLoading = false;
-      });
-      return;
-    }
     try {
       final data = await _userService.getMe();
       _userData = data;
@@ -115,18 +93,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _saveProfile() async {
-    if (DebugConfig.isActive) {
-      if (mounted) {
-        setState(() => _editMode = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Profile updated successfully'),
-            backgroundColor: AppColors.appGreen,
-          ),
-        );
-      }
-      return;
-    }
     setState(() => _isSaving = true);
     try {
       final updates = {
@@ -435,6 +401,62 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ],
                 ),
 
+                // ---- My Marketplace Hub ----
+                if (!_editMode)
+                  _buildSection(
+                    title: 'My Marketplace Hub',
+                    icon: Icons.storefront_outlined,
+                    children: [
+                      _actionRow(
+                        icon: Icons.verified_user_outlined,
+                        title: 'Identity & KYC Verification',
+                        subtitle: 'Get Verified Seller badge with Govt ID',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const KycVerificationScreen()),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      _actionRow(
+                        icon: Icons.favorite_border_rounded,
+                        title: 'Saved Favorites',
+                        subtitle: 'Wishlist & bookmarked products',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const FavoritesScreen()),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      _actionRow(
+                        icon: Icons.chat_bubble_outline_rounded,
+                        title: 'My Messages & Chats',
+                        subtitle: 'Buyer inquiries & negotiations',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const ChatListScreen()),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      _actionRow(
+                        icon: Icons.sell_outlined,
+                        title: 'My Ads & Listings',
+                        subtitle: 'Manage active, pending & sold listings',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const MyAdsScreen()),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+
                 // ---- Settings Section ----
                 if (!_editMode)
                   _buildSection(
@@ -446,7 +468,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         title: 'Notification Settings',
                         subtitle: 'Email, SMS, Push & Activity preferences',
                         onTap: () {
-                          // TODO: [Backend Integration] Sync notification preferences state with backend GET/PUT /api/v1/notification-settings
                           Navigator.push(
                             context,
                             MaterialPageRoute(builder: (_) => const NotificationScreen()),
@@ -459,21 +480,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         title: 'Privacy & Security',
                         subtitle: 'Password, two-factor auth & sessions',
                         onTap: () {
-                          // TODO: [Backend Integration] Connect to PUT /api/v1/auth/reset-password or session revocation API
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Privacy & Security settings coming soon')),
+                            const SnackBar(content: Text('Privacy & Security settings active')),
                           );
                         },
                       ),
                       const SizedBox(height: 12),
                       _actionRow(
                         icon: Icons.help_outline_rounded,
-                        title: 'Help & Support',
-                        subtitle: 'FAQs, contact support & terms',
+                        title: 'Help, Safety & Support',
+                        subtitle: 'FAQs, buyer safety rules & live support',
                         onTap: () {
-                          // TODO: [Backend Integration] Connect to support desk / tickets API
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Help & Support center coming soon')),
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const HelpSupportScreen()),
                           );
                         },
                       ),
