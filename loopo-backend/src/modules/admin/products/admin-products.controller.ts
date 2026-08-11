@@ -1,19 +1,19 @@
 import { Controller, Get, Patch, Param, Body, Query, UseGuards, Delete } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { AdminProductsService } from './admin-products.service';
-import { RejectProductDto, FeatureProductDto, BoostProductDto } from './dto/admin-product.dto';
+import { RejectProductDto, FeatureProductDto, BoostProductDto, UpdateProductDto } from './dto/admin-product.dto';
 import { JwtAuthGuard } from '../../../shared/common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../shared/common/guards/roles.guard';
 import { PermissionsGuard } from '../../../shared/common/guards/permissions.guard';
 import { Permissions } from '../../../shared/common/decorators/permissions.decorator';
 import { CurrentUser } from '../../../shared/common/decorators/current-user.decorator';
-import { ProductStatus } from '@prisma/client';
+import { ProductStatus, ProductCondition } from '@prisma/client';
 
 @ApiTags('Admin - Products')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Controller('admin/products')
-export class AdminProductsController {
+export class AdminProductsManagementController {
   constructor(private readonly adminProductsService: AdminProductsService) {}
 
   @Get()
@@ -23,18 +23,57 @@ export class AdminProductsController {
   @ApiQuery({ name: 'take', required: false, type: Number })
   @ApiQuery({ name: 'status', required: false, enum: ProductStatus })
   @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'categoryId', required: false, type: String })
+  @ApiQuery({ name: 'subcategoryId', required: false, type: String })
+  @ApiQuery({ name: 'condition', required: false, enum: ProductCondition })
+  @ApiQuery({ name: 'location', required: false, type: String })
   async getProducts(
     @Query('skip') skip?: string,
     @Query('take') take?: string,
     @Query('status') status?: ProductStatus,
     @Query('search') search?: string,
+    @Query('categoryId') categoryId?: string,
+    @Query('subcategoryId') subcategoryId?: string,
+    @Query('condition') condition?: ProductCondition,
+    @Query('location') location?: string,
   ) {
     return this.adminProductsService.getAllProducts(
       skip ? parseInt(skip, 10) : 0,
       take ? parseInt(take, 10) : 20,
       status,
       search,
+      categoryId,
+      subcategoryId,
+      condition,
+      location,
     );
+  }
+
+  @Get('stats')
+  @Permissions('admin.products.manage')
+  @ApiOperation({ summary: 'Get product statistics' })
+  async getProductsStats() {
+    const stats = await this.adminProductsService.getProductsStats();
+    return { data: stats };
+  }
+
+  @Get('locations')
+  @Permissions('admin.products.manage')
+  @ApiOperation({ summary: 'Get distinct product locations' })
+  async getLocations() {
+    const locations = await this.adminProductsService.getDistinctLocations();
+    return { data: locations };
+  }
+
+  @Patch(':id')
+  @Permissions('admin.products.manage')
+  @ApiOperation({ summary: 'Update product details' })
+  async updateProduct(
+    @Param('id') id: string,
+    @CurrentUser('id') adminId: string,
+    @Body() dto: UpdateProductDto,
+  ) {
+    return this.adminProductsService.updateProductDetails(id, adminId, dto);
   }
 
   @Patch(':id/approve')

@@ -40,6 +40,9 @@ export const productsService = {
   reject: (id: string, reason: string) => api.patch(`/api/v1/admin/products/${id}/reject`, { reason }),
   feature: (id: string, featured: boolean) => api.patch(`/api/v1/admin/products/${id}/feature`, { featured }),
   remove: (id: string) => api.delete(`/api/v1/admin/products/${id}`),
+  getStats: () => api.get('/api/v1/admin/products/stats'),
+  getLocations: () => api.get('/api/v1/admin/products/locations'),
+  update: (id: string, data: Partial<Product>) => api.patch(`/api/v1/admin/products/${id}`, data),
 };
 
 // --- Categories Service ---
