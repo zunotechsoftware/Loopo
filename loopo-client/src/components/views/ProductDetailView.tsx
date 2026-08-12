@@ -13,11 +13,17 @@ import {
   MessageSquare,
   Tag,
   ArrowLeft,
+  Flag,
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { setActiveTab } from '@/redux/slices/navigationSlice';
 import { toggleFavorite } from '@/redux/slices/productsSlice';
-import { setOfferModalOpen, showToast } from '@/redux/slices/uiSlice';
+import {
+  setOfferModalOpen,
+  setReportModalOpen,
+  setReviewModalOpen,
+  showToast,
+} from '@/redux/slices/uiSlice';
 import { setActiveConversation } from '@/redux/slices/chatSlice';
 
 export default function ProductDetailView() {
@@ -38,7 +44,7 @@ export default function ProductDetailView() {
   }).format(product.price);
 
   const handleStartChat = () => {
-    dispatch(setActiveConversation('conv-1'));
+    dispatch(setActiveConversation('conv-buy-1'));
     dispatch(setActiveTab('messages'));
   };
 
@@ -55,7 +61,7 @@ export default function ProductDetailView() {
         </button>
         <ChevronRight className="w-3 h-3 text-slate-300" />
         <span
-          onClick={() => dispatch(setActiveTab('explore'))}
+          onClick={() => dispatch(setActiveTab('categories'))}
           className="hover:text-emerald-600 cursor-pointer"
         >
           {product.category}
@@ -66,7 +72,7 @@ export default function ProductDetailView() {
 
       {/* Main Grid: Gallery Left, Details Right */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left Column: Image Gallery (5 cols) */}
+        {/* Left Column: Image Gallery */}
         <div className="lg:col-span-6 space-y-3">
           {/* Main Large Image */}
           <div className="relative aspect-[4/3] rounded-3xl bg-slate-100 overflow-hidden border border-slate-100 shadow-sm">
@@ -105,7 +111,7 @@ export default function ProductDetailView() {
           )}
         </div>
 
-        {/* Right Column: Info & Actions (6 cols) */}
+        {/* Right Column: Info & Actions */}
         <div className="lg:col-span-6 space-y-6">
           {/* Title & Price Header */}
           <div className="space-y-3">
@@ -113,13 +119,23 @@ export default function ProductDetailView() {
               <h1 className="text-2xl lg:text-3xl font-black text-slate-900 leading-tight">
                 {product.title}
               </h1>
-              <button
-                onClick={() => dispatch(showToast('Share link copied!'))}
-                className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 transition-colors"
-                title="Share"
-              >
-                <Share2 className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => dispatch(showToast('Share link copied!'))}
+                  className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 transition-colors"
+                  title="Share"
+                >
+                  <Share2 className="w-5 h-5" />
+                </button>
+
+                <button
+                  onClick={() => dispatch(setReportModalOpen(true))}
+                  className="p-2 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                  title="Report Listing"
+                >
+                  <Flag className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             <div className="flex items-baseline gap-3">
@@ -165,19 +181,22 @@ export default function ProductDetailView() {
                 <div className="font-extrabold text-slate-900 text-sm">{product.seller.name}</div>
                 <div className="text-xs text-slate-500 font-medium">
                   Member since {product.seller.memberSince} •{' '}
-                  <span className="inline-flex items-center text-amber-500 font-bold">
+                  <button
+                    onClick={() => dispatch(setReviewModalOpen(true))}
+                    className="inline-flex items-center text-amber-500 font-bold hover:underline"
+                  >
                     <Star className="w-3 h-3 fill-amber-400 inline mr-0.5" />
                     {product.seller.rating} ({product.seller.reviewCount} reviews)
-                  </span>
+                  </button>
                 </div>
               </div>
             </div>
 
             <button
-              onClick={() => dispatch(showToast('Seller Profile opened'))}
+              onClick={() => dispatch(setReviewModalOpen(true))}
               className="text-xs font-bold text-emerald-600 hover:underline"
             >
-              View Profile
+              Rate Seller
             </button>
           </div>
 
@@ -211,7 +230,7 @@ export default function ProductDetailView() {
               className="flex items-center justify-center gap-2 bg-white hover:bg-slate-50 border-2 border-emerald-600 text-emerald-600 font-bold text-sm py-3.5 rounded-2xl transition-all"
             >
               <MessageSquare className="w-4 h-4" />
-              <span>Chat</span>
+              <span>Chat with Seller</span>
             </button>
 
             <button

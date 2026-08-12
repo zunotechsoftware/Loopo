@@ -5,6 +5,8 @@ import { Camera, CheckCircle2, ArrowRight, ArrowLeft, Upload, MapPin, Tag } from
 import { useAppDispatch } from '@/redux/hooks';
 import { setActiveTab } from '@/redux/slices/navigationSlice';
 import { showToast } from '@/redux/slices/uiSlice';
+import { createProductThunk } from '@/redux/slices/productsSlice';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 export default function SellFlowView() {
   const dispatch = useAppDispatch();
@@ -29,7 +31,18 @@ export default function SellFlowView() {
     if (step < 4) {
       setStep((step + 1) as 1 | 2 | 3 | 4);
     } else {
-      dispatch(showToast('Listing published successfully! 🎉'));
+      dispatch(
+        createProductThunk({
+          title,
+          category,
+          description,
+          price: parseInt(price) || 0,
+          location,
+          condition: 'Like New',
+          images: ['https://images.unsplash.com/photo-1632661674596-df8be070a5c5?q=80&w=800&auto=format&fit=crop'],
+        })
+      );
+      dispatch(showToast('Listing published via API! 🎉'));
       dispatch(setActiveTab('my-ads'));
     }
   };
@@ -113,20 +126,12 @@ export default function SellFlowView() {
         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
           <h2 className="text-lg font-bold text-slate-900">Item Details</h2>
 
-          <div>
-            <label className="text-xs font-bold text-slate-700 block mb-1">Category</label>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-xs font-semibold text-slate-800 outline-none focus:border-emerald-500"
-            >
-              <option>Mobiles</option>
-              <option>Cars</option>
-              <option>Bikes</option>
-              <option>Electronics</option>
-              <option>Furniture</option>
-            </select>
-          </div>
+          <CustomSelect
+            label="Category"
+            options={['Mobiles', 'Cars', 'Bikes', 'Electronics', 'Furniture']}
+            value={category}
+            onChange={setCategory}
+          />
 
           <div>
             <label className="text-xs font-bold text-slate-700 block mb-1">Ad Title</label>

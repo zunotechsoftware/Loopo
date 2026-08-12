@@ -9,21 +9,29 @@ import Footer from '@/components/Footer';
 // Views
 import HomeView from '@/components/views/HomeView';
 import ProductDetailView from '@/components/views/ProductDetailView';
-import ExploreView from '@/components/views/ExploreView';
+// import ExploreView from '@/components/views/ExploreView'; // Commented out as requested
 import CategoryView from '@/components/views/CategoryView';
 import SellFlowView from '@/components/views/SellFlowView';
 import MessagesView from '@/components/views/MessagesView';
+import NotificationsView from '@/components/views/NotificationsView';
 import MyAdsView from '@/components/views/MyAdsView';
-import OrdersView from '@/components/views/OrdersView';
+// OrdersView removed as requested
 import WalletView from '@/components/views/WalletView';
 import ProfileView from '@/components/views/ProfileView';
 import SettingsView from '@/components/views/SettingsView';
 import HelpSupportView from '@/components/views/HelpSupportView';
 
-// Modals
+// Interactive Endpoints Modals
 import OfferModal from '@/components/ui/OfferModal';
+import ReportModal from '@/components/ui/ReportModal';
+import ReviewModal from '@/components/ui/ReviewModal';
+import KycModal from '@/components/ui/KycModal';
+import AddressModal from '@/components/ui/AddressModal';
+import AuthModal from '@/components/ui/AuthModal';
+
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
-import { clearToast, setSellModalOpen } from '@/redux/slices/uiSlice';
+import { setActiveTab } from '@/redux/slices/navigationSlice';
+import { clearToast } from '@/redux/slices/uiSlice';
 import { X, Sparkles } from 'lucide-react';
 
 export default function MainPage() {
@@ -41,27 +49,60 @@ export default function MainPage() {
     }
   }, [toastMessage, dispatch]);
 
+  // URL Routing Sync & Browser History Integration
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get('tab');
+    if (tabParam) {
+      dispatch(setActiveTab(tabParam as any));
+    }
+
+    const handlePopState = () => {
+      const currentParams = new URLSearchParams(window.location.search);
+      const currentTab = currentParams.get('tab') || 'home';
+      dispatch(setActiveTab(currentTab as any));
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const currentUrl = new URL(window.location.href);
+    if (currentUrl.searchParams.get('tab') !== activeTab) {
+      currentUrl.searchParams.set('tab', activeTab);
+      window.history.pushState({ tab: activeTab }, '', currentUrl.toString());
+    }
+  }, [activeTab]);
+
   const renderActiveView = () => {
     switch (activeTab) {
       case 'home':
         return <HomeView />;
+      /*
       case 'explore':
       case 'saved':
         return <ExploreView />;
+      */
       case 'categories':
         return <CategoryView />;
       case 'product-detail':
         return <ProductDetailView />;
       case 'messages':
         return <MessagesView />;
+      case 'notifications':
+        return <NotificationsView />;
       case 'my-ads':
         return <MyAdsView />;
-      case 'orders':
-        return <OrdersView />;
       case 'wallet':
         return <WalletView />;
       case 'settings':
         return <SettingsView />;
+      case 'profile':
+        return <ProfileView />;
       case 'help':
         return <HelpSupportView />;
       default:
@@ -70,7 +111,7 @@ export default function MainPage() {
   };
 
   const showRightSidebar =
-    activeTab === 'home' || activeTab === 'explore' || activeTab === 'categories';
+    activeTab === 'home' || activeTab === 'categories';
 
   return (
     <div className="min-h-screen bg-slate-50/60 font-sans text-slate-800 flex flex-col justify-between selection:bg-emerald-500 selection:text-white">
@@ -105,8 +146,13 @@ export default function MainPage() {
         {!isSellModalOpen && showRightSidebar && <RightSidebarWidgets />}
       </div>
 
-      {/* Interactive Modals */}
+      {/* Endpoint Interactive Modals */}
       <OfferModal />
+      <ReportModal />
+      <ReviewModal />
+      <KycModal />
+      <AddressModal />
+      <AuthModal />
 
       {/* Global Footer */}
       <Footer />
