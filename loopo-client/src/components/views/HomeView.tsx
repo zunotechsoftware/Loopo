@@ -84,10 +84,10 @@ export default function HomeView() {
 
           <div className="flex items-center gap-3 pt-2">
             <button
-              onClick={() => dispatch(setActiveTab('explore'))}
+              onClick={() => dispatch(setActiveTab('categories'))}
               className="bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-bold text-sm px-6 py-3 rounded-2xl shadow-md shadow-emerald-500/20 transition-all duration-200"
             >
-              Explore Now
+              Browse Categories
             </button>
             <button
               onClick={() => dispatch(setSellModalOpen(true))}
@@ -129,7 +129,7 @@ export default function HomeView() {
                 key={cat.id}
                 onClick={() => {
                   dispatch(setCategoryFilter(cat.name));
-                  dispatch(setActiveTab('explore'));
+                  dispatch(setActiveTab('categories'));
                 }}
                 className="group bg-white p-3.5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:border-emerald-200 transition-all duration-200 text-center cursor-pointer flex flex-col items-center justify-center space-y-2"
               >
@@ -153,7 +153,7 @@ export default function HomeView() {
             Recommended for you
           </h2>
           <button
-            onClick={() => dispatch(setActiveTab('explore'))}
+            onClick={() => dispatch(setActiveTab('categories'))}
             className="text-xs font-bold text-emerald-600 hover:underline flex items-center gap-1"
           >
             <span>View all</span>

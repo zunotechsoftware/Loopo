@@ -4,17 +4,29 @@ import { MOCK_CONVERSATIONS, Conversation } from '@/mockData/chats';
 interface ChatState {
   conversations: Conversation[];
   activeConversationId: string;
+  chatFilterTab: 'buying' | 'selling' | 'all';
 }
 
 const initialState: ChatState = {
   conversations: MOCK_CONVERSATIONS,
-  activeConversationId: 'conv-1',
+  activeConversationId: 'conv-buy-1',
+  chatFilterTab: 'buying',
 };
 
 export const chatSlice = createSlice({
   name: 'chat',
   initialState,
   reducers: {
+    setChatFilterTab: (state, action: PayloadAction<'buying' | 'selling' | 'all'>) => {
+      state.chatFilterTab = action.payload;
+      // Auto switch active conversation to first item in tab if current is not in filtered list
+      const filtered = state.conversations.filter(
+        (c) => action.payload === 'all' || c.type === action.payload
+      );
+      if (filtered.length > 0) {
+        state.activeConversationId = filtered[0].id;
+      }
+    },
     setActiveConversation: (state, action: PayloadAction<string>) => {
       state.activeConversationId = action.payload;
       const conv = state.conversations.find((c) => c.id === action.payload);
@@ -40,8 +52,24 @@ export const chatSlice = createSlice({
         conv.lastTime = 'Just now';
       }
     },
+    updateOfferStatus: (
+      state,
+      action: PayloadAction<{ conversationId: string; messageId: string; status: 'Accepted' | 'Declined' }>
+    ) => {
+      const { conversationId, messageId, status } = action.payload;
+      const conv = state.conversations.find((c) => c.id === conversationId);
+      if (conv) {
+        const msg = conv.messages.find((m) => m.id === messageId);
+        if (msg) {
+          msg.offerStatus = status;
+          conv.lastMessage = `Offer ${status.toLowerCase()}`;
+        }
+      }
+    },
   },
 });
 
-export const { setActiveConversation, sendMessage } = chatSlice.actions;
+export const { setChatFilterTab, setActiveConversation, sendMessage, updateOfferStatus } =
+  chatSlice.actions;
+
 export default chatSlice.reducer;

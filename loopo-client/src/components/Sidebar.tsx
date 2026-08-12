@@ -7,6 +7,7 @@ import {
   Grid,
   MapPin,
   MessageSquare,
+  Bell,
   Package,
   Heart,
   ShoppingBag,
@@ -24,18 +25,20 @@ export default function Sidebar() {
   const activeTab = useAppSelector((state) => state.navigation.activeTab);
   const conversations = useAppSelector((state) => state.chat.conversations);
   const favorites = useAppSelector((state) => state.products.favorites);
+  const notifications = useAppSelector((state) => state.notifications.items);
 
   const totalUnread = conversations.reduce((acc, c) => acc + c.unreadCount, 0);
+  const unreadNotifs = notifications.filter((n) => !n.isRead).length;
 
   const navItems: { id: ActiveTab; label: string; icon: React.ElementType; badge?: number }[] = [
     { id: 'home', label: 'Home', icon: Home },
-    { id: 'explore', label: 'Explore', icon: Compass },
+    // { id: 'explore', label: 'Explore', icon: Compass }, // Commented as requested
     { id: 'categories', label: 'Categories', icon: Grid },
     { id: 'near-you', label: 'Near You', icon: MapPin },
     { id: 'messages', label: 'Messages', icon: MessageSquare, badge: totalUnread },
+    { id: 'notifications', label: 'Notifications', icon: Bell, badge: unreadNotifs },
     { id: 'my-ads', label: 'My Ads', icon: Package },
     { id: 'saved', label: 'Saved Items', icon: Heart, badge: favorites.length },
-    { id: 'orders', label: 'Orders', icon: ShoppingBag },
     { id: 'wallet', label: 'Wallet', icon: Wallet },
   ];
 

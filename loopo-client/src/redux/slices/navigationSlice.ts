@@ -2,17 +2,18 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 export type ActiveTab =
   | 'home'
-  | 'explore'
+  // | 'explore' (Commented as requested)
   | 'categories'
   | 'near-you'
   | 'messages'
+  | 'notifications'
   | 'my-ads'
   | 'saved'
-  | 'orders'
   | 'wallet'
   | 'sell'
   | 'help'
   | 'settings'
+  | 'profile'
   | 'product-detail';
 
 interface NavigationState {
