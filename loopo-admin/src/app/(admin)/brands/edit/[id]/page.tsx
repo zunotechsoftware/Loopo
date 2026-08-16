@@ -19,7 +19,8 @@ import {
   Chip,
   CircularProgress,
   Snackbar,
-  Alert
+  Alert,
+  IconButton
 } from '@mui/material';
 import {
   CloudUpload,
@@ -27,14 +28,16 @@ import {
   CheckCircle,
   Star,
   LocalOffer,
-  Launch
+  Launch,
+  ArrowBack
 } from '@mui/icons-material';
 import { useRouter } from 'next/navigation';
 import { brandsService, categoriesService } from '@/services/admin.service';
 import { Category } from '@/types';
 
-export default function AddBrandPage() {
+export default function EditBrandPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
+  const { id } = React.use(params);
 
   const [brandName, setBrandName] = useState('');
   const [slug, setSlug] = useState('');
@@ -50,36 +53,56 @@ export default function AddBrandPage() {
   const [status, setStatus] = useState('active');
   const [featured, setFeatured] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [categories, setCategories] = useState<Category[]>([]);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });
 
-  // Auto-generate slug from brand name
+  // Fetch brand data and categories on mount
   useEffect(() => {
-    const generated = brandName
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/(^-|-$)/g, '');
-    setSlug(generated);
-  }, [brandName]);
-
-  // Fetch categories on mount
-  useEffect(() => {
-    const fetchCategories = async () => {
+    const fetchData = async () => {
       try {
-        const res = await categoriesService.getAll({ all: true });
-        const catData = res.data;
+        setInitialLoading(true);
+        const [brandRes, catRes] = await Promise.all([
+          brandsService.getById(id),
+          categoriesService.getAll({ all: true })
+        ]);
+        
+        const brand = brandRes.data.data || brandRes.data;
+        
         let cats = [];
+        const catData = catRes.data;
         if (catData?.data && Array.isArray(catData.data)) cats = catData.data;
         else if (catData?.data?.data && Array.isArray(catData.data.data)) cats = catData.data.data;
         else if (Array.isArray(catData)) cats = catData;
+        
         setCategories(cats);
+
+        // Populate state
+        setBrandName(brand.name || '');
+        setSlug(brand.slug || '');
+        setCategoryId(brand.categoryId || '');
+        setCountry(brand.country || '');
+        setShortDescription(brand.shortDescription || '');
+        setDescription(brand.description || '');
+        setWebsite(brand.website || '');
+        setEstablishedYear(brand.establishedYear ? String(brand.establishedYear) : '');
+        setSeoTitle(brand.seoTitle || '');
+        setSeoDescription(brand.seoDescription || '');
+        setLogoUrl(brand.logoUrl || '');
+        setStatus(brand.isActive ? 'active' : 'inactive');
+        setFeatured(brand.isFeatured || false);
+
       } catch (err) {
-        console.error('Failed to fetch categories:', err);
+        console.error('Failed to fetch data:', err);
+        setSnackbar({ open: true, message: 'Failed to load brand details', severity: 'error' });
+      } finally {
+        setInitialLoading(false);
       }
     };
-    fetchCategories();
-  }, []);
+    if (id) {
+      fetchData();
+    }
+  }, [id]);
 
   const handleSubmit = async () => {
     if (!brandName.trim()) {
@@ -97,7 +120,7 @@ export default function AddBrandPage() {
 
     setLoading(true);
     try {
-      await brandsService.create({
+      await brandsService.update(id, {
         name: brandName.trim(),
         slug: slug.trim(),
         shortDescription: shortDescription.trim() || undefined,
@@ -113,23 +136,34 @@ export default function AddBrandPage() {
         isFeatured: featured,
       } as any);
 
-      setSnackbar({ open: true, message: 'Brand created successfully!', severity: 'success' });
+      setSnackbar({ open: true, message: 'Brand updated successfully!', severity: 'success' });
       setTimeout(() => router.push('/brands'), 1500);
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to create brand';
+      const message = err?.response?.data?.message || 'Failed to update brand';
       setSnackbar({ open: true, message, severity: 'error' });
     } finally {
       setLoading(false);
     }
   };
 
+  if (initialLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
       {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+        <IconButton onClick={() => router.push('/brands')} sx={{ bgcolor: '#f1f5f9' }}>
+          <ArrowBack sx={{ color: '#64748b' }} />
+        </IconButton>
         <Box>
-          <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>Add Brand</Typography>
-          <Typography variant="body2" color="text.secondary">Dashboard &gt; Brands &gt; Add Brand</Typography>
+          <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>Edit Brand</Typography>
+          <Typography variant="body2" color="text.secondary">Dashboard &gt; Brands &gt; Edit</Typography>
         </Box>
       </Box>
 
@@ -161,7 +195,7 @@ export default function AddBrandPage() {
                     fullWidth size="small"
                     value={slug}
                     onChange={(e) => setSlug(e.target.value)}
-                    placeholder="Enter slug (auto generated)"
+                    placeholder="Enter slug"
                     sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                   />
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
@@ -409,38 +443,6 @@ export default function AddBrandPage() {
                     <Typography variant="body2" sx={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: 0.5 }}><Star sx={{ fontSize: 16, color: '#cbd5e1' }} /> No</Typography>
                   )}
                 </Box>
-                <Divider sx={{ borderStyle: 'dashed' }} />
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="caption" sx={{ color: '#64748b', display: 'flex', alignItems: 'center', gap: 1 }}><CheckCircle fontSize="small" /> Created On</Typography>
-                  <Typography variant="caption" sx={{ color: '#94a3b8' }}>Not created yet</Typography>
-                </Box>
-              </Box>
-            </Card>
-
-            {/* Guidelines */}
-            <Card sx={{ p: 3, borderRadius: 2, boxShadow: '0px 2px 10px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0' }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 2, color: '#1e293b' }}>Guidelines</Typography>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-                  <Box sx={{ p: 0.5, bgcolor: '#eff6ff', borderRadius: 1 }}><ImageIcon sx={{ fontSize: 16, color: '#3b82f6' }} /></Box>
-                  <Typography variant="caption" sx={{ color: '#475569', lineHeight: 1.5 }}>Use high quality logo for better display.</Typography>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-                  <Box sx={{ p: 0.5, bgcolor: '#eff6ff', borderRadius: 1 }}><ImageIcon sx={{ fontSize: 16, color: '#3b82f6' }} /></Box>
-                  <Typography variant="caption" sx={{ color: '#475569', lineHeight: 1.5 }}>Logo size should be square (1:1 ratio).</Typography>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-                  <Box sx={{ p: 0.5, bgcolor: '#eff6ff', borderRadius: 1 }}><ImageIcon sx={{ fontSize: 16, color: '#3b82f6' }} /></Box>
-                  <Typography variant="caption" sx={{ color: '#475569', lineHeight: 1.5 }}>Banner size should be 1200x400 px.</Typography>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-                  <Box sx={{ p: 0.5, bgcolor: '#eff6ff', borderRadius: 1 }}><ImageIcon sx={{ fontSize: 16, color: '#3b82f6' }} /></Box>
-                  <Typography variant="caption" sx={{ color: '#475569', lineHeight: 1.5 }}>Choose the correct category.</Typography>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-                  <Box sx={{ p: 0.5, bgcolor: '#eff6ff', borderRadius: 1 }}><ImageIcon sx={{ fontSize: 16, color: '#3b82f6' }} /></Box>
-                  <Typography variant="caption" sx={{ color: '#475569', lineHeight: 1.5 }}>Featured brands will appear on the home page.</Typography>
-                </Box>
               </Box>
             </Card>
 
@@ -448,15 +450,15 @@ export default function AddBrandPage() {
             <Card sx={{ p: 3, borderRadius: 2, boxShadow: '0px 2px 10px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0' }}>
               <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1, color: '#1e293b' }}>Help</Typography>
               <Typography variant="caption" sx={{ color: '#64748b', display: 'block', mb: 2, lineHeight: 1.5 }}>
-                Brands help users to find listings easily. Add brand details carefully for better user experience.
+                Brands help users to find listings easily. Keep details updated for a better user experience.
               </Typography>
               <Button
                 variant="outlined"
                 startIcon={<Launch sx={{ fontSize: 16 }} />}
-                onClick={() => router.push('/brands')}
+                onClick={() => router.push(`/brands/${id}`)}
                 sx={{ width: '100%', borderRadius: 2, textTransform: 'none', borderColor: '#e2e8f0', color: '#2563eb' }}
               >
-                View Brand List
+                View Details
               </Button>
             </Card>
           </Box>
@@ -478,7 +480,7 @@ export default function AddBrandPage() {
           disabled={loading}
           sx={{ borderRadius: 2, textTransform: 'none', bgcolor: '#2563eb', px: 4 }}
         >
-          {loading ? <CircularProgress size={20} color="inherit" /> : 'Save Brand'}
+          {loading ? <CircularProgress size={20} color="inherit" /> : 'Save Changes'}
         </Button>
       </Box>
 

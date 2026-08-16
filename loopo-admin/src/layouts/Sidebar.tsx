@@ -9,7 +9,7 @@ import {
   Dashboard, People, Storefront, Inventory, Category, ShoppingCart, Payment,
   AccountBalanceWallet, Message, Star, Assessment, ViewCarousel, FeaturedVideo,
   LocalOffer, CardMembership, NotificationsActive, Description, Article,
-  Settings, Security, FactCheck, ExpandMore, ExpandLess, Logout
+  Settings, Security, FactCheck, ExpandMore, ExpandLess, Logout, ReportProblem, SupportAgent
 } from '@mui/icons-material';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
@@ -66,7 +66,9 @@ const NAV_GROUPS: NavGroup[] = [
       },
       { text: 'Payments', icon: <Payment fontSize="small" />, path: '/payments' },
       { text: 'Messages', icon: <Message fontSize="small" />, path: '/messages' },
+      { text: 'Support Tickets', icon: <Assessment fontSize="small" />, path: '/support' },
       { text: 'Reviews', icon: <Star fontSize="small" />, path: '/reviews' },
+      { text: 'Complaints', icon: <ReportProblem fontSize="small" />, path: '/complaints' },
       { text: 'Reports', icon: <Assessment fontSize="small" />, path: '/reports' },
     ],
   },

@@ -1,5 +1,5 @@
 import api from './api';
-import { Category, Product, AdminUser, Report, Transaction, Subscription, AuditLog, Notification, Banner } from '@/types';
+import { Category, Product, AdminUser, Report, Transaction, Subscription, AuditLog, Notification, Banner, Brand } from '@/types';
 
 // --- Users Service ---
 export const usersService = {
@@ -53,6 +53,18 @@ export const categoriesService = {
   update: (id: string, data: Partial<Category>) => api.put(`/admin/categories/${id}`, data),
   delete: (id: string) => api.delete(`/admin/categories/${id}`),
   getStats: () => api.get('/admin/categories/stats'),
+};
+
+// --- Brands Service ---
+export const brandsService = {
+  getAll: (params?: Record<string, unknown>) => api.get('/brands', { params }),
+  getById: (id: string) => api.get(`/brands/${id}`),
+  create: (data: Partial<Brand>) => api.post('/brands', data),
+  update: (id: string, data: Partial<Brand>) => api.put(`/brands/${id}`, data),
+  delete: (id: string) => api.delete(`/brands/${id}`),
+  getStats: () => api.get('/brands/stats'),
+  toggleFeatured: (id: string, isFeatured: boolean) => api.patch(`/brands/${id}/featured`, { isFeatured }),
+  updateStatus: (id: string, isActive: boolean) => api.patch(`/brands/${id}/status`, { isActive }),
 };
 
 

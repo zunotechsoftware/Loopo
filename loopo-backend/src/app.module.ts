@@ -28,6 +28,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { SellerProfileModule } from './modules/seller-profile/seller-profile.module';
 import { OrdersModule } from './modules/orders/orders.module';
+import { BrandsModule } from './modules/brands/brands.module';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { AuditLogInterceptor } from './shared/common/interceptors/audit-log.interceptor';
@@ -71,6 +72,7 @@ import { AuditLogInterceptor } from './shared/common/interceptors/audit-log.inte
     AdminModule,
     SellerProfileModule,
     OrdersModule,
+    BrandsModule,
   ],
   providers: [
     {

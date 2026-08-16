@@ -484,6 +484,7 @@ model Category {
   attributeGroups   CategoryAttributeGroup[]
   translations      CategoryTranslation[]
   products          Product[]
+  brands            Brand[]
 
   @@index([parentId])
   @@index([slug])
@@ -616,6 +617,7 @@ model Product {
   sellerId        String           @db.Uuid
   categoryId      String           @db.Uuid
   subcategoryId   String?          @db.Uuid
+  brandId         String?          @db.Uuid
   title           String
   slug            String           @unique
   description     String
@@ -641,6 +643,7 @@ model Product {
 
   seller      User      @relation(fields: [sellerId], references: [id], onDelete: Cascade)
   category    Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  brand       Brand?    @relation(fields: [brandId], references: [id], onDelete: SetNull)
 
   attributes    ProductAttribute[]
   images        ProductImage[]
@@ -662,6 +665,7 @@ model Product {
 
   @@index([sellerId])
   @@index([categoryId])
+  @@index([brandId])
   @@index([status])
   @@index([createdAt])
   @@index([slug])
@@ -2112,4 +2116,37 @@ model Order {
   product      Product     @relation(fields: [productId], references: [id], onDelete: Restrict)
 
   @@map("orders")
+}
+
+model Brand {
+  id               String    @id @default(uuid()) @db.Uuid
+  name             String
+  slug             String    @unique
+  shortDescription String?
+  description      String?
+  categoryId       String?   @db.Uuid
+  country          String?
+  website          String?
+  establishedYear  Int?
+  logoUrl          String?
+  bannerUrl        String?
+  seoTitle         String?
+  seoDescription   String?
+  isActive         Boolean   @default(true)
+  isFeatured       Boolean   @default(false)
+  sortOrder        Int       @default(0)
+  createdBy        String?
+  updatedBy        String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
+
+  category  Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  products  Product[]
+
+  @@index([categoryId])
+  @@index([slug])
+  @@index([isActive])
+  @@index([isFeatured])
+  @@map("brands")
 }

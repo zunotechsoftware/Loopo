@@ -76,6 +76,11 @@ async function main() {
     'reviews.update',
     'reviews.delete',
     'reviews.moderate',
+    'brands.view',
+    'brands.create',
+    'brands.update',
+    'brands.delete',
+    'brands.manage',
   ];
 
   const permissionsMap = new Map<string, any>();
@@ -119,6 +124,7 @@ async function main() {
       'reviews.create',
       'reviews.update',
       'reviews.delete',
+      'brands.view',
     ],
   };
 
@@ -431,6 +437,42 @@ async function main() {
     });
   }
   console.log('Categories seeded.');
+
+  // 11.5. Seed Brands
+  const brandsData = [
+    { name: 'Apple', slug: 'apple', category: 'Electronics', country: 'United States', website: 'https://www.apple.com', year: 1976, logo: 'https://logo.clearbit.com/apple.com', featured: true, desc: 'Premium consumer electronics and software' },
+    { name: 'Samsung', slug: 'samsung', category: 'Electronics', country: 'South Korea', website: 'https://www.samsung.com', year: 1938, logo: 'https://logo.clearbit.com/samsung.com', featured: true, desc: 'Global leader in electronics and mobile technology' },
+    { name: 'Xiaomi', slug: 'xiaomi', category: 'Electronics', country: 'China', website: 'https://www.mi.com', year: 2010, logo: 'https://logo.clearbit.com/mi.com', featured: false, desc: 'Innovative consumer electronics at affordable prices' },
+    { name: 'Nike', slug: 'nike', category: 'Mobiles', country: 'United States', website: 'https://www.nike.com', year: 1964, logo: 'https://logo.clearbit.com/nike.com', featured: true, desc: 'World-renowned athletic footwear and apparel' },
+    { name: 'Sony', slug: 'sony', category: 'Electronics', country: 'Japan', website: 'https://www.sony.com', year: 1946, logo: 'https://logo.clearbit.com/sony.com', featured: false, desc: 'Entertainment and electronics conglomerate' },
+    { name: 'Dell', slug: 'dell', category: 'Electronics', country: 'United States', website: 'https://www.dell.com', year: 1984, logo: 'https://logo.clearbit.com/dell.com', featured: false, desc: 'Leading computer technology company' },
+    { name: 'HP', slug: 'hp', category: 'Electronics', country: 'United States', website: 'https://www.hp.com', year: 1939, logo: 'https://logo.clearbit.com/hp.com', featured: false, desc: 'Computing and printing products and services' },
+    { name: 'Adidas', slug: 'adidas', category: 'Mobiles', country: 'Germany', website: 'https://www.adidas.com', year: 1949, logo: 'https://logo.clearbit.com/adidas.com', featured: false, desc: 'Athletic and casual sportswear brand' },
+    { name: 'Bosch', slug: 'bosch', category: 'Home & Living', country: 'Germany', website: 'https://www.bosch.com', year: 1886, logo: 'https://logo.clearbit.com/bosch.com', featured: false, desc: 'Engineering and technology solutions' },
+    { name: 'Canon', slug: 'canon', category: 'Electronics', country: 'Japan', website: 'https://www.canon.com', year: 1937, logo: 'https://logo.clearbit.com/canon.com', featured: false, desc: 'Imaging and optical products specialist' },
+  ];
+
+  for (const b of brandsData) {
+    const cat = categories[b.category];
+    await prisma.brand.upsert({
+      where: { slug: b.slug },
+      update: {},
+      create: {
+        name: b.name,
+        slug: b.slug,
+        shortDescription: b.desc,
+        description: `${b.name} is a globally recognized brand known for quality and innovation. ${b.desc}.`,
+        categoryId: cat?.id || null,
+        country: b.country,
+        website: b.website,
+        establishedYear: b.year,
+        logoUrl: b.logo,
+        isActive: true,
+        isFeatured: b.featured,
+      },
+    });
+  }
+  console.log('Brands seeded.');
 
   // 12. Seed Sellers
   const sellersData = [

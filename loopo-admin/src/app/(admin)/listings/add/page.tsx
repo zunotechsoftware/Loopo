@@ -287,9 +287,9 @@ export default function AddListingPage() {
             return (
               <Step key={step.label} completed={isCompleted}>
                 <StepLabel
-                  StepIconComponent={() => (
+                  icon={
                     <CustomStepIcon completed={isCompleted} active={isActive} stepNumber={index + 1} />
-                  )}
+                  }
                   onClick={() => handleStepClick(index)}
                   sx={{ cursor: 'pointer' }}
                 >
@@ -461,7 +461,7 @@ function StepBasicInfo({
               value={form.title}
               onChange={e => setField('title', e.target.value)}
               placeholder="Enter a descriptive title"
-              inputProps={{ maxLength: 100 }}
+              slotProps={{ htmlInput: { maxLength: 100 } }}
               error={touched && !!errors.title}
               sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2, bgcolor: '#f8fafc' } }}
             />
@@ -479,8 +479,8 @@ function StepBasicInfo({
               fullWidth multiline rows={5}
               value={form.description}
               onChange={e => setField('description', e.target.value)}
-              placeholder="Describe your product in detail (min 20 characters)"
-              inputProps={{ maxLength: 1000 }}
+              placeholder="Describe the condition, features, and specifications..."
+              slotProps={{ htmlInput: { maxLength: 1000 } }}
               error={touched && !!errors.description}
               sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2, bgcolor: '#f8fafc' } }}
             />
@@ -598,7 +598,7 @@ function StepPriceDetails({ form, setField, errors, touched }: {
             onChange={e => setField('price', parseFloat(e.target.value) || 0)}
             placeholder="Enter price"
             error={touched && !!errors.price}
-            InputProps={{ startAdornment: <Typography sx={{ mr: 1, color: '#64748b' }}>₹</Typography> }}
+            slotProps={{ input: { startAdornment: <Typography sx={{ mr: 1, color: '#64748b' }}>₹</Typography> } }}
             sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2, bgcolor: '#f8fafc' } }}
           />
           {touched && errors.price && <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>{errors.price}</Typography>}
