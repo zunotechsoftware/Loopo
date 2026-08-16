@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:loopo/screens/welcome_screen.dart';
 
 import 'theme/app_theme.dart';
@@ -28,6 +29,17 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+
+  // Load the correct environment file.
+  // Run with `flutter run` for dev, or pass `--dart-define=APP_ENV=production` for prod.
+  const appEnv = String.fromEnvironment('APP_ENV', defaultValue: 'development');
+  final envFile = appEnv == 'production' ? '.env.production' : '.env.development';
+
+  try {
+    await dotenv.load(fileName: envFile);
+  } catch (_) {
+    // Silently fall through — ApiConfig falls back to hardcoded dev URL
+  }
 
   // Show Flutter errors on-screen instead of a blank screen.
   ErrorWidget.builder = (FlutterErrorDetails details) {

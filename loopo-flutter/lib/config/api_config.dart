@@ -1,19 +1,16 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 enum AppEnvironment { development, production }
 
 class ApiConfig {
-  // Override base URL directly via:
-  //   flutter run --dart-define=API_BASE_URL=https://my-custom-domain.com
+  // Reads APP_ENV from the loaded dotenv file; falls back to dart-define then 'development'
+  static String get _envString =>
+      dotenv.maybeGet('APP_ENV') ??
+      const String.fromEnvironment('APP_ENV', defaultValue: 'development');
+
+  // Reads the base URL from dotenv; falls back to dart-define override, then hardcoded dev URL
   static const String _overrideBaseUrl = String.fromEnvironment('API_BASE_URL');
 
-  // Environment mode:
-  //   flutter run --dart-define=ENVIRONMENT=production
-  static const String _envString = String.fromEnvironment('ENVIRONMENT', defaultValue: 'development');
-
-  // Legacy local IP override:
-  //   flutter run --dart-define=API_HOST=192.168.1.42
-  static const String _overrideHost = String.fromEnvironment('API_HOST');
-
-  // Known hosts
   static const String _devBaseUrl = 'https://loopo-711b.onrender.com';
   static const String _prodBaseUrl = 'https://api.loopo.com'; // Production API hostname
 
@@ -23,18 +20,20 @@ class ApiConfig {
           : AppEnvironment.development;
 
   static String get baseUrl {
+    // 1. dart-define takes highest priority (CI/CD overrides)
     if (_overrideBaseUrl.isNotEmpty) {
       return _overrideBaseUrl.endsWith('/')
           ? _overrideBaseUrl.substring(0, _overrideBaseUrl.length - 1)
           : _overrideBaseUrl;
     }
 
-    if (_overrideHost.isNotEmpty) {
-      return _overrideHost.startsWith('http')
-          ? _overrideHost
-          : 'http://$_overrideHost:3000';
+    // 2. Value from the loaded dotenv file (.env.development / .env.production)
+    final envUrl = dotenv.maybeGet('API_BASE_URL');
+    if (envUrl != null && envUrl.isNotEmpty) {
+      return envUrl.endsWith('/') ? envUrl.substring(0, envUrl.length - 1) : envUrl;
     }
 
+    // 3. Hardcoded fallback based on environment
     switch (environment) {
       case AppEnvironment.production:
         return _prodBaseUrl;
@@ -43,11 +42,12 @@ class ApiConfig {
     }
   }
 
-  // API endpoints
+  // ── API Endpoints ─────────────────────────────────────────────────────────
   static const String loginEndpoint = '/api/v1/auth/login';
   static const String registerEndpoint = '/api/v1/auth/register';
   static const String forgotPasswordEndpoint = '/api/v1/auth/forgot-password';
   static const String resetPasswordEndpoint = '/api/v1/auth/reset-password';
+  static const String refreshTokenEndpoint = '/api/v1/auth/refresh';
   static const String categoriesEndpoint = '/api/v1/categories';
   static const String categoryTreeEndpoint = '/api/v1/categories/tree';
   static const String meEndpoint = '/api/v1/users/me';
@@ -67,11 +67,12 @@ class ApiConfig {
   static const String reportsEndpoint = '/api/v1/reports';
   static const String ordersEndpoint = '/api/v1/orders';
 
-  // Full URLs
+  // ── Full URLs ─────────────────────────────────────────────────────────────
   static String get loginUrl => '$baseUrl$loginEndpoint';
   static String get registerUrl => '$baseUrl$registerEndpoint';
   static String get forgotPasswordUrl => '$baseUrl$forgotPasswordEndpoint';
   static String get resetPasswordUrl => '$baseUrl$resetPasswordEndpoint';
+  static String get refreshTokenUrl => '$baseUrl$refreshTokenEndpoint';
   static String get categoriesUrl => '$baseUrl$categoriesEndpoint';
   static String get categoryTreeUrl => '$baseUrl$categoryTreeEndpoint';
   static String get meUrl => '$baseUrl$meEndpoint';
@@ -96,5 +97,9 @@ class ApiConfig {
   static String pauseProductUrl(String id) => '$baseUrl$productsEndpoint/$id/pause';
   static String resumeProductUrl(String id) => '$baseUrl$productsEndpoint/$id/resume';
   static String archiveProductUrl(String id) => '$baseUrl$productsEndpoint/$id/archive';
+  static String conversationMessagesUrl(String conversationId) =>
+      '$chatMessagesUrl?conversationId=$conversationId';
+  static String notificationReadUrl(String id) => '$notificationsUrl/$id/read';
+  static String favoriteDeleteUrl(String id) => '$favoritesUrl/$id';
+  static String orderDetailUrl(String id) => '$ordersUrl/$id';
 }
-

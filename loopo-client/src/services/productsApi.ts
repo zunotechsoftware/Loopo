@@ -37,7 +37,7 @@ export const productsApi = {
   },
 
   async getMyAds(): Promise<ApiResponse<Product[]>> {
-    return apiClient.get<Product[]>('/products/my-ads');
+    return apiClient.get<Product[]>('/products/my');
   },
 
   async markAsSold(id: string): Promise<ApiResponse<any>> {

@@ -1,15 +1,21 @@
 'use client';
 
-import React from 'react';
-import { Package, Trash2, Edit3, Rocket, CheckCircle } from 'lucide-react';
+import React, { useEffect } from 'react';
+import { Package, Trash2, Edit3, Rocket, CheckCircle, Loader2 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
-import { setAdsFilter, deleteAd, updateAdStatus } from '@/redux/slices/myAdsSlice';
+import { setAdsFilter, deleteAd, updateAdStatus, fetchMyAdsThunk } from '@/redux/slices/myAdsSlice';
 import { showToast } from '@/redux/slices/uiSlice';
 
 export default function MyAdsView() {
   const dispatch = useAppDispatch();
   const ads = useAppSelector((state) => state.myAds.ads);
   const activeFilter = useAppSelector((state) => state.myAds.activeFilter);
+  const isLoading = useAppSelector((state) => state.myAds.loading);
+
+  // Fetch real ads from API on mount
+  useEffect(() => {
+    dispatch(fetchMyAdsThunk());
+  }, [dispatch]);
 
   const filteredAds = ads.filter((ad) => ad.status === activeFilter);
 
@@ -41,7 +47,12 @@ export default function MyAdsView() {
 
       {/* Ads List */}
       <div className="space-y-3">
-        {filteredAds.length === 0 ? (
+        {isLoading ? (
+          <div className="bg-white rounded-3xl p-12 text-center border border-slate-100">
+            <Loader2 className="w-8 h-8 animate-spin text-emerald-500 mx-auto" />
+            <p className="text-xs font-medium text-slate-400 mt-3">Loading your ads...</p>
+          </div>
+        ) : filteredAds.length === 0 ? (
           <div className="bg-white rounded-3xl p-12 text-center border border-slate-100 text-slate-400 font-medium text-sm">
             No {activeFilter.toLowerCase()} ads found.
           </div>

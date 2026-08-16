@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../services/chat_service.dart';
 import 'chat_conversation_screen.dart';
 
 class ChatListScreen extends StatefulWidget {
@@ -13,72 +14,68 @@ class _ChatListScreenState extends State<ChatListScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
-
-  final List<Map<String, dynamic>> _allChats = [
-    {
-      'id': 'conv_1',
-      'sellerName': 'Rahul Sharma',
-      'sellerAvatar': 'RS',
-      'isVerified': true,
-      'itemTitle': 'iPhone 14 Pro Max - 256GB Deep Purple',
-      'itemPrice': '₹78,500',
-      'itemImage': 'assets/images/loopo.png',
-      'lastMessage': 'Is ₹75,000 final? I can pick it up today evening from Koramangala.',
-      'lastTime': '10:42 AM',
-      'unreadCount': 2,
-      'type': 'BUYING',
-      'status': 'ACTIVE',
-    },
-    {
-      'id': 'conv_2',
-      'sellerName': 'Priya Patel',
-      'sellerAvatar': 'PP',
-      'isVerified': true,
-      'itemTitle': 'Royal Enfield Classic 350 (2022 Model)',
-      'itemPrice': '₹1,45,000',
-      'itemImage': 'assets/images/loopo.png',
-      'lastMessage': 'Sure, you can visit at 4 PM to inspect the bike and test drive.',
-      'lastTime': 'Yesterday',
-      'unreadCount': 0,
-      'type': 'SELLING',
-      'status': 'ACTIVE',
-    },
-    {
-      'id': 'conv_3',
-      'sellerName': 'Vikram Malhotra',
-      'sellerAvatar': 'VM',
-      'isVerified': false,
-      'itemTitle': 'Sony Bravia 55" 4K OLED Smart TV',
-      'itemPrice': '₹52,000',
-      'itemImage': 'assets/images/loopo.png',
-      'lastMessage': 'Offer accepted! Please bring cash or pay via UPI on delivery.',
-      'lastTime': 'Aug 08',
-      'unreadCount': 0,
-      'type': 'BUYING',
-      'status': 'SOLD',
-    },
-    {
-      'id': 'conv_4',
-      'sellerName': 'Ananya Roy',
-      'sellerAvatar': 'AR',
-      'isVerified': true,
-      'itemTitle': 'Ergonomic Premium Leather Office Chair',
-      'itemPrice': '₹6,500',
-      'itemImage': 'assets/images/loopo.png',
-      'lastMessage': 'Hello, is this chair still available?',
-      'lastTime': 'Aug 05',
-      'unreadCount': 1,
-      'type': 'SELLING',
-      'status': 'ACTIVE',
-    },
-  ];
-
+  final ChatService _chatService = ChatService();
+  List<Map<String, dynamic>> _allChats = [];
+  bool _isLoading = true;
   String _searchQuery = '';
+
+
+
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _loadConversations();
+  }
+
+  Future<void> _loadConversations() async {
+    setState(() => _isLoading = true);
+    try {
+      final convs = await _chatService.getConversations();
+      setState(() {
+        _allChats = convs.map<Map<String, dynamic>>((c) {
+          final other = c['buyer'] ?? c['seller'] ?? c['otherUser'] ?? {};
+          final product = c['product'] ?? c['listing'] ?? {};
+          final otherName = other['firstName'] != null
+              ? '${other['firstName']} ${other['lastName'] ?? ''}'
+              : other['name'] ?? 'User';
+          return {
+            'id': c['id']?.toString() ?? '',
+            'sellerName': otherName.trim(),
+            'sellerAvatar': otherName.isNotEmpty ? otherName[0].toUpperCase() : '?',
+            'isVerified': other['isEmailVerified'] == true || other['isKycVerified'] == true,
+            'itemTitle': product['title'] ?? c['productTitle'] ?? 'Item',
+            'itemPrice': product['price'] != null ? '₹${product['price']}' : '',
+            'itemImage': 'assets/images/loopo.png',
+            'lastMessage': c['lastMessage'] ?? '',
+            'lastTime': c['updatedAt'] != null
+                ? _formatTime(DateTime.tryParse(c['updatedAt']))
+                : '',
+            'unreadCount': c['unreadCount'] ?? 0,
+            'type': (c['type'] ?? 'BUYING').toString().toUpperCase(),
+            'status': 'ACTIVE',
+          };
+        }).toList();
+        _isLoading = false;
+      });
+    } catch (_) {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  String _formatTime(DateTime? dt) {
+    if (dt == null) return '';
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return 'Today';
+    if (diff.inDays == 1) return 'Yesterday';
+    return '${dt.day} ${_monthName(dt.month)}';
+  }
+
+  String _monthName(int m) {
+    const months = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return months[m];
   }
 
   @override
@@ -183,14 +180,16 @@ class _ChatListScreenState extends State<ChatListScreen>
           ),
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildChatList('ALL'),
-          _buildChatList('BUYING'),
-          _buildChatList('SELLING'),
-        ],
-      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : TabBarView(
+              controller: _tabController,
+              children: [
+                _buildChatList('ALL'),
+                _buildChatList('BUYING'),
+                _buildChatList('SELLING'),
+              ],
+            ),
     );
   }
 

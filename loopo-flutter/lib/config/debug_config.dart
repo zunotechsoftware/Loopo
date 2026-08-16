@@ -22,7 +22,7 @@ class DebugConfig {
   /// Set to `true` to bypass slow server responses and show all screens instantly.
   /// Set to `false` to test live backend integration with https://loopo-711b.onrender.com.
   /// Can be overridden at run time via: flutter run --dart-define=BYPASS_AUTH=true
-  static const bool isBypassAuth = true;
+  static const bool isBypassAuth = false;
 
   // ── Master switch ──────────────────────────────────────────────────────────
   /// Set to `false` to disable all debug prefill even in debug builds.

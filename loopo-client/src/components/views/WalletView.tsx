@@ -1,15 +1,20 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Wallet, Plus, ArrowUpRight, ArrowDownLeft, History, Rocket, Tag, Sparkles, CheckCircle2 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
-import { addMoney } from '@/redux/slices/walletSlice';
+import { addMoney, fetchWalletThunk } from '@/redux/slices/walletSlice';
 import { showToast } from '@/redux/slices/uiSlice';
 
 export default function WalletView() {
   const dispatch = useAppDispatch();
   const wallet = useAppSelector((state) => state.wallet);
   const [couponCode, setCouponCode] = useState('');
+
+  // Fetch real wallet balance from API on mount
+  useEffect(() => {
+    dispatch(fetchWalletThunk());
+  }, [dispatch]);
 
   const formattedBalance = new Intl.NumberFormat('en-IN', {
     style: 'currency',
