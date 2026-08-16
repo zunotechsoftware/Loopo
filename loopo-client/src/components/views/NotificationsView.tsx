@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   Bell,
   CheckCheck,
@@ -21,6 +21,7 @@ import {
   markAllAsRead,
   deleteNotification,
   clearAllNotifications,
+  fetchNotificationsThunk,
 } from '@/redux/slices/notificationsSlice';
 import { setActiveTab } from '@/redux/slices/navigationSlice';
 import { setActiveConversation } from '@/redux/slices/chatSlice';
@@ -31,6 +32,11 @@ export default function NotificationsView() {
   const dispatch = useAppDispatch();
   const notifications = useAppSelector((state) => state.notifications.items);
   const filterTab = useAppSelector((state) => state.notifications.filterTab);
+
+  // Fetch real notifications from API on mount
+  useEffect(() => {
+    dispatch(fetchNotificationsThunk());
+  }, [dispatch]);
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 

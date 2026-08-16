@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   Smartphone,
   Car,
@@ -21,13 +21,19 @@ import { MOCK_CATEGORIES } from '@/mockData/categories';
 import ProductCard from '../ui/ProductCard';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { setActiveTab } from '@/redux/slices/navigationSlice';
-import { setCategoryFilter } from '@/redux/slices/productsSlice';
+import { setCategoryFilter, fetchProductsThunk } from '@/redux/slices/productsSlice';
 import { setSellModalOpen } from '@/redux/slices/uiSlice';
 
 export default function HomeView() {
   const dispatch = useAppDispatch();
   const products = useAppSelector((state) => state.products.items);
   const filters = useAppSelector((state) => state.products.filters);
+  const isLoading = useAppSelector((state) => state.products.loading);
+
+  // Fetch real products from API on mount
+  useEffect(() => {
+    dispatch(fetchProductsThunk({}));
+  }, [dispatch]);
 
   // Filter products based on search or category if set
   const filteredProducts = products.filter((p) => {
@@ -161,7 +167,21 @@ export default function HomeView() {
           </button>
         </div>
 
-        {filteredProducts.length === 0 ? (
+        {isLoading ? (
+          // Loading skeleton
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="bg-white rounded-2xl border border-slate-100 overflow-hidden animate-pulse">
+                <div className="h-48 bg-slate-200" />
+                <div className="p-3 space-y-2">
+                  <div className="h-4 bg-slate-200 rounded-lg w-3/4" />
+                  <div className="h-3 bg-slate-100 rounded-lg w-1/2" />
+                  <div className="h-5 bg-slate-200 rounded-lg w-1/3" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : filteredProducts.length === 0 ? (
           <div className="bg-white rounded-2xl p-12 text-center border border-slate-100 space-y-3">
             <div className="text-slate-400 font-medium">No items found matching your filters.</div>
             <button

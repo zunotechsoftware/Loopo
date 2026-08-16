@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Send,
   Phone,
@@ -21,6 +21,7 @@ import {
   setActiveConversation,
   sendMessage,
   updateOfferStatus,
+  fetchConversationsThunk,
 } from '@/redux/slices/chatSlice';
 import {
   setOfferModalOpen,
@@ -34,6 +35,11 @@ export default function MessagesView() {
   const conversations = useAppSelector((state) => state.chat.conversations);
   const activeConversationId = useAppSelector((state) => state.chat.activeConversationId);
   const chatFilterTab = useAppSelector((state) => state.chat.chatFilterTab);
+
+  // Fetch real conversations from API on mount
+  useEffect(() => {
+    dispatch(fetchConversationsThunk());
+  }, [dispatch]);
 
   // Compute total unread counts for Buying & Selling
   const buyingUnread = conversations

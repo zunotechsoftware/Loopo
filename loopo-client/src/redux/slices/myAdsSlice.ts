@@ -1,4 +1,5 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { productsApi } from '@/services/productsApi';
 
 export interface MyAdItem {
   id: string;
@@ -12,37 +13,58 @@ export interface MyAdItem {
 interface MyAdsState {
   ads: MyAdItem[];
   activeFilter: 'Active' | 'Sold' | 'Inactive';
+  loading: boolean;
 }
 
 const initialState: MyAdsState = {
-  ads: [
-    {
-      id: 'my-1',
-      title: 'iPhone 13 128GB',
-      price: '₹32,000',
-      postedDate: 'Posted on 10 May 2024',
-      image: 'https://images.unsplash.com/photo-1632661674596-df8be070a5c5?q=80&w=800&auto=format&fit=crop',
-      status: 'Active',
-    },
-    {
-      id: 'my-2',
-      title: 'Royal Enfield Classic 350',
-      price: '₹1,35,000',
-      postedDate: 'Posted on 05 May 2024',
-      image: 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?q=80&w=800&auto=format&fit=crop',
-      status: 'Active',
-    },
-    {
-      id: 'my-3',
-      title: 'L Shape Sofa Set',
-      price: '₹18,000',
-      postedDate: 'Posted on 06 Apr 2024',
-      image: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?q=80&w=800&auto=format&fit=crop',
-      status: 'Inactive',
-    },
-  ],
+  ads: [],
   activeFilter: 'Active',
+  loading: false,
 };
+
+/** Map backend status to frontend status label */
+function mapStatus(s: string): 'Active' | 'Sold' | 'Inactive' {
+  const upper = (s || '').toUpperCase();
+  if (upper === 'ACTIVE' || upper === 'PUBLISHED') return 'Active';
+  if (upper === 'SOLD') return 'Sold';
+  return 'Inactive'; // DRAFT, PENDING, PAUSED, ARCHIVED
+}
+
+export const fetchMyAdsThunk = createAsyncThunk('myAds/fetchMyAds', async () => {
+  const res = await productsApi.getMyAds();
+  if (res.success) {
+    const data = res.data as any;
+    const raw: any[] = Array.isArray(data)
+      ? data
+      : Array.isArray(data?.items)
+      ? data.items
+      : [];
+
+    return raw.map((p: any): MyAdItem => {
+      const images: string[] = Array.isArray(p.images)
+        ? p.images.map((img: any) => (typeof img === 'string' ? img : img?.url || ''))
+        : [];
+
+      return {
+        id: p.id || p._id || `my-${Date.now()}`,
+        title: p.title || 'Untitled',
+        price: `₹${(p.price || 0).toLocaleString('en-IN')}`,
+        postedDate: p.createdAt
+          ? `Posted on ${new Date(p.createdAt).toLocaleDateString('en-IN', {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+            })}`
+          : 'Recently',
+        image:
+          images[0] ||
+          'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?q=80&w=400&auto=format&fit=crop',
+        status: mapStatus(p.status),
+      };
+    });
+  }
+  return [];
+});
 
 export const myAdsSlice = createSlice({
   name: 'myAds',
@@ -63,6 +85,19 @@ export const myAdsSlice = createSlice({
     deleteAd: (state, action: PayloadAction<string>) => {
       state.ads = state.ads.filter((a) => a.id !== action.payload);
     },
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchMyAdsThunk.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(fetchMyAdsThunk.fulfilled, (state, action) => {
+        state.loading = false;
+        state.ads = action.payload;
+      })
+      .addCase(fetchMyAdsThunk.rejected, (state) => {
+        state.loading = false;
+      });
   },
 });
 
