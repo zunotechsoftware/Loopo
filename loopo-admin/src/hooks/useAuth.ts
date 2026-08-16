@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect, createContext, useContext } from 'react';
+import { createContext, useContext } from 'react';
 import { User } from '@/types/auth';
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
+  isLoading: boolean;
   login: (token: string, userData: User) => void;
   logout: () => void;
 }
@@ -13,6 +14,7 @@ interface AuthContextType {
 const defaultContext: AuthContextType = {
   user: null,
   isAuthenticated: false,
+  isLoading: true,
   login: () => {},
   logout: () => {},
 };

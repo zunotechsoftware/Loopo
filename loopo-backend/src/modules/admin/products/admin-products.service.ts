@@ -180,7 +180,7 @@ export class AdminProductsService {
         updatedBy: adminId,
       },
       include: {
-        seller: { include: { user: { select: { firstName: true, lastName: true } } } },
+        seller: { select: { firstName: true, lastName: true } },
         category: true,
       }
     });
@@ -189,9 +189,9 @@ export class AdminProductsService {
       data: {
         userId: adminId,
         action: 'UPDATE_PRODUCT_DETAILS',
-        entityType: 'Product',
+        entity: 'Product',
         entityId: id,
-        details: JSON.stringify(dto),
+        newValues: JSON.parse(JSON.stringify(dto)),
       }
     });
 

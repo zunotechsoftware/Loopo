@@ -7,7 +7,7 @@ import { User } from '@/types/auth';
 export default function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [isInitializing, setIsInitializing] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
     // Check local storage for user/token on initial load
@@ -23,7 +23,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
         console.error('Failed to parse stored user', error);
       }
     }
-    setIsInitializing(false);
+    setIsLoading(false);
   }, []);
 
   const login = (token: string, userData: User) => {
@@ -41,12 +41,8 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     window.location.href = '/login';
   };
 
-  if (isInitializing) {
-    return null; // Or a loading spinner
-  }
-
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, login, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -27,11 +27,17 @@ export default function ProductCard({ product }: ProductCardProps) {
       <div onClick={() => dispatch(openProductDetail(product.id))}>
         {/* Image Container */}
         <div className="relative aspect-[4/3] bg-slate-100 overflow-hidden">
-          <img
-            src={product.images[0]}
-            alt={product.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          />
+          {product.images?.[0] ? (
+            <img
+              src={product.images[0]}
+              alt={product.title}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            />
+          ) : (
+            <div className="w-full h-full bg-slate-200 flex items-center justify-center text-slate-400 text-xs">
+              No Image
+            </div>
+          )}
 
           {/* Condition Tag */}
           <div className="absolute top-2.5 left-2.5 bg-white/90 backdrop-blur-md text-slate-800 text-[10px] font-bold px-2.5 py-1 rounded-full shadow-sm">

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, Tag, CheckCircle2 } from 'lucide-react';
+import { X, Tag } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { setOfferModalOpen, showToast } from '@/redux/slices/uiSlice';
 
@@ -12,9 +12,27 @@ export default function OfferModal() {
   const products = useAppSelector((state) => state.products.items);
   const product = products.find((p) => p.id === selectedProductId) || products[0];
 
-  const [offerValue, setOfferValue] = useState(Math.round(product.price * 0.9).toString());
+  const [offerValue, setOfferValue] = useState(
+    product ? Math.round(product.price * 0.9).toString() : ''
+  );
 
   if (!isOpen) return null;
+
+  if (!product) {
+    return (
+      <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl text-center space-y-4">
+          <p className="text-slate-500 text-sm">No product selected.</p>
+          <button
+            onClick={() => dispatch(setOfferModalOpen(false))}
+            className="text-xs font-bold text-emerald-600 underline"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const quickOffers = [
     Math.round(product.price * 0.95),

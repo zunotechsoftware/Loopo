@@ -3,15 +3,16 @@
 import React from 'react';
 import {
   Box, Drawer, List, ListItem, ListItemButton, ListItemIcon,
-  ListItemText, Typography, Avatar, Collapse
+  ListItemText, Typography, Avatar, Collapse, IconButton
 } from '@mui/material';
 import {
   Dashboard, People, Storefront, Inventory, Category, ShoppingCart, Payment,
   AccountBalanceWallet, Message, Star, Assessment, ViewCarousel, FeaturedVideo,
   LocalOffer, CardMembership, NotificationsActive, Description, Article,
-  Settings, Security, FactCheck, ExpandMore, ExpandLess
+  Settings, Security, FactCheck, ExpandMore, ExpandLess, Logout
 } from '@mui/icons-material';
 import { usePathname, useRouter } from 'next/navigation';
+import { useAuth } from '@/hooks/useAuth';
 
 interface SidebarProps {
   drawerWidth: number;
@@ -99,6 +100,7 @@ const NAV_GROUPS: NavGroup[] = [
 export default function Sidebar({ drawerWidth, mobileOpen, handleDrawerToggle }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { user, logout } = useAuth();
   
   // Default expanded state based on pathname
   const [openMenus, setOpenMenus] = React.useState<Record<string, boolean>>({
@@ -247,16 +249,20 @@ export default function Sidebar({ drawerWidth, mobileOpen, handleDrawerToggle }:
 
       {/* Footer Profile */}
       <Box sx={{ p: 2, m: 2, mt: 'auto', bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 2, display: 'flex', alignItems: 'center', gap: 1.5 }}>
-        <Avatar src="https://i.pravatar.cc/150?u=a042581f4e29026704d" sx={{ width: 36, height: 36 }} />
+        <Avatar sx={{ width: 36, height: 36, bgcolor: '#1d4ed8', fontSize: '0.85rem', fontWeight: 600 }}>
+          {user?.firstName?.[0] || user?.email?.[0]?.toUpperCase() || 'A'}
+        </Avatar>
         <Box sx={{ flexGrow: 1, overflow: 'hidden' }}>
           <Typography variant="subtitle2" sx={{ fontSize: '0.8rem', fontWeight: 600, color: 'white', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-            Admin User
+            {user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Admin User'}
           </Typography>
           <Typography variant="caption" sx={{ color: '#94a3b8', fontSize: '0.7rem' }}>
-            Super Admin
+            {user?.email || 'Super Admin'}
           </Typography>
         </Box>
-        <ExpandMore sx={{ fontSize: 18, color: '#64748b' }} />
+        <IconButton onClick={logout} size="small" sx={{ color: '#ef4444', '&:hover': { bgcolor: 'rgba(239,68,68,0.15)' } }}>
+          <Logout sx={{ fontSize: 18 }} />
+        </IconButton>
       </Box>
     </Box>
   );
