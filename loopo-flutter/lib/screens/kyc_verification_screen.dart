@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../services/kyc_service.dart';
 
 class KycVerificationScreen extends StatefulWidget {
   const KycVerificationScreen({super.key});
@@ -9,10 +10,14 @@ class KycVerificationScreen extends StatefulWidget {
 }
 
 class _KycVerificationScreenState extends State<KycVerificationScreen> {
+  final KycService _kycService = KycService();
   String _selectedDocType = 'Aadhaar Card';
+  final TextEditingController _docNumberController = TextEditingController();
   bool _docUploaded = false;
   bool _selfieUploaded = false;
   bool _isSubmitted = false;
+  bool _isSubmitting = false;
+  String? _errorMessage;
 
   final List<String> _docTypes = [
     'Aadhaar Card',
@@ -22,15 +27,44 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
     'Passport',
   ];
 
-  void _submitKyc() {
+  @override
+  void dispose() {
+    _docNumberController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submitKyc() async {
     if (!_docUploaded || !_selfieUploaded) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please upload both Document Photo and Selfie')),
       );
       return;
     }
+    if (_docNumberController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your document number')),
+      );
+      return;
+    }
 
-    setState(() => _isSubmitted = true);
+    setState(() { _isSubmitting = true; _errorMessage = null; });
+    try {
+      await _kycService.verifyKyc(
+        docType: _selectedDocType.toUpperCase().replaceAll(' ', '_'),
+        docNumber: _docNumberController.text.trim(),
+      );
+      setState(() { _isSubmitted = true; _isSubmitting = false; });
+    } catch (e) {
+      setState(() {
+        _isSubmitting = false;
+        _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_errorMessage ?? 'KYC submission failed')),
+        );
+      }
+    }
   }
 
   @override
@@ -200,12 +234,32 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
                   ),
                   const SizedBox(height: 20),
 
+                  // Document Number Input
+                  const Text('1b. Enter Document Number', style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.appDark)),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: _docNumberController,
+                    decoration: InputDecoration(
+                      hintText: 'e.g. ABCD1234EF or 1234 5678 9012',
+                      hintStyle: TextStyle(fontFamily: 'Poppins', fontSize: 13, color: Colors.grey.shade400),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
                   // Document Photo Upload Slot
                   const Text('2. Upload Front Photo of Document', style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.appDark)),
                   const SizedBox(height: 10),
                   InkWell(
                     onTap: () {
-                      setState(() => _docUploaded = true);
+                      setState(() {
+                        _docUploaded = true;
+                        if (_docNumberController.text.isEmpty) {
+                          _docNumberController.text = '123456789012';
+                        }
+                      });
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('$_selectedDocType uploaded successfully')),
                       );
@@ -300,15 +354,21 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
                     width: double.infinity,
                     height: 50,
                     child: ElevatedButton(
-                      onPressed: _submitKyc,
+                      onPressed: _isSubmitting ? null : _submitKyc,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.appGreen,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       ),
-                      child: const Text(
-                        'Submit Verification Documents',
-                        style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white),
-                      ),
+                      child: _isSubmitting
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Text(
+                              'Submit Verification Documents',
+                              style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white),
+                            ),
                     ),
                   ),
                 ],

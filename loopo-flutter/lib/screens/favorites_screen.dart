@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../services/favorites_service.dart';
 import 'product_detail_screen.dart';
 
 class FavoritesScreen extends StatefulWidget {
@@ -10,53 +11,64 @@ class FavoritesScreen extends StatefulWidget {
 }
 
 class _FavoritesScreenState extends State<FavoritesScreen> {
-  final List<Map<String, dynamic>> _savedItems = [
-    {
-      'id': 'fav_1',
-      'title': 'iPhone 14 Pro Max - 256GB Deep Purple',
-      'price': '₹78,500',
-      'location': 'Koramangala, Bangalore',
-      'category': 'Mobiles',
-      'rating': '4.9',
-      'accent': const Color(0xFF5C6BC0),
-      'date': 'Saved yesterday',
-    },
-    {
-      'id': 'fav_2',
-      'title': 'Sony Bravia 55" 4K OLED Smart TV',
-      'price': '₹52,000',
-      'location': 'Indiranagar, Bangalore',
-      'category': 'Electronics',
-      'rating': '4.7',
-      'accent': const Color(0xFFFFA726),
-      'date': 'Saved 3 days ago',
-    },
-    {
-      'id': 'fav_3',
-      'title': 'Royal Enfield Classic 350 (2022 Model)',
-      'price': '₹1,45,000',
-      'location': 'HSR Layout, Bangalore',
-      'category': 'Bikes',
-      'rating': '4.8',
-      'accent': const Color(0xFF26A69A),
-      'date': 'Saved 1 week ago',
-    },
-    {
-      'id': 'fav_4',
-      'title': 'MacBook Pro 14" M2 Pro (16GB/512GB)',
-      'price': '₹1,35,000',
-      'location': 'MG Road, Bangalore',
-      'category': 'Electronics',
-      'rating': '5.0',
-      'accent': const Color(0xFF29B6F6),
-      'date': 'Saved 2 weeks ago',
-    },
-  ];
+  final FavoritesService _favoritesService = FavoritesService();
+  List<Map<String, dynamic>> _savedItems = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFavorites();
+  }
+
+  Future<void> _loadFavorites() async {
+    setState(() => _isLoading = true);
+    try {
+      final items = await _favoritesService.getFavorites();
+      setState(() {
+        _savedItems = items.map<Map<String, dynamic>>((item) {
+          final product = item['product'] ?? item;
+          final images = product['images'] as List? ?? [];
+          return {
+            'id': item['id']?.toString() ?? product['id']?.toString() ?? '',
+            'productId': product['id']?.toString() ?? '',
+            'title': product['title'] ?? 'Item',
+            'price': '₹${(product['price'] ?? 0).toString()}',
+            'location': product['location'] is Map
+                ? '${product['location']['city'] ?? ''}, ${product['location']['state'] ?? ''}'
+                : product['location']?.toString() ?? '',
+            'category': product['category'] is Map
+                ? product['category']['name'] ?? 'General'
+                : product['category']?.toString() ?? 'General',
+            'date': item['createdAt'] != null
+                ? 'Saved ${_formatDate(DateTime.tryParse(item['createdAt']))}'
+                : 'Saved recently',
+            'accent': AppColors.appGreen,
+            'imageUrl': images.isNotEmpty
+                ? (images.first is String ? images.first : images.first['url'] ?? '')
+                : '',
+          };
+        }).toList();
+        _isLoading = false;
+      });
+    } catch (_) {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  String _formatDate(DateTime? dt) {
+    if (dt == null) return 'recently';
+    final diff = DateTime.now().difference(dt);
+    if (diff.inDays == 0) return 'today';
+    if (diff.inDays == 1) return 'yesterday';
+    return '${diff.inDays} days ago';
+  }
 
   void _removeFavorite(String id) {
     setState(() {
-      _savedItems.removeWhere((item) => item['id'] == id);
+      _savedItems.removeWhere((i) => i['id'] == id);
     });
+    _favoritesService.removeFavorite(id);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Removed from Favorites'),
@@ -87,39 +99,41 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           ),
         ),
       ),
-      body: _savedItems.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 70,
-                    height: 70,
-                    decoration: BoxDecoration(
-                      color: Colors.red.withValues(alpha: 0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.favorite_border_rounded, size: 36, color: Colors.red),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _savedItems.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 70,
+                        height: 70,
+                        decoration: BoxDecoration(
+                          color: Colors.red.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.favorite_border_rounded, size: 36, color: Colors.red),
+                      ),
+                      const SizedBox(height: 14),
+                      const Text(
+                        'No saved items yet',
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.appDark,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Tap the heart icon on any ad to save it here for quick access.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontFamily: 'Poppins', fontSize: 12, color: Colors.grey.shade500),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 14),
-                  const Text(
-                    'No saved items yet',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.appDark,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Tap the heart icon on any ad to save it here for quick access.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontFamily: 'Poppins', fontSize: 12, color: Colors.grey.shade500),
-                  ),
-                ],
-              ),
-            )
+                )
           : ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: _savedItems.length,
