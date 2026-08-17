@@ -9,11 +9,11 @@ export default function AddressModal() {
   const dispatch = useAppDispatch();
   const isOpen = useAppSelector((state) => state.ui.isAddressModalOpen);
 
-  const [name, setName] = useState('Venkatesh');
-  const [phone, setPhone] = useState('+91 98765 43210');
-  const [address, setAddress] = useState('100 Feet Road, Indiranagar');
-  const [city, setCity] = useState('Bangalore, Karnataka');
-  const [pincode, setPincode] = useState('560038');
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
+  const [city, setCity] = useState('');
+  const [pincode, setPincode] = useState('');
   const [type, setType] = useState<'Home' | 'Work'>('Home');
 
   if (!isOpen) return null;
@@ -46,6 +46,7 @@ export default function AddressModal() {
               <label className="font-bold text-slate-700 block mb-1">Contact Name</label>
               <input
                 type="text"
+                placeholder="Full Name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 font-semibold text-slate-800 outline-none focus:border-emerald-500"
@@ -55,6 +56,7 @@ export default function AddressModal() {
               <label className="font-bold text-slate-700 block mb-1">Phone Number</label>
               <input
                 type="text"
+                placeholder="Phone number"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 font-semibold text-slate-800 outline-none focus:border-emerald-500"
@@ -66,6 +68,7 @@ export default function AddressModal() {
             <label className="font-bold text-slate-700 block mb-1">Flat / Building / Street Address</label>
             <input
               type="text"
+              placeholder="House/Flat No., Building, Street"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 font-semibold text-slate-800 outline-none focus:border-emerald-500"
@@ -77,6 +80,7 @@ export default function AddressModal() {
               <label className="font-bold text-slate-700 block mb-1">City / State</label>
               <input
                 type="text"
+                placeholder="City, State"
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 font-semibold text-slate-800 outline-none focus:border-emerald-500"
@@ -86,6 +90,7 @@ export default function AddressModal() {
               <label className="font-bold text-slate-700 block mb-1">Pincode</label>
               <input
                 type="text"
+                placeholder="6-digit Pincode"
                 value={pincode}
                 onChange={(e) => setPincode(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 font-semibold text-slate-800 outline-none focus:border-emerald-500"
