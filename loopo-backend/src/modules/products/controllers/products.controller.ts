@@ -32,8 +32,7 @@ export class ProductsController {
 
   @Post()
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
-  @Permissions('products.create')
+  @UseGuards(JwtAuthGuard)
   @LogAudit('CREATE_PRODUCT', 'Product')
   @ApiOperation({ summary: 'Create a new marketplace listing' })
   @ApiResponse({ status: 201, description: 'Listing created successfully and submitted for review.' })
@@ -44,8 +43,7 @@ export class ProductsController {
 
   @Put(':id')
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
-  @Permissions('products.update')
+  @UseGuards(JwtAuthGuard)
   @LogAudit('UPDATE_PRODUCT', 'Product')
   @ApiOperation({ summary: 'Update an existing listing' })
   @ApiResponse({ status: 200, description: 'Listing updated successfully.' })
@@ -60,8 +58,7 @@ export class ProductsController {
 
   @Delete(':id')
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
-  @Permissions('products.delete')
+  @UseGuards(JwtAuthGuard)
   @LogAudit('DELETE_PRODUCT', 'Product')
   @ApiOperation({ summary: 'Delete a listing (soft delete)' })
   @ApiResponse({ status: 200, description: 'Listing deleted successfully.' })
@@ -81,8 +78,7 @@ export class ProductsController {
 
   @Get('my')
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
-  @Permissions('products.view')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Retrieve own listings' })
   @ApiResponse({ status: 200, description: 'Sellers list of listings.' })
   async findMy(@Query() query: ListingSearchQueryDto, @Request() req: any) {
