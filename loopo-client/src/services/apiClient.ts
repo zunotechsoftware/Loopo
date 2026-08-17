@@ -1,5 +1,5 @@
 export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || 'https://loopo-711b.onrender.com/api/v1';
+  process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000/api/v1';
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -55,9 +55,12 @@ export async function apiRequest<T>(
     const json = await response.json().catch(() => null);
 
     if (!response.ok) {
+      const errMsg = Array.isArray(json?.message)
+        ? json.message.join('. ')
+        : json?.message || json?.error || `API Error (${response.status})`;
       return {
         success: false,
-        error: json?.message || json?.error || `API Error (${response.status})`,
+        error: errMsg,
       };
     }
 

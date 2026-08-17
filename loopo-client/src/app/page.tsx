@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import RightSidebarWidgets from '@/components/RightSidebarWidgets';
@@ -30,8 +30,8 @@ import AddressModal from '@/components/ui/AddressModal';
 import AuthModal from '@/components/ui/AuthModal';
 
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
-import { setActiveTab } from '@/redux/slices/navigationSlice';
-import { clearToast } from '@/redux/slices/uiSlice';
+import { setActiveTab, ActiveTab } from '@/redux/slices/navigationSlice';
+import { clearToast, setSellModalOpen } from '@/redux/slices/uiSlice';
 import { X, Sparkles } from 'lucide-react';
 
 export default function MainPage() {
@@ -39,6 +39,13 @@ export default function MainPage() {
   const activeTab = useAppSelector((state) => state.navigation.activeTab);
   const isSellModalOpen = useAppSelector((state) => state.ui.isSellModalOpen);
   const toastMessage = useAppSelector((state) => state.ui.toastMessage);
+  const isInitializedRef = useRef(false);
+
+  useEffect(() => {
+    if (activeTab !== 'sell' && isSellModalOpen) {
+      dispatch(setSellModalOpen(false));
+    }
+  }, [activeTab, isSellModalOpen, dispatch]);
 
   useEffect(() => {
     if (toastMessage) {
@@ -53,30 +60,35 @@ export default function MainPage() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const params = new URLSearchParams(window.location.search);
-    const tabParam = params.get('tab');
-    if (tabParam) {
-      dispatch(setActiveTab(tabParam as any));
+    if (!isInitializedRef.current) {
+      isInitializedRef.current = true;
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab') as ActiveTab | null;
+      if (tabParam) {
+        dispatch(setActiveTab(tabParam));
+      }
+      return;
     }
 
-    const handlePopState = () => {
-      const currentParams = new URLSearchParams(window.location.search);
-      const currentTab = currentParams.get('tab') || 'home';
-      dispatch(setActiveTab(currentTab as any));
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [dispatch]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
     const currentUrl = new URL(window.location.href);
     if (currentUrl.searchParams.get('tab') !== activeTab) {
       currentUrl.searchParams.set('tab', activeTab);
       window.history.pushState({ tab: activeTab }, '', currentUrl.toString());
     }
-  }, [activeTab]);
+  }, [activeTab, dispatch]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handlePopState = () => {
+      const currentParams = new URLSearchParams(window.location.search);
+      const currentTab = (currentParams.get('tab') as ActiveTab) || 'home';
+      dispatch(setActiveTab(currentTab));
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [dispatch]);
 
   const renderActiveView = () => {
     switch (activeTab) {
@@ -117,7 +129,7 @@ export default function MainPage() {
     <div className="min-h-screen bg-slate-50/60 font-sans text-slate-800 flex flex-col justify-between selection:bg-emerald-500 selection:text-white">
       {/* Toast Notification Floating Banner */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-bottom-5 duration-200">
+        <div className="fixed top-6 right-6 z-[100] bg-slate-900 text-white px-5 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-top-5 duration-200 border border-slate-800">
           <Sparkles className="w-4 h-4 text-emerald-400" />
           <span className="text-xs font-bold">{toastMessage}</span>
           <button

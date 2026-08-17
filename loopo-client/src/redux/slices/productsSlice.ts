@@ -86,7 +86,8 @@ function normaliseProduct(p: any): Product {
 
 export const fetchProductsThunk = createAsyncThunk(
   'products/fetchProducts',
-  async ({ category, query }: { category?: string; query?: string } = {}) => {
+  async (args?: { category?: string; query?: string }) => {
+    const { category, query } = args || {};
     const res = await productsApi.getProducts(category, query);
 
     if (res.success) {
@@ -109,42 +110,12 @@ export const fetchProductsThunk = createAsyncThunk(
 
 export const createProductThunk = createAsyncThunk(
   'products/createProduct',
-  async (payload: CreateProductPayload) => {
+  async (payload: CreateProductPayload, { rejectWithValue }) => {
     const res = await productsApi.createProduct(payload);
     if (res.success && res.data) {
       return normaliseProduct(res.data);
     }
-    const newProduct: Product = {
-      id: `p-${Date.now()}`,
-      title: payload.title,
-      price: payload.price,
-      location: payload.location,
-      postedDate: 'Just now',
-      category: payload.category,
-      condition: (payload.condition as any) || 'Like New',
-      images:
-        payload.images.length > 0
-          ? payload.images
-          : [
-              'https://images.unsplash.com/photo-1632661674596-df8be070a5c5?q=80&w=800&auto=format&fit=crop',
-            ],
-      seller: {
-        id: 's-user',
-        name: 'You',
-        avatar:
-          'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop',
-        rating: 5.0,
-        reviewCount: 0,
-        memberSince: new Date().getFullYear().toString(),
-        isVerified: false,
-      },
-      description: payload.description,
-      specs: payload.specs || { Condition: payload.condition, Category: payload.category },
-      viewsCount: 0,
-      distance: '',
-      likesCount: 0,
-    };
-    return newProduct;
+    return rejectWithValue(res.error || 'Failed to save product to database');
   }
 );
 

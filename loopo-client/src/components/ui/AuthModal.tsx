@@ -31,31 +31,59 @@ export default function AuthModal() {
   const isOpen = useAppSelector((state) => state.ui.isAuthModalOpen);
   const authMode = useAppSelector((state) => state.auth.authMode);
   const otpTarget = useAppSelector((state) => state.auth.otpTarget);
+  const { loading, error } = useAppSelector((state) => state.auth);
 
   // Form states
   const [showPassword, setShowPassword] = useState(false);
-  const [email, setEmail] = useState('venkatesh@gmail.com');
-  const [password, setPassword] = useState('••••••••');
-  const [name, setName] = useState('Venkatesh');
-  const [phone, setPhone] = useState('+91 98765 43210');
-  const [city, setCity] = useState('Bangalore');
-  const [otpCode, setOtpCode] = useState(['', '', '', '']);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [city, setCity] = useState('');
+  const box0Ref = React.useRef<HTMLInputElement>(null);
+  const box1Ref = React.useRef<HTMLInputElement>(null);
+  const box2Ref = React.useRef<HTMLInputElement>(null);
+  const box3Ref = React.useRef<HTMLInputElement>(null);
+  const otpInputRefs = [box0Ref, box1Ref, box2Ref, box3Ref];
+
+  React.useEffect(() => {
+    if (authMode === 'otp') {
+      const timer = setTimeout(() => {
+        otpInputRefs[0].current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [authMode]);
 
   if (!isOpen) return null;
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    dispatch(loginUserThunk({ email, password }));
-    dispatch(setAuthModalOpen(false));
-    dispatch(showToast(`Welcome back! Logged in via API. 🎉`));
+    const resultAction = await dispatch(loginUserThunk({ email, password }));
+    if (loginUserThunk.fulfilled.match(resultAction)) {
+      dispatch(setAuthModalOpen(false));
+      dispatch(showToast(`Welcome back! Logged in successfully. 🎉`));
+    } else {
+      const err = (resultAction.payload as string) || 'Login failed. Please check your credentials.';
+      dispatch(showToast(err));
+    }
   };
 
-  const handleSignupSubmit = (e: React.FormEvent) => {
+  const handleSignupSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    dispatch(registerUserThunk({ email, password, firstName: name, phone }));
-    dispatch(setOtpTarget(email || phone));
-    dispatch(setAuthMode('otp'));
-    dispatch(showToast(`Verification code sent to ${email || phone}`));
+    const nameParts = name.trim().split(' ');
+    const firstName = nameParts[0] || name || 'User';
+    const lastName = nameParts.slice(1).join(' ') || 'User';
+
+    const resultAction = await dispatch(registerUserThunk({ email, password, firstName, lastName, phone }));
+    if (registerUserThunk.fulfilled.match(resultAction)) {
+      dispatch(setOtpTarget(email || phone));
+      dispatch(setAuthMode('otp'));
+      dispatch(showToast(`Account created! Verification code sent to ${email || phone}`));
+    } else {
+      const err = (resultAction.payload as string) || 'Registration failed.';
+      dispatch(showToast(err));
+    }
   };
 
   const handleForgotSubmit = (e: React.FormEvent) => {
@@ -73,10 +101,49 @@ export default function AuthModal() {
   };
 
   const handleOtpChange = (index: number, val: string) => {
-    if (val.length > 1) return;
+    const digits = val.replace(/\D/g, '');
+    if (digits.length > 1) {
+      const updated = ['', '', '', ''];
+      for (let i = 0; i < 4; i++) {
+        updated[i] = digits[i] || '';
+      }
+      setOtpCode(updated);
+      const nextIdx = Math.min(digits.length - 1, 3);
+      otpInputRefs[nextIdx].current?.focus();
+      return;
+    }
+
+    const singleDigit = val.slice(-1).replace(/\D/g, '');
     const updated = [...otpCode];
-    updated[index] = val;
+    updated[index] = singleDigit;
     setOtpCode(updated);
+
+    if (singleDigit && index < 3) {
+      otpInputRefs[index + 1].current?.focus();
+    }
+  };
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace') {
+      if (!otpCode[index] && index > 0) {
+        otpInputRefs[index - 1].current?.focus();
+      }
+    }
+  };
+
+  const handleOtpPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData('text').replace(/\D/g, '');
+    if (!pastedData) return;
+    const updated = ['', '', '', ''];
+    for (let i = 0; i < 4; i++) {
+      updated[i] = pastedData[i] || '';
+    }
+    setOtpCode(updated);
+    const focusIdx = Math.min(pastedData.length, 4) - 1;
+    if (focusIdx >= 0) {
+      otpInputRefs[focusIdx].current?.focus();
+    }
   };
 
   return (
@@ -144,6 +211,7 @@ export default function AuthModal() {
                 <input
                   type="text"
                   required
+                  placeholder="name@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-10 pr-4 py-3 text-xs font-semibold text-slate-800 outline-none focus:border-emerald-500"
@@ -167,6 +235,7 @@ export default function AuthModal() {
                 <input
                   type={showPassword ? 'text' : 'password'}
                   required
+                  placeholder="Enter password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-10 pr-10 py-3 text-xs font-semibold text-slate-800 outline-none focus:border-emerald-500"
@@ -183,9 +252,10 @@ export default function AuthModal() {
 
             <button
               type="submit"
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-3.5 rounded-2xl shadow-md shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
+              disabled={loading}
+              className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs py-3.5 rounded-2xl shadow-md shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
             >
-              <span>Login to Account</span>
+              <span>{loading ? 'Logging in...' : 'Login to Account'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
@@ -206,6 +276,7 @@ export default function AuthModal() {
                 <input
                   type="text"
                   required
+                  placeholder="Full Name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-10 pr-4 py-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-emerald-500"
@@ -219,6 +290,7 @@ export default function AuthModal() {
                 <input
                   type="email"
                   required
+                  placeholder="name@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3.5 py-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-emerald-500"
@@ -230,6 +302,7 @@ export default function AuthModal() {
                 <input
                   type="text"
                   required
+                  placeholder="10-digit mobile"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3.5 py-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-emerald-500"
@@ -244,6 +317,7 @@ export default function AuthModal() {
                 <input
                   type="text"
                   required
+                  placeholder="City (e.g. Bangalore)"
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-10 pr-4 py-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-emerald-500"
@@ -256,6 +330,7 @@ export default function AuthModal() {
               <input
                 type="password"
                 required
+                placeholder="Create password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3.5 py-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-emerald-500"
@@ -264,9 +339,10 @@ export default function AuthModal() {
 
             <button
               type="submit"
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-3.5 rounded-2xl shadow-md shadow-emerald-500/20 transition-all"
+              disabled={loading}
+              className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs py-3.5 rounded-2xl shadow-md shadow-emerald-500/20 transition-all"
             >
-              Send Verification OTP
+              {loading ? 'Submitting...' : 'Send Verification OTP'}
             </button>
           </form>
         )}
@@ -284,6 +360,7 @@ export default function AuthModal() {
               <input
                 type="text"
                 required
+                placeholder="Registered email or phone"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-xs font-semibold text-slate-800 outline-none focus:border-emerald-500"
@@ -320,15 +397,20 @@ export default function AuthModal() {
               <p className="text-xs text-slate-500 font-medium">We sent a 4-digit code to {otpTarget || email}</p>
             </div>
 
-            <div className="flex justify-center gap-3 py-2">
+            <div className="flex justify-center gap-3 py-2" onPaste={handleOtpPaste}>
               {[0, 1, 2, 3].map((idx) => (
                 <input
                   key={idx}
+                  ref={otpInputRefs[idx]}
                   type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   maxLength={1}
                   value={otpCode[idx]}
                   onChange={(e) => handleOtpChange(idx, e.target.value)}
-                  className="w-12 h-12 text-center text-lg font-black bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:border-emerald-500"
+                  onKeyDown={(e) => handleOtpKeyDown(idx, e)}
+                  onFocus={(e) => e.target.select()}
+                  className="w-12 h-12 text-center text-lg font-black bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 transition-all"
                 />
               ))}
             </div>
