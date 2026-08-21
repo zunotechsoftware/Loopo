@@ -65,6 +65,7 @@ model User {
   buyerConversations      Conversation[]            @relation("BuyerConversations")
   sellerConversations     Conversation[]            @relation("SellerConversations")
   messages                Message[]
+  messageReactions        MessageReaction[]
   blockedUsers            BlockedUser[]             @relation("Blocker")
   blockedBy               BlockedUser[]             @relation("Blocked")
   presence                UserPresence?
@@ -959,7 +960,7 @@ enum MessageStatus {
 
 model Conversation {
   id          String   @id @default(uuid()) @db.Uuid
-  productId   String   @db.Uuid
+  productId   String?  @db.Uuid
   buyerId     String   @db.Uuid
   sellerId    String   @db.Uuid
   createdAt   DateTime @default(now())
@@ -968,7 +969,7 @@ model Conversation {
   createdBy   String?
   updatedBy   String?
 
-  product      Product                   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product      Product?                  @relation(fields: [productId], references: [id], onDelete: Cascade)
   buyer        User                      @relation("BuyerConversations", fields: [buyerId], references: [id], onDelete: Cascade)
   seller       User                      @relation("SellerConversations", fields: [sellerId], references: [id], onDelete: Cascade)
   participants ConversationParticipant[]
@@ -1031,6 +1032,8 @@ model Message {
   type           MessageType   @default(TEXT)
   content        String        @db.Text
   status         MessageStatus @default(SENT)
+  isEdited       Boolean       @default(false)
+  replyToId      String?       @db.Uuid
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
   deletedAt      DateTime?
@@ -1039,12 +1042,16 @@ model Message {
 
   conversation Conversation        @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender       User                @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  replyTo      Message?            @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies      Message[]           @relation("MessageReplies")
   attachments  MessageAttachment[]
   reads        MessageRead[]
+  reactions    MessageReaction[]
 
   @@index([conversationId])
   @@index([senderId])
   @@index([createdAt])
+  @@index([replyToId])
   @@map("messages")
 }
 
@@ -1085,6 +1092,22 @@ model MessageRead {
   @@index([messageId])
   @@index([userId])
   @@map("message_reads")
+}
+
+model MessageReaction {
+  id        String   @id @default(uuid()) @db.Uuid
+  messageId String   @db.Uuid
+  userId    String   @db.Uuid
+  emoji     String
+  createdAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
+  @@index([userId])
+  @@map("message_reactions")
 }
 
 model BlockedUser {
@@ -1993,6 +2016,46 @@ model Banner {
   @@map("banners")
 }
 
+enum AdType {
+  BANNER
+  IMAGE_AD
+  TEXT_AD
+  VIDEO_AD
+  OTHER
+}
+
+enum AdStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  EXPIRED
+}
+
+model Advertisement {
+  id          String    @id @default(uuid()) @db.Uuid
+  title       String
+  type        AdType    @default(BANNER)
+  placement   String
+  campaign    String?
+  status      AdStatus  @default(ACTIVE)
+  imageUrl    String?
+  targetUrl   String?
+  impressions Int       @default(0)
+  clicks      Int       @default(0)
+  spend       Float     @default(0)
+  startDate   DateTime?
+  endDate     DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+  createdBy   String?   @db.Uuid
+  updatedBy   String?   @db.Uuid
+
+  @@index([type])
+  @@index([status])
+  @@map("advertisements")
+}
+
 model CmsPage {
   id              String   @id @default(uuid()) @db.Uuid
   title           String
@@ -2149,4 +2212,70 @@ model Brand {
   @@index([isActive])
   @@index([isFeatured])
   @@map("brands")
+}
+
+enum TemplateCategory {
+  USER
+  ORDER
+  MESSAGE
+  MARKETING
+  ACCOUNT
+  NOTIFICATION
+}
+
+enum TemplateStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model EmailTemplate {
+  id        String           @id @default(uuid()) @db.Uuid
+  name      String
+  subtext   String?
+  category  TemplateCategory
+  subject   String
+  language  String           @default("English")
+  status    TemplateStatus   @default(ACTIVE)
+  used      Int              @default(0)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  
+  @@map("email_templates")
+}
+
+enum NotificationType {
+  PROMOTION
+  ORDER_UPDATE
+  ENGAGEMENT
+  SECURITY
+  CART_REMINDER
+  UPDATE
+  ONBOARDING
+}
+
+enum NotificationStatus {
+  DELIVERED
+  SCHEDULED
+  FAILED
+  DRAFT
+  OPENED
+}
+
+model Notification {
+  id             String             @id @default(uuid()) @db.Uuid
+  title          String
+  message        String
+  type           NotificationType   @default(PROMOTION)
+  audience       String
+  sentScheduled  DateTime?
+  status         NotificationStatus @default(DRAFT)
+  deliveryRate   Float?             @default(0.0)
+  iconBg         String?
+  iconColor      String?
+  iconName       String?
+
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@map("notifications")
 }

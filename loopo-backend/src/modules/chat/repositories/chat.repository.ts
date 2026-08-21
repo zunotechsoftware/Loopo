@@ -7,10 +7,11 @@ import { CreateAttachmentDto } from '../dto/message.dto';
 export class ChatRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findConversation(productId: string, buyerId: string, sellerId: string) {
+  async findConversation(productId: string | null, buyerId: string, sellerId: string) {
+    // If productId is null, we need to find a conversation without a product
     return this.prisma.conversation.findFirst({
       where: {
-        productId,
+        productId: productId || null,
         buyerId,
         sellerId,
         deletedAt: null,
@@ -21,11 +22,11 @@ export class ChatRepository {
     });
   }
 
-  async createConversation(productId: string, buyerId: string, sellerId: string) {
+  async createConversation(productId: string | null, buyerId: string, sellerId: string) {
     return this.prisma.$transaction(async (tx) => {
       const conversation = await tx.conversation.create({
         data: {
-          productId,
+          productId: productId || undefined,
           buyerId,
           sellerId,
         },
@@ -81,6 +82,12 @@ export class ChatRepository {
             },
           },
         },
+        buyer: {
+          select: { id: true, firstName: true, lastName: true, profileImage: true, status: true, lastLoginAt: true }
+        },
+        seller: {
+          select: { id: true, firstName: true, lastName: true, profileImage: true, status: true, lastLoginAt: true }
+        },
         participants: true,
         settings: {
           where: {
@@ -116,6 +123,8 @@ export class ChatRepository {
       },
       include: {
         product: true,
+        buyer: { select: { id: true, firstName: true, lastName: true, profileImage: true, status: true, lastLoginAt: true } },
+        seller: { select: { id: true, firstName: true, lastName: true, profileImage: true, status: true, lastLoginAt: true } },
         participants: true,
         settings: {
           where: {
@@ -132,6 +141,7 @@ export class ChatRepository {
     type: MessageType;
     content: string;
     attachments?: CreateAttachmentDto[];
+    replyToId?: string;
   }) {
     return this.prisma.$transaction(async (tx) => {
       const message = await tx.message.create({
@@ -141,6 +151,7 @@ export class ChatRepository {
           type: data.type,
           content: data.content,
           status: MessageStatus.SENT,
+          replyToId: data.replyToId,
           attachments: data.attachments
             ? {
                 createMany: {
@@ -186,6 +197,15 @@ export class ChatRepository {
       include: {
         attachments: true,
         reads: true,
+        reactions: true,
+        replyTo: {
+          select: {
+            id: true,
+            content: true,
+            senderId: true,
+            type: true,
+          }
+        }
       },
     });
   }
@@ -200,6 +220,69 @@ export class ChatRepository {
         deletedAt: new Date(),
         status: MessageStatus.DELETED,
       },
+    });
+  }
+
+  async editMessage(messageId: string, userId: string, newContent: string) {
+    return this.prisma.message.update({
+      where: {
+        id: messageId,
+        senderId: userId,
+        deletedAt: null,
+      },
+      data: {
+        content: newContent,
+        isEdited: true,
+        updatedAt: new Date(),
+      },
+      include: {
+        attachments: true,
+        reactions: true,
+        replyTo: {
+          select: {
+            id: true,
+            content: true,
+            senderId: true,
+            type: true,
+          }
+        }
+      }
+    });
+  }
+
+  async toggleReaction(messageId: string, userId: string, emoji: string) {
+    const message = await this.prisma.message.findUnique({
+      where: { id: messageId },
+      select: { conversationId: true },
+    });
+    if (!message) throw new Error('Message not found');
+
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.messageReaction.findUnique({
+        where: {
+          messageId_userId_emoji: {
+            messageId,
+            userId,
+            emoji,
+          },
+        },
+      });
+
+      if (existing) {
+        await tx.messageReaction.delete({
+          where: { id: existing.id },
+        });
+        return { action: 'removed', emoji, conversationId: message.conversationId };
+      } else {
+        const reaction = await tx.messageReaction.create({
+          data: {
+            messageId,
+            userId,
+            emoji,
+          },
+        });
+        return { action: 'added', emoji, reaction, conversationId: message.conversationId };
+      }
     });
   }
 

@@ -1,0 +1,157 @@
+export const kpiData = {
+  totalBanners: 64,
+  activeBanners: 42,
+  activePercentage: 65.62,
+  totalImpressions: '1.25M',
+  impressionsGrowth: 15.42,
+  totalClicks: '45.2K',
+  clicksGrowth: 12.35,
+  ctr: '3.62%',
+  ctrGrowth: 2.45,
+  totalSpend: '₹1,24,560',
+  spendGrowth: 18.2,
+};
+
+export const bannersListData = [
+  {
+    id: 'BNR-00654',
+    name: 'Mega Sale Banner',
+    image: 'https://via.placeholder.com/100x40/4F46E5/FFFFFF?text=MEGA+SALE',
+    type: 'Image',
+    placement: 'Home Page - Top',
+    status: 'Active',
+    impressions: '250.5K',
+    clicks: '12.4K',
+    ctr: '4.95%',
+    startDate: 'May 10, 2024',
+    endDate: 'May 31, 2024',
+  },
+  {
+    id: 'BNR-00653',
+    name: 'New Arrivals Banner',
+    image: 'https://via.placeholder.com/100x40/10B981/FFFFFF?text=NEW+ARRIVALS',
+    type: 'Image',
+    placement: 'Home Page - Middle',
+    status: 'Active',
+    impressions: '192.2K',
+    clicks: '9.7K',
+    ctr: '4.85%',
+    startDate: 'May 05, 2024',
+    endDate: 'May 25, 2024',
+  },
+  {
+    id: 'BNR-00652',
+    name: 'Electronics Fest',
+    image: 'https://via.placeholder.com/100x40/8B5CF6/FFFFFF?text=ELECTRONICS+FEST',
+    type: 'Image',
+    placement: 'Category Page',
+    status: 'Active',
+    impressions: '150.1K',
+    clicks: '6.2K',
+    ctr: '4.13%',
+    startDate: 'May 01, 2024',
+    endDate: 'May 20, 2024',
+  },
+  {
+    id: 'BNR-00651',
+    name: 'Fashion Sale Banner',
+    image: 'https://via.placeholder.com/100x40/F59E0B/FFFFFF?text=FASHION+SALE',
+    type: 'Image',
+    placement: 'Home Page - Bottom',
+    status: 'Active',
+    impressions: '120.7K',
+    clicks: '5.1K',
+    ctr: '4.22%',
+    startDate: 'Apr 20, 2024',
+    endDate: 'May 15, 2024',
+  },
+  {
+    id: 'BNR-00650',
+    name: 'Summer Special',
+    image: 'https://via.placeholder.com/100x40/EF4444/FFFFFF?text=SUMMER+SPECIAL',
+    type: 'Image',
+    placement: 'Home Page - Top',
+    status: 'Paused',
+    impressions: '95.4K',
+    clicks: '3.2K',
+    ctr: '3.35%',
+    startDate: 'Apr 25, 2024',
+    endDate: 'May 10, 2024',
+  },
+  {
+    id: 'BNR-00649',
+    name: 'Free Shipping Banner',
+    image: 'https://via.placeholder.com/100x40/22C55E/FFFFFF?text=FREE+SHIPPING',
+    type: 'HTML5',
+    placement: 'Cart Page',
+    status: 'Active',
+    impressions: '80.1K',
+    clicks: '2.9K',
+    ctr: '3.62%',
+    startDate: 'Apr 15, 2024',
+    endDate: 'May 05, 2024',
+  },
+  {
+    id: 'BNR-00648',
+    name: 'Big Deals Banner',
+    image: 'https://via.placeholder.com/100x40/3B82F6/FFFFFF?text=BIG+DEALS',
+    type: 'Image',
+    placement: 'Product Page',
+    status: 'Active',
+    impressions: '70.2K',
+    clicks: '2.1K',
+    ctr: '2.99%',
+    startDate: 'Apr 10, 2024',
+    endDate: 'Apr 30, 2024',
+  },
+  {
+    id: 'BNR-00647',
+    name: 'Clearance Sale',
+    image: 'https://via.placeholder.com/100x40/EC4899/FFFFFF?text=CLEARANCE+SALE',
+    type: 'Image',
+    placement: 'Home Page - Bottom',
+    status: 'Expired',
+    impressions: '50.3K',
+    clicks: '1.5K',
+    ctr: '2.98%',
+    startDate: 'Mar 20, 2024',
+    endDate: 'Apr 10, 2024',
+  }
+];
+
+export const performanceData = [
+  { name: 'May 12', impressions: 40000, clicks: 24000, ctr: 2400 },
+  { name: 'May 13', impressions: 30000, clicks: 13980, ctr: 2210 },
+  { name: 'May 14', impressions: 20000, clicks: 9800, ctr: 2290 },
+  { name: 'May 15', impressions: 27800, clicks: 39080, ctr: 2000 },
+  { name: 'May 16', impressions: 18900, clicks: 48000, ctr: 2181 },
+  { name: 'May 17', impressions: 23900, clicks: 38000, ctr: 2500 },
+  { name: 'May 18', impressions: 34900, clicks: 43000, ctr: 2100 },
+];
+
+export const placementData = [
+  { name: 'Home Page - Top', value: 24, fill: '#3B82F6' },
+  { name: 'Home Page - Middle', value: 14, fill: '#10B981' },
+  { name: 'Home Page - Bottom', value: 10, fill: '#F59E0B' },
+  { name: 'Category Page', value: 8, fill: '#8B5CF6' },
+  { name: 'Product Page', value: 6, fill: '#06B6D4' },
+  { name: 'Others', value: 2, fill: '#64748B' },
+];
+
+export const topPerformingBanners = [
+  {
+    name: 'Mega Sale Banner',
+    image: 'https://via.placeholder.com/40x40/4F46E5/FFFFFF?text=M',
+    ctr: '4.95%'
+  },
+  {
+    name: 'New Arrivals Banner',
+    image: 'https://via.placeholder.com/40x40/10B981/FFFFFF?text=N',
+    ctr: '4.85%'
+  },
+  {
+    name: 'Electronics Fest',
+    image: 'https://via.placeholder.com/40x40/8B5CF6/FFFFFF?text=E',
+    ctr: '4.13%'
+  }
+];

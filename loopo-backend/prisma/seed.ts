@@ -548,6 +548,67 @@ async function main() {
   }
   console.log('Products seeded.');
 
+  // 14. Seed Banners
+  const bannersData = [
+    { title: 'Mega Sale Banner', type: 'HOMEPAGE', imageUrl: 'https://via.placeholder.com/800x200/4F46E5/FFFFFF?text=MEGA+SALE', targetUrl: '/sale', sortOrder: 1, isActive: true, audience: 'ALL', startDate: new Date(), endDate: new Date(new Date().setMonth(new Date().getMonth() + 1)) },
+    { title: 'New Arrivals Banner', type: 'HOMEPAGE', imageUrl: 'https://via.placeholder.com/800x200/10B981/FFFFFF?text=NEW+ARRIVALS', targetUrl: '/new', sortOrder: 2, isActive: true, audience: 'ALL', startDate: new Date(), endDate: new Date(new Date().setMonth(new Date().getMonth() + 1)) },
+    { title: 'Electronics Fest', type: 'CATEGORY', imageUrl: 'https://via.placeholder.com/800x200/8B5CF6/FFFFFF?text=ELECTRONICS+FEST', targetUrl: '/category/electronics', sortOrder: 3, isActive: true, audience: 'ALL', startDate: new Date(), endDate: new Date(new Date().setMonth(new Date().getMonth() + 1)) },
+    { title: 'Welcome Offer', type: 'POPUP', imageUrl: 'https://via.placeholder.com/400x400/F59E0B/FFFFFF?text=WELCOME+OFFER', targetUrl: '/signup', sortOrder: 4, isActive: true, audience: 'GUEST', startDate: new Date(), endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)) },
+    { title: 'Clearance Sale', type: 'PROMOTIONAL', imageUrl: 'https://via.placeholder.com/800x200/EC4899/FFFFFF?text=CLEARANCE+SALE', targetUrl: '/clearance', sortOrder: 5, isActive: false, audience: 'ALL', startDate: new Date(new Date().setMonth(new Date().getMonth() - 2)), endDate: new Date(new Date().setMonth(new Date().getMonth() - 1)) },
+  ];
+
+  for (const bd of bannersData) {
+    const existingB = await prisma.banner.findFirst({ where: { title: bd.title } });
+    if (!existingB) {
+      await prisma.banner.create({
+        data: {
+          title: bd.title,
+          type: bd.type as any,
+          imageUrl: bd.imageUrl,
+          targetUrl: bd.targetUrl,
+          sortOrder: bd.sortOrder,
+          isActive: bd.isActive,
+          audience: bd.audience,
+          startDate: bd.startDate,
+          endDate: bd.endDate
+        }
+      });
+    }
+  }
+  console.log('Banners seeded.');
+
+  // 15. Seed Advertisements
+  const advertisementsData = [
+    { title: 'Summer Sale Banner', type: 'BANNER', placement: 'Home Page - Top', campaign: 'Summer Sale 2024', status: 'ACTIVE', imageUrl: 'https://via.placeholder.com/800x200/4F46E5/FFFFFF?text=SUMMER+SALE', targetUrl: '/summer-sale', impressions: 260500, clicks: 12400, spend: 64500, startDate: new Date('2024-05-15'), endDate: new Date('2024-05-31') },
+    { title: 'Electronics Fest', type: 'BANNER', placement: 'Category Page', campaign: 'Electronics Fest', status: 'ACTIVE', imageUrl: 'https://via.placeholder.com/800x200/10B981/FFFFFF?text=ELECTRONICS+FEST', targetUrl: '/electronics', impressions: 180200, clicks: 8700, spend: 18500, startDate: new Date('2024-05-05'), endDate: new Date('2024-05-25') },
+    { title: 'Mega Discount Ad', type: 'IMAGE_AD', placement: 'Listing Page', campaign: 'Mega Discount', status: 'PAUSED', imageUrl: 'https://via.placeholder.com/400x400/F59E0B/FFFFFF?text=MEGA+DISCOUNT', targetUrl: '/mega-discount', impressions: 85500, clicks: 3200, spend: 8400, startDate: new Date('2024-05-01'), endDate: new Date('2024-05-20') },
+    { title: 'Download App Now', type: 'TEXT_AD', placement: 'Sidebar', campaign: 'App Promotion', status: 'ACTIVE', imageUrl: null, targetUrl: '/download', impressions: 120700, clicks: 6600, spend: 11200, startDate: new Date('2024-04-05'), endDate: new Date('2024-05-10') },
+    { title: 'Fashion Sale 40% OFF', type: 'BANNER', placement: 'Home Page - Middle', campaign: 'Fashion Sale', status: 'COMPLETED', imageUrl: 'https://via.placeholder.com/800x200/EC4899/FFFFFF?text=FASHION+SALE', targetUrl: '/fashion', impressions: 210300, clicks: 9500, spend: 20400, startDate: new Date('2024-04-15'), endDate: new Date('2024-04-30') },
+  ];
+
+  for (const ad of advertisementsData) {
+    const existingAd = await prisma.advertisement.findFirst({ where: { title: ad.title } });
+    if (!existingAd) {
+      await prisma.advertisement.create({
+        data: {
+          title: ad.title,
+          type: ad.type as any,
+          placement: ad.placement,
+          campaign: ad.campaign,
+          status: ad.status as any,
+          imageUrl: ad.imageUrl,
+          targetUrl: ad.targetUrl,
+          impressions: ad.impressions,
+          clicks: ad.clicks,
+          spend: ad.spend,
+          startDate: ad.startDate,
+          endDate: ad.endDate
+        }
+      });
+    }
+  }
+  console.log('Advertisements seeded.');
+
   console.log('Database seeding finished.');
 }
 

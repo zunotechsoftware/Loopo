@@ -16,7 +16,7 @@ export class AdminUsersController {
   constructor(private readonly adminUsersService: AdminUsersService) {}
 
   @Get()
-  @Permissions('admin.users.manage')
+  @Permissions('users.view')
   @ApiOperation({ summary: 'Get all users' })
   @ApiQuery({ name: 'skip', required: false, type: Number })
   @ApiQuery({ name: 'take', required: false, type: Number })
@@ -40,7 +40,7 @@ export class AdminUsersController {
   }
 
   @Get(':id')
-  @Permissions('admin.users.manage')
+  @Permissions('users.view')
   @ApiOperation({ summary: 'Get user details by ID' })
   async getUserDetails(@Param('id') id: string) {
     return this.adminUsersService.getUserById(id);
@@ -48,7 +48,7 @@ export class AdminUsersController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  @Permissions('admin.users.manage')
+  @Permissions('users.create')
   @ApiOperation({ summary: 'Create a new user' })
   async createUser(
     @CurrentUser('id') adminId: string,
@@ -58,7 +58,7 @@ export class AdminUsersController {
   }
 
   @Patch(':id')
-  @Permissions('admin.users.manage')
+  @Permissions('users.update')
   @ApiOperation({ summary: 'Update a user' })
   async updateUserDetails(
     @Param('id') id: string,
@@ -69,7 +69,7 @@ export class AdminUsersController {
   }
 
   @Delete(':id')
-  @Permissions('admin.users.manage')
+  @Permissions('users.delete')
   @ApiOperation({ summary: 'Delete a user (soft delete)' })
   async deleteUser(
     @Param('id') id: string,
@@ -79,7 +79,7 @@ export class AdminUsersController {
   }
 
   @Patch(':id/status')
-  @Permissions('admin.users.manage')
+  @Permissions('users.update')
   @ApiOperation({ summary: 'Update user status (suspend, activate, delete, restore)' })
   async updateUserStatus(
     @Param('id') id: string,
@@ -90,7 +90,7 @@ export class AdminUsersController {
   }
 
   @Patch(':id/roles')
-  @Permissions('admin.users.manage')
+  @Permissions('roles.update')
   @ApiOperation({ summary: 'Update user roles' })
   async updateUserRoles(
     @Param('id') id: string,

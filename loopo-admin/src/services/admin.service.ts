@@ -108,9 +108,12 @@ export const reviewsService = {
 
 // --- Notifications Service ---
 export const notificationsService = {
-  getAll: () => api.get('/admin/notifications'),
-  send: (data: Partial<Notification>) => api.post('/admin/notifications/send', data),
-  create: (data: Partial<Notification>) => api.post('/admin/notifications', data),
+  getAll: (params?: Record<string, unknown>) => api.get('/admin/notifications', { params }),
+  getById: (id: string) => api.get(`/admin/notifications/${id}`),
+  create: (data: Record<string, any>) => api.post('/admin/notifications', data),
+  update: (id: string, data: Record<string, any>) => api.patch(`/admin/notifications/${id}`, data),
+  delete: (id: string) => api.delete(`/admin/notifications/${id}`),
+  getStats: () => api.get('/admin/notifications/stats'),
 };
 
 // --- Banners Service ---
@@ -143,4 +146,13 @@ export const rolesService = {
   update: (id: string, data: Record<string, unknown>) => api.patch(`/admin/roles/${id}`, data),
   delete: (id: string) => api.delete(`/admin/roles/${id}`),
   getPermissions: () => api.get('/admin/permissions'),
+};
+
+// --- Email Templates Service ---
+export const emailTemplatesService = {
+  getAll: (params?: Record<string, unknown>) => api.get('/admin/email-templates', { params }),
+  getById: (id: string) => api.get(`/admin/email-templates/${id}`),
+  create: (data: Record<string, any>) => api.post('/admin/email-templates', data),
+  update: (id: string, data: Record<string, any>) => api.patch(`/admin/email-templates/${id}`, data),
+  getStats: () => api.get('/admin/email-templates/stats'),
 };

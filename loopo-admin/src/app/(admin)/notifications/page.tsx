@@ -1,149 +1,253 @@
 'use client';
 
-import React, { useState } from 'react';
-import {
-  Box, Typography, Card, CardContent, Grid, Button,
-  TextField, FormControl, InputLabel, Select, MenuItem,
-  Divider, Chip, Table, TableBody, TableCell, TableContainer,
-  TableHead, TableRow, Dialog, DialogTitle, DialogContent, DialogActions,
-  IconButton, Alert
-} from '@mui/material';
-import { Send, Add, Close, Notifications } from '@mui/icons-material';
-import { Notification } from '@/types';
-
-const MOCK_NOTIFICATIONS: Notification[] = [
-  { id: 'n1', title: 'System Maintenance Notice', body: 'Scheduled maintenance on July 20th 2am-4am UTC.', type: 'All', sentAt: '2026-07-18 09:00', status: 'Sent' },
-  { id: 'n2', title: 'New Feature: Flash Deals', body: 'Vendors can now create flash deals from their dashboard!', type: 'Vendors', sentAt: '2026-07-15 14:30', status: 'Sent' },
-  { id: 'n3', title: 'Weekend Sale Reminder', body: 'Don\'t forget — major sale starts tomorrow!', type: 'Buyers', sentAt: '', status: 'Draft' },
-];
-
-const statusColor: Record<string, 'success' | 'warning' | 'info'> = {
-  Sent: 'success', Draft: 'warning', Scheduled: 'info',
-};
+import React, { useState, useMemo } from 'react';
+import { Box, Typography, Button, IconButton, Snackbar, Alert } from '@mui/material';
+import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
+import NotificationsNoneOutlinedIcon from '@mui/icons-material/NotificationsNoneOutlined';
+import AddIcon from '@mui/icons-material/Add';
+import { notificationsService } from '@/services/admin.service';
+import NotificationStats from './components/NotificationStats';
+import NotificationFilters from './components/NotificationFilters';
+import NotificationTable from './components/NotificationTable';
+import NotificationSidebar from './components/NotificationSidebar';
+import NotificationDialog from './components/NotificationDialog';
+import NotificationPreviewDialog from './components/NotificationPreviewDialog';
 
 export default function NotificationsPage() {
-  const [openDialog, setOpenDialog] = useState(false);
-  const [newNotif, setNewNotif] = useState({ title: '', body: '', type: 'All' });
-  const [success, setSuccess] = useState(false);
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('');
+  const [type, setType] = useState('');
+  const [userType, setUserType] = useState('');
+  const [platform, setPlatform] = useState('');
+  
+  const [selectedRows, setSelectedRows] = useState<string[]>([]);
+  const [page, setPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [tabValue, setTabValue] = useState(0);
 
-  const handleSend = () => {
-    // Call notificationsService.send(newNotif) in production
-    setOpenDialog(false);
-    setSuccess(true);
-    setNewNotif({ title: '', body: '', type: 'All' });
-    setTimeout(() => setSuccess(false), 3000);
+  const [openDialog, setOpenDialog] = useState(false);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [selectedNotification, setSelectedNotification] = useState<any | null>(null);
+  const [successMsg, setSuccessMsg] = useState(false);
+  const [successType, setSuccessType] = useState<'create' | 'update'>('create');
+
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [statsData, setStatsData] = useState<any>(null);
+  const [totalCount, setTotalCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [resNotifs, resStats] = await Promise.all([
+        notificationsService.getAll({
+          search,
+          status,
+          type,
+          skip: (page - 1) * rowsPerPage,
+          take: rowsPerPage,
+        }),
+        notificationsService.getStats(),
+      ]);
+      const payload = resNotifs.data?.data;
+      setNotifications(payload?.data || []);
+      setTotalCount(payload?.meta?.total || 0);
+      setStatsData(resStats.data?.data || null);
+    } catch (error) {
+      console.error('Failed to fetch notifications', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
+  React.useEffect(() => {
+    fetchData();
+  }, [search, status, type, page, rowsPerPage]);
+
+  const handleSubmitNotification = async (notif: any) => {
+    try {
+      if (selectedNotification) {
+        // Edit existing notification
+        await notificationsService.update(selectedNotification.id, {
+          title: notif.title,
+          message: notif.body,
+          audience: notif.type,
+        });
+        setSuccessType('update');
+      } else {
+        // Create new notification
+        await notificationsService.create({
+          title: notif.title,
+          message: notif.body,
+          audience: notif.type,
+        });
+        setSuccessType('create');
+      }
+      setSuccessMsg(true);
+      fetchData(); // Refresh the table
+    } catch (error) {
+      console.error('Failed to save notification', error);
+    } finally {
+      setSelectedNotification(null);
+    }
+  };
+
+  const handleView = (notif: any) => {
+    setSelectedNotification(notif);
+    setViewDialogOpen(true);
+  };
+
+  const handleEdit = (notif: any) => {
+    setSelectedNotification(notif);
+    setOpenDialog(true);
+  };
+
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+    setSelectedNotification(null);
+  };
+
+  const handleResetFilters = () => {
+    setSearch('');
+    setStatus('');
+    setType('');
+    setUserType('');
+    setPlatform('');
+    setPage(1);
+  };
+
+  const filteredNotifications = useMemo(() => {
+    // Backend handles search, status, type, and pagination for us now.
+    // We only need to filter by tabValue locally if we aren't sending tab state to backend.
+    return notifications.filter((n) => {
+      let matchTab = true;
+      if (tabValue === 1) matchTab = n.status === 'SCHEDULED';
+      if (tabValue === 2) matchTab = n.status === 'DRAFT';
+      if (tabValue === 3) matchTab = n.status === 'FAILED';
+
+      const matchAudience = userType ? (n.audience || '').toLowerCase().includes(userType.toLowerCase()) : true;
+
+      return matchTab && matchAudience;
+    });
+  }, [notifications, tabValue, userType]);
+
+  // Reset page to 1 when filters change
+  React.useEffect(() => {
+    setPage(1);
+  }, [search, status, type, userType, platform, tabValue]);
+
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 3 }}>
+      {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h4" sx={{ fontWeight: 'bold' }}>Notifications</Typography>
-        <Button variant="contained" startIcon={<Send />} onClick={() => setOpenDialog(true)}>
-          Send Notification
-        </Button>
+        <Box>
+          <Typography variant="h5" sx={{ fontWeight: 800, color: '#0f172a', mb: 0.5 }}>
+            Push Notifications
+          </Typography>
+          <Typography variant="body2" sx={{ color: '#64748b' }}>
+            Dashboard &gt; Push Notifications &gt; All Notifications
+          </Typography>
+        </Box>
+
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', bgcolor: 'white', borderRadius: 2, px: 2, py: 1, border: '1px solid #e2e8f0' }}>
+            <Typography variant="body2" sx={{ color: '#94a3b8', mr: 2 }}>Search by title or message...</Typography>
+            <Box sx={{ bgcolor: '#f1f5f9', px: 1, borderRadius: 1, color: '#64748b', fontSize: '0.75rem', fontWeight: 600 }}>⌘K</Box>
+          </Box>
+          <IconButton sx={{ border: '1px solid #e2e8f0', borderRadius: 2, bgcolor: 'white' }}>
+            <SettingsOutlinedIcon sx={{ color: '#64748b' }} />
+          </IconButton>
+          <IconButton sx={{ border: '1px solid #e2e8f0', borderRadius: 2, bgcolor: 'white' }}>
+            <NotificationsNoneOutlinedIcon sx={{ color: '#64748b' }} />
+          </IconButton>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => {
+              setSelectedNotification(null);
+              setOpenDialog(true);
+            }}
+            sx={{
+              bgcolor: '#2563eb',
+              textTransform: 'none',
+              fontWeight: 600,
+              borderRadius: 2,
+              px: 3,
+              boxShadow: 'none',
+              '&:hover': { bgcolor: '#1d4ed8', boxShadow: 'none' },
+            }}
+          >
+            Send Notification
+          </Button>
+        </Box>
       </Box>
 
-      {success && <Alert severity="success">Notification sent successfully!</Alert>}
-
       {/* Stats */}
-      <Grid container spacing={2}>
-        {[
-          { label: 'Total Sent', value: '247', color: 'primary.light' },
-          { label: 'To All Users', value: '45', color: '#d1fae5' },
-          { label: 'To Vendors', value: '128', color: '#ede9fe' },
-          { label: 'To Buyers', value: '74', color: '#fef3c7' },
-        ].map((stat, idx) => (
-          <Grid size={{ xs: 6, md: 3 }} key={idx}>
-            <Card>
-              <CardContent sx={{ textAlign: 'center', py: 2 }}>
-                <Typography variant="h4" sx={{ fontWeight: 'bold' }}>{stat.value}</Typography>
-                <Typography variant="body2" color="text.secondary">{stat.label}</Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
+      <NotificationStats statsData={statsData} />
 
-      {/* Notification History */}
-      <Card>
-        <CardContent sx={{ pb: '16px !important' }}>
-          <Typography variant="h6" sx={{ fontWeight: 'bold' }} gutterBottom>Notification History</Typography>
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow sx={{ bgcolor: 'background.default' }}>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Title</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Message</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Audience</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Sent At</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Status</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {MOCK_NOTIFICATIONS.map(notif => (
-                  <TableRow key={notif.id} hover>
-                    <TableCell sx={{ fontWeight: 'medium' }}>{notif.title}</TableCell>
-                    <TableCell sx={{ maxWidth: 300 }}>
-                      <Typography variant="body2" noWrap>{notif.body}</Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Chip label={notif.type} size="small" variant="outlined" color={notif.type === 'All' ? 'primary' : notif.type === 'Vendors' ? 'secondary' : 'default'} />
-                    </TableCell>
-                    <TableCell>{notif.sentAt || '—'}</TableCell>
-                    <TableCell>
-                      <Chip label={notif.status} size="small" color={statusColor[notif.status]} />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </CardContent>
-      </Card>
+      {/* Filters */}
+      <NotificationFilters
+        search={search}
+        setSearch={setSearch}
+        status={status}
+        setStatus={setStatus}
+        type={type}
+        setType={setType}
+        userType={userType}
+        setUserType={setUserType}
+        platform={platform}
+        setPlatform={setPlatform}
+        onReset={handleResetFilters}
+      />
 
-      {/* Send Dialog */}
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Notifications color="primary" />
-            Send Notification
-          </Box>
-          <IconButton onClick={() => setOpenDialog(false)}><Close /></IconButton>
-        </DialogTitle>
-        <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: 3 }}>
-          <TextField
-            label="Notification Title"
-            fullWidth required
-            value={newNotif.title}
-            onChange={(e) => setNewNotif(prev => ({ ...prev, title: e.target.value }))}
+      {/* Main Content Area */}
+      <Box sx={{ display: 'flex', gap: 3, flex: 1, flexDirection: { xs: 'column', xl: 'row' }, minHeight: 0 }}>
+        {/* Table Area */}
+        <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+          <NotificationTable
+            notifications={filteredNotifications}
+            totalCount={totalCount}
+            selectedRows={selectedRows}
+            setSelectedRows={setSelectedRows}
+            page={page}
+            setPage={setPage}
+            rowsPerPage={rowsPerPage}
+            setRowsPerPage={setRowsPerPage}
+            tabValue={tabValue}
+            setTabValue={setTabValue}
+            onView={handleView}
+            onEdit={handleEdit}
           />
-          <TextField
-            label="Message Body"
-            fullWidth required
-            multiline rows={4}
-            value={newNotif.body}
-            onChange={(e) => setNewNotif(prev => ({ ...prev, body: e.target.value }))}
-          />
-          <FormControl fullWidth>
-            <InputLabel>Target Audience</InputLabel>
-            <Select
-              value={newNotif.type}
-              label="Target Audience"
-              onChange={(e) => setNewNotif(prev => ({ ...prev, type: e.target.value }))}
-            >
-              <MenuItem value="All">All Users</MenuItem>
-              <MenuItem value="Vendors">Vendors Only</MenuItem>
-              <MenuItem value="Buyers">Buyers Only</MenuItem>
-            </Select>
-          </FormControl>
-        </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setOpenDialog(false)} variant="outlined">Cancel</Button>
-          <Button onClick={handleSend} variant="contained" startIcon={<Send />} disabled={!newNotif.title || !newNotif.body}>
-            Send Now
-          </Button>
-        </DialogActions>
-      </Dialog>
+        </Box>
+
+        {/* Sidebar Area */}
+        <Box sx={{ width: { xs: '100%', xl: 350 }, display: 'flex', flexDirection: 'column', gap: 3, overflowY: 'auto', pr: 1 }}>
+          <NotificationSidebar />
+        </Box>
+      </Box>
+
+      {/* Dialog & Alerts */}
+      <NotificationDialog
+        open={openDialog}
+        onClose={handleCloseDialog}
+        onSubmit={handleSubmitNotification}
+        notification={selectedNotification}
+      />
+
+      <NotificationPreviewDialog
+        open={viewDialogOpen}
+        onClose={() => {
+          setViewDialogOpen(false);
+          setSelectedNotification(null);
+        }}
+        notification={selectedNotification}
+      />
+      
+      <Snackbar open={successMsg} autoHideDuration={4000} onClose={() => setSuccessMsg(false)} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
+        <Alert onClose={() => setSuccessMsg(false)} severity="success" sx={{ width: '100%' }}>
+          {successType === 'create' ? 'Notification sent successfully!' : 'Notification updated successfully!'}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

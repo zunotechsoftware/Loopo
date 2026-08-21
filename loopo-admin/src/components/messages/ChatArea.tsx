@@ -1,18 +1,18 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box,
   Typography,
   Avatar,
   IconButton,
   TextField,
-  Divider,
   Paper,
   InputAdornment,
-  ImageList,
-  ImageListItem,
+  CircularProgress,
+  Popover,
 } from '@mui/material';
+import EmojiPicker from 'emoji-picker-react';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
@@ -20,13 +20,166 @@ import AttachFileIcon from '@mui/icons-material/AttachFile';
 import SentimentSatisfiedAltIcon from '@mui/icons-material/SentimentSatisfiedAlt';
 import SendIcon from '@mui/icons-material/Send';
 import DoneAllIcon from '@mui/icons-material/DoneAll';
-import { Conversation } from './mockData';
+import { chatService } from '@/services/chat.service';
+import { useChatSocket } from '@/hooks/useChatSocket';
 
 interface ChatAreaProps {
-  conversation: Conversation | null;
+  conversation: any | null;
+  onConversationCreated?: (newConv: any) => void;
 }
 
-export default function ChatArea({ conversation }: ChatAreaProps) {
+export default function ChatArea({ conversation, onConversationCreated }: ChatAreaProps) {
+  const [messages, setMessages] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [newMessage, setNewMessage] = useState('');
+  const [emojiAnchorEl, setEmojiAnchorEl] = useState<HTMLButtonElement | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const fetchMessages = async (convId: string) => {
+    try {
+      setLoading(true);
+      const res = await chatService.getMessages(convId);
+      const list = res.data?.data || res.data || [];
+      setMessages(Array.isArray(list) ? list.reverse() : []); // Reverse to show oldest first if API returns newest first
+    } catch (err) {
+      console.error('Failed to fetch messages:', err);
+    } finally {
+      setLoading(false);
+      scrollToBottom();
+    }
+  };
+
+  const handleReceiveMessage = useCallback((message: any) => {
+    if (message.conversationId === conversation?.id) {
+      setMessages((prev) => [...prev, message]);
+      scrollToBottom();
+    }
+  }, [conversation?.id]);
+
+  const handleMessageEdited = useCallback((data: { conversationId: string; message: any }) => {
+    if (data.conversationId === conversation?.id) {
+      setMessages((prev) => prev.map((m) => m.id === data.message.id ? data.message : m));
+    }
+  }, [conversation?.id]);
+
+  const handleMessageDeleted = useCallback((data: { conversationId: string; messageId: string }) => {
+    if (data.conversationId === conversation?.id) {
+      setMessages((prev) => prev.filter((m) => m.id !== data.messageId));
+    }
+  }, [conversation?.id]);
+
+  const handleMessageReaction = useCallback((data: { conversationId: string; messageId: string; userId: string; emoji: string; action: 'added' | 'removed' }) => {
+    if (data.conversationId === conversation?.id) {
+      setMessages((prev) => prev.map((m) => {
+        if (m.id === data.messageId) {
+          const reactions = m.reactions || [];
+          if (data.action === 'added') {
+            return { ...m, reactions: [...reactions, { emoji: data.emoji, userId: data.userId }] };
+          } else {
+            return { ...m, reactions: reactions.filter((r: any) => !(r.emoji === data.emoji && r.userId === data.userId)) };
+          }
+        }
+        return m;
+      }));
+    }
+  }, [conversation?.id]);
+
+  const { joinConversation, leaveConversation, markMessageRead } = useChatSocket({
+    onReceiveMessage: handleReceiveMessage,
+    onMessageEdited: handleMessageEdited,
+    onMessageDeleted: handleMessageDeleted,
+    onMessageReaction: handleMessageReaction,
+  });
+
+  useEffect(() => {
+    if (conversation?.id) {
+      fetchMessages(conversation.id);
+      joinConversation(conversation.id);
+      return () => {
+        leaveConversation(conversation.id);
+      };
+    } else {
+      setMessages([]);
+    }
+  }, [conversation?.id, joinConversation, leaveConversation]);
+
+  const handleSendMessage = async () => {
+    if (!newMessage.trim()) return;
+
+    let targetConvId = conversation?.id;
+
+    try {
+      // If there is no conversation ID, we must create one first
+      if (!targetConvId && conversation?.isUserOnly) {
+        const recipient = getRecipientUser(conversation);
+        const resConv = await chatService.createConversation({ participantId: recipient.id });
+        const newConv = resConv.data?.data || resConv.data;
+        targetConvId = newConv.id;
+        
+        if (onConversationCreated) {
+          onConversationCreated(newConv);
+        }
+      }
+
+      if (!targetConvId) return;
+
+      let attachments: any[] = [];
+      if (selectedFile) {
+        try {
+          // Get presigned URL from backend
+          const uploadRes = await chatService.getUploadUrl({
+            fileName: selectedFile.name,
+            fileType: selectedFile.type,
+          });
+          
+          const { uploadUrl, fileUrl } = uploadRes.data.data;
+
+          // Upload file directly to S3
+          await fetch(uploadUrl, {
+            method: 'PUT',
+            body: selectedFile,
+            headers: {
+              'Content-Type': selectedFile.type,
+            },
+          });
+
+          attachments = [{ originalUrl: fileUrl, mimeType: selectedFile.type, fileSize: selectedFile.size }];
+        } catch (uploadErr) {
+          console.error('Failed to upload file to S3', uploadErr);
+          return; // Stop sending if upload fails
+        }
+      }
+
+      if (!newMessage.trim() && !selectedFile) return;
+
+      const payload = {
+        conversationId: targetConvId,
+        content: newMessage,
+        type: selectedFile ? (selectedFile.type.startsWith('image/') ? 'IMAGE' : 'FILE') : 'TEXT',
+        attachments: attachments.length ? attachments : undefined,
+      };
+      const res = await chatService.sendMessage(payload);
+      // Socket might broadcast it back to us, but we can optimistically append
+      setNewMessage('');
+      setSelectedFile(null);
+    } catch (err) {
+      console.error('Failed to send message:', err);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
   if (!conversation) {
     return (
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', bgcolor: 'grey.50' }}>
@@ -35,18 +188,25 @@ export default function ChatArea({ conversation }: ChatAreaProps) {
     );
   }
 
+  const getRecipientUser = (conv: any) => {
+    const recipient = conv.participants?.length > 1 ? conv.participants[1].user : conv.participants?.[0]?.user;
+    return recipient || {};
+  };
+
+  const recipient = getRecipientUser(conversation);
+  const displayName = `${recipient.firstName || ''} ${recipient.lastName || ''}`.trim() || recipient.email || 'Unknown User';
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: '#F8F9FA' }}>
       {/* Header */}
       <Box sx={{ p: 2, display: 'flex', alignItems: 'center', bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider' }}>
-        <Avatar src={conversation.user.avatar} sx={{ mr: 2 }} />
+        <Avatar src={recipient.profileImage} sx={{ mr: 2 }} />
         <Box sx={{ flexGrow: 1 }}>
           <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-            {conversation.user.name}
+            {displayName}
           </Typography>
-          <Typography variant="caption" sx={{ color: 'success.main', display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Box component="span" sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'success.main', display: 'inline-block' }} />
-            {conversation.user.isOnline ? 'Online' : 'Offline'}
+          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+            {recipient.email}
           </Typography>
         </Box>
         <Box>
@@ -58,71 +218,91 @@ export default function ChatArea({ conversation }: ChatAreaProps) {
 
       {/* Messages */}
       <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <Typography variant="caption" align="center" color="text.secondary" sx={{ mb: 2 }}>
-          Today
-        </Typography>
-
-        {conversation.messages.map((msg) => (
-          <Box
-            key={msg.id}
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: msg.isSentByMe ? 'flex-end' : 'flex-start',
-            }}
-          >
-            {msg.images && msg.images.length > 0 && (
-               <Paper
-                 elevation={0}
-                 sx={{
-                   p: 1,
-                   mb: 1,
-                   bgcolor: msg.isSentByMe ? 'primary.main' : 'background.paper',
-                   borderRadius: msg.isSentByMe ? '12px 12px 0 12px' : '12px 12px 12px 0',
-                 }}
-               >
-                 <ImageList sx={{ m: 0, overflow: 'hidden', borderRadius: 1 }} cols={msg.images.length} gap={4}>
-                    {msg.images.map((img, index) => (
-                      <ImageListItem key={index} sx={{ width: 80, height: 80 }}>
-                        <img src={img} alt="attachment" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      </ImageListItem>
-                    ))}
-                 </ImageList>
-               </Paper>
-            )}
-            
-            <Paper
-              elevation={0}
-              sx={{
-                p: 1.5,
-                maxWidth: '70%',
-                bgcolor: msg.isSentByMe ? 'primary.main' : 'background.paper',
-                color: msg.isSentByMe ? 'primary.contrastText' : 'text.primary',
-                borderRadius: msg.isSentByMe ? '16px 16px 0 16px' : '16px 16px 16px 0',
-                border: msg.isSentByMe ? 'none' : '1px solid',
-                borderColor: 'divider',
-              }}
-            >
-              <Typography variant="body2">{msg.text}</Typography>
-            </Paper>
-            <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5, gap: 0.5 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
-                {msg.timestamp}
-              </Typography>
-              {msg.isSentByMe && (
-                <DoneAllIcon sx={{ fontSize: '0.9rem', color: msg.status === 'read' ? 'primary.main' : 'text.disabled' }} />
-              )}
-            </Box>
-          </Box>
-        ))}
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>
+        ) : (
+          messages.map((msg: any) => {
+            const isSentByMe = msg.senderId !== recipient.id; // Basic check
+            return (
+              <Box
+                key={msg.id}
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: isSentByMe ? 'flex-end' : 'flex-start',
+                }}
+              >
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 1.5,
+                    maxWidth: '70%',
+                    bgcolor: isSentByMe ? 'primary.main' : 'background.paper',
+                    color: isSentByMe ? 'primary.contrastText' : 'text.primary',
+                    borderRadius: isSentByMe ? '16px 16px 0 16px' : '16px 16px 16px 0',
+                    border: isSentByMe ? 'none' : '1px solid',
+                    borderColor: 'divider',
+                  }}
+                >
+                  {msg.replyTo && (
+                    <Box sx={{ pl: 1, borderLeft: '3px solid', borderColor: isSentByMe ? 'primary.light' : 'grey.300', mb: 1, opacity: 0.8 }}>
+                      <Typography variant="caption" sx={{ fontWeight: 'bold' }}>Replying to message</Typography>
+                      <Typography variant="body2" noWrap sx={{ fontStyle: 'italic', fontSize: '0.8rem' }}>{msg.replyTo.content}</Typography>
+                    </Box>
+                  )}
+                  {msg.attachments?.length > 0 && (
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: msg.content ? 1 : 0 }}>
+                      {msg.attachments.map((att: any) => (
+                        <Box key={att.id} component="img" src={att.originalUrl} sx={{ maxWidth: '100%', borderRadius: 1, maxHeight: 200, objectFit: 'contain' }} />
+                      ))}
+                    </Box>
+                  )}
+                  {msg.content && <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{msg.content}</Typography>}
+                  {msg.reactions?.length > 0 && (
+                    <Box sx={{ display: 'flex', gap: 0.5, mt: 1, flexWrap: 'wrap' }}>
+                      {Array.from(new Set(msg.reactions.map((r: any) => r.emoji))).map((emoji: any) => {
+                        const count = msg.reactions.filter((r: any) => r.emoji === emoji).length;
+                        return (
+                          <Box key={emoji} sx={{ bgcolor: 'rgba(0,0,0,0.1)', borderRadius: 2, px: 0.8, py: 0.2, fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: 0.5, cursor: 'pointer' }} onClick={() => chatService.reactToMessage(msg.id, emoji)}>
+                            <span>{emoji}</span><span>{count}</span>
+                          </Box>
+                        );
+                      })}
+                    </Box>
+                  )}
+                </Paper>
+                <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5, gap: 0.5 }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                    {new Date(msg.createdAt).toLocaleTimeString()}
+                    {msg.isEdited && ' • Edited'}
+                  </Typography>
+                  {isSentByMe && (
+                    <DoneAllIcon sx={{ fontSize: '0.9rem', color: msg.readAt ? 'primary.main' : 'text.disabled' }} />
+                  )}
+                </Box>
+              </Box>
+            );
+          })
+        )}
+        <div ref={messagesEndRef} />
       </Box>
 
       {/* Input Area */}
       <Box sx={{ p: 2, bgcolor: 'background.paper', borderTop: 1, borderColor: 'divider' }}>
+        {selectedFile && (
+          <Box sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1, p: 1, bgcolor: 'grey.100', borderRadius: 1, width: 'fit-content' }}>
+            <Typography variant="caption" noWrap sx={{ maxWidth: 200 }}>{selectedFile.name}</Typography>
+            <IconButton size="small" onClick={() => setSelectedFile(null)}><DeleteOutlineIcon fontSize="small" /></IconButton>
+          </Box>
+        )}
         <TextField
           fullWidth
           placeholder="Type a message..."
           variant="outlined"
+          value={newMessage}
+          onChange={(e) => setNewMessage(e.target.value)}
+          onKeyDown={handleKeyPress}
+          disabled={!conversation.id && !conversation.isUserOnly}
           sx={{
             '& .MuiOutlinedInput-root': {
               borderRadius: '24px',
@@ -133,13 +313,41 @@ export default function ChatArea({ conversation }: ChatAreaProps) {
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <IconButton edge="start"><AttachFileIcon /></IconButton>
+                <input
+                  type="file"
+                  hidden
+                  ref={fileInputRef}
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      setSelectedFile(e.target.files[0]);
+                    }
+                  }}
+                />
+                <IconButton edge="start" onClick={() => fileInputRef.current?.click()}><AttachFileIcon /></IconButton>
               </InputAdornment>
             ),
             endAdornment: (
               <InputAdornment position="end">
-                <IconButton><SentimentSatisfiedAltIcon /></IconButton>
-                <IconButton color="primary" sx={{ bgcolor: 'primary.main', color: 'white', '&:hover': { bgcolor: 'primary.dark' }, ml: 1 }}>
+                <IconButton onClick={(e) => setEmojiAnchorEl(e.currentTarget)}>
+                  <SentimentSatisfiedAltIcon />
+                </IconButton>
+                <Popover
+                  open={Boolean(emojiAnchorEl)}
+                  anchorEl={emojiAnchorEl}
+                  onClose={() => setEmojiAnchorEl(null)}
+                  anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+                  transformOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+                >
+                  <EmojiPicker
+                    onEmojiClick={(emojiData) => setNewMessage((prev) => prev + emojiData.emoji)}
+                  />
+                </Popover>
+                <IconButton 
+                  color="primary" 
+                  onClick={handleSendMessage}
+                  disabled={!newMessage.trim() && !selectedFile}
+                  sx={{ bgcolor: 'primary.main', color: 'white', '&:hover': { bgcolor: 'primary.dark' }, ml: 1, '&.Mui-disabled': { bgcolor: 'grey.300' } }}
+                >
                   <SendIcon fontSize="small" />
                 </IconButton>
               </InputAdornment>

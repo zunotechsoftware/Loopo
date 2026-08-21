@@ -23,6 +23,7 @@ import CardMembership from '@mui/icons-material/CardMembership';
 import NotificationsActive from '@mui/icons-material/NotificationsActive';
 import Description from '@mui/icons-material/Description';
 import Article from '@mui/icons-material/Article';
+import Email from '@mui/icons-material/Email';
 import Settings from '@mui/icons-material/Settings';
 import Security from '@mui/icons-material/Security';
 import FactCheck from '@mui/icons-material/FactCheck';
@@ -99,6 +100,7 @@ const NAV_GROUPS: NavGroup[] = [
       { text: 'Advertisements', icon: <FeaturedVideo fontSize="small" />, path: '/ads' },
       { text: 'Coupons', icon: <LocalOffer fontSize="small" />, path: '/coupons' },
       { text: 'Subscriptions', icon: <CardMembership fontSize="small" />, path: '/subscriptions' },
+      { text: 'Email Templates', icon: <Email fontSize="small" />, path: '/email-templates' },
       { text: 'Notifications', icon: <NotificationsActive fontSize="small" />, path: '/notifications' },
     ],
   },

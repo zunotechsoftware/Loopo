@@ -32,20 +32,32 @@ export class ChatService {
   // --- CONVERSATIONS ---
 
   async createConversation(userId: string, dto: CreateConversationDto) {
-    // 1. Fetch product and verify existence
-    const product = await this.productsService.updateProduct // Wait, let's use productsService.updateProduct or search for product
-      ? await this.prismaFindProduct(dto.productId)
-      : null;
-
-    if (!product) {
-      throw new NotFoundException(`Product listing with ID ${dto.productId} not found`);
+    if (!dto.productId && !dto.participantId) {
+      throw new BadRequestException('Either productId or participantId must be provided to start a conversation');
     }
 
-    const sellerId = product.sellerId;
+    let sellerId = dto.participantId;
+
+    if (dto.productId) {
+      // 1. Fetch product and verify existence
+      const product = await this.productsService.updateProduct // Wait, let's use productsService.updateProduct or search for product
+        ? await this.prismaFindProduct(dto.productId)
+        : null;
+
+      if (!product) {
+        throw new NotFoundException(`Product listing with ID ${dto.productId} not found`);
+      }
+
+      sellerId = product.sellerId;
+    }
+
+    if (!sellerId) {
+       throw new BadRequestException('Recipient user could not be determined');
+    }
 
     // 2. Validate participants (prevent self-chat)
     if (userId === sellerId) {
-      throw new BadRequestException('You cannot start a conversation with yourself about your own product');
+      throw new BadRequestException('You cannot start a conversation with yourself');
     }
 
     // 3. Block check: Verify neither user has blocked the other
@@ -54,14 +66,14 @@ export class ChatService {
       throw new ForbiddenException('Cannot start conversation due to user block restrictions');
     }
 
-    // 4. Prevent duplicates: Find existing conversation for (productId, buyerId, sellerId)
-    const existing = await this.chatRepo.findConversation(dto.productId, userId, sellerId);
+    // 4. Prevent duplicates: Find existing conversation
+    const existing = await this.chatRepo.findConversation(dto.productId || null, userId, sellerId);
     if (existing) {
       return existing;
     }
 
     // 5. Create new conversation
-    return this.chatRepo.createConversation(dto.productId, userId, sellerId);
+    return this.chatRepo.createConversation(dto.productId || null, userId, sellerId);
   }
 
   private async prismaFindProduct(productId: string) {
@@ -74,11 +86,37 @@ export class ChatService {
   }
 
   async getConversations(userId: string) {
-    const list = await this.chatRepo.findUserConversations(userId);
+    const conversations = await this.chatRepo.findUserConversations(userId);
     
-    // Enrich with unread counts from Redis
+    // Map participants to include the user details from buyer/seller
+    const mappedConversations = conversations.map((conv) => {
+      const mappedParticipants = conv.participants.map((p) => {
+        let userObj = null;
+        if (p.userId === conv.buyerId) {
+          userObj = (conv as any).buyer;
+        } else if (p.userId === conv.sellerId) {
+          userObj = (conv as any).seller;
+        }
+        return {
+          ...p,
+          user: userObj || { id: p.userId, firstName: 'Unknown', lastName: 'User' },
+        };
+      });
+
+      mappedParticipants.sort((a, b) => {
+        if (a.userId === userId) return -1;
+        if (b.userId === userId) return 1;
+        return 0;
+      });
+
+      return {
+        ...conv,
+        participants: mappedParticipants,
+      };
+    });
+
     return Promise.all(
-      list.map(async (conv) => {
+      mappedConversations.map(async (conv) => {
         const unreadKey = `chat:unread:${userId}:${conv.id}`;
         let unreadCountStr = await this.redis.get(unreadKey);
         
@@ -113,7 +151,30 @@ export class ChatService {
     if (!conv) {
       throw new NotFoundException(`Conversation with ID ${conversationId} not found or access denied`);
     }
-    return conv;
+
+    const mappedParticipants = conv.participants.map((p) => {
+      let userObj = null;
+      if (p.userId === conv.buyerId) {
+        userObj = (conv as any).buyer;
+      } else if (p.userId === conv.sellerId) {
+        userObj = (conv as any).seller;
+      }
+      return {
+        ...p,
+        user: userObj || { id: p.userId, firstName: 'Unknown', lastName: 'User' },
+      };
+    });
+
+    mappedParticipants.sort((a, b) => {
+      if (a.userId === userId) return -1;
+      if (b.userId === userId) return 1;
+      return 0;
+    });
+
+    return {
+      ...conv,
+      participants: mappedParticipants,
+    };
   }
 
   // --- MESSAGES ---
@@ -142,8 +203,9 @@ export class ChatService {
       conversationId: dto.conversationId,
       senderId,
       type: dto.type,
-      content: dto.content,
+      content: dto.content || '',
       attachments: dto.attachments,
+      replyToId: dto.replyToMessageId,
     });
 
     // Check if recipient is online in Redis
@@ -161,7 +223,7 @@ export class ChatService {
         type: 'NEW_CHAT_MESSAGE',
         userId: recipientId,
         senderId,
-        content: dto.content,
+        content: dto.content || '',
         conversationId: dto.conversationId,
       });
     }
@@ -207,7 +269,17 @@ export class ChatService {
   }
 
   async deleteMessage(messageId: string, userId: string) {
-    return this.chatRepo.deleteMessage(messageId, userId);
+    const result = await this.chatRepo.deleteMessage(messageId, userId);
+    return result;
+  }
+
+  async editMessage(messageId: string, userId: string, newContent: string) {
+    const result = await this.chatRepo.editMessage(messageId, userId, newContent);
+    return result;
+  }
+
+  async toggleReaction(messageId: string, userId: string, emoji: string) {
+    return this.chatRepo.toggleReaction(messageId, userId, emoji);
   }
 
   async deleteConversation(conversationId: string, userId: string) {

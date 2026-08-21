@@ -9,17 +9,15 @@ import {
   Divider,
   List,
   ListItem,
-  ListItemText,
 } from '@mui/material';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import StorefrontIcon from '@mui/icons-material/Storefront';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import BlockIcon from '@mui/icons-material/Block';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
-import { Conversation } from './mockData';
 
 interface ConversationDetailsProps {
-  conversation: Conversation | null;
+  conversation: any | null;
 }
 
 export default function ConversationDetails({ conversation }: ConversationDetailsProps) {
@@ -31,7 +29,13 @@ export default function ConversationDetails({ conversation }: ConversationDetail
     );
   }
 
-  const { user, orderInfo } = conversation;
+  const getRecipientUser = (conv: any) => {
+    const recipient = conv.participants?.length > 1 ? conv.participants[1].user : conv.participants?.[0]?.user;
+    return recipient || {};
+  };
+
+  const user = getRecipientUser(conversation);
+  const displayName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email || 'Unknown User';
 
   return (
     <Box sx={{ height: '100%', bgcolor: 'background.paper', borderLeft: 1, borderColor: 'divider', overflowY: 'auto' }}>
@@ -41,29 +45,27 @@ export default function ConversationDetails({ conversation }: ConversationDetail
           User Details
         </Typography>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-          <Avatar src={user.avatar} sx={{ width: 48, height: 48 }} />
+          <Avatar src={user.profileImage} sx={{ width: 48, height: 48 }} />
           <Box>
-            <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>{user.name}</Typography>
-            <Typography variant="caption" sx={{ color: 'success.main' }}>{user.isOnline ? 'Online' : 'Offline'}</Typography>
+            <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>{displayName}</Typography>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>{user.email}</Typography>
           </Box>
         </Box>
 
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 3 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
             <Typography variant="body2" color="text.secondary">User ID</Typography>
-            <Typography variant="body2" sx={{ fontWeight: 'medium' }}>{user.id}</Typography>
+            <Typography variant="body2" sx={{ fontWeight: 'medium' }}>{user.id ? user.id.slice(0, 8) + '...' : 'N/A'}</Typography>
           </Box>
           <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
             <Typography variant="body2" color="text.secondary">Phone</Typography>
-            <Typography variant="body2" sx={{ fontWeight: 'medium' }}>{user.phone}</Typography>
+            <Typography variant="body2" sx={{ fontWeight: 'medium' }}>{user.phone || 'N/A'}</Typography>
           </Box>
           <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-            <Typography variant="body2" color="text.secondary">Email</Typography>
-            <Typography variant="body2" sx={{ fontWeight: 'medium' }}>{user.email}</Typography>
-          </Box>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-            <Typography variant="body2" color="text.secondary">Member Since</Typography>
-            <Typography variant="body2" sx={{ fontWeight: 'medium' }}>{user.memberSince}</Typography>
+            <Typography variant="body2" color="text.secondary">Joined</Typography>
+            <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+              {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
+            </Typography>
           </Box>
         </Box>
 
@@ -85,30 +87,24 @@ export default function ConversationDetails({ conversation }: ConversationDetail
           Conversation Info
         </Typography>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-          {orderInfo && (
-            <>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Typography variant="body2" color="text.secondary">Order ID</Typography>
-                <Typography variant="body2" sx={{ fontWeight: 'medium' }}>{orderInfo.orderId}</Typography>
-              </Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Typography variant="body2" color="text.secondary">Listing</Typography>
-                <Typography variant="body2" sx={{ fontWeight: 'medium' }}>{orderInfo.listing}</Typography>
-              </Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Typography variant="body2" color="text.secondary">Status</Typography>
-                <Typography variant="body2" sx={{ fontWeight: 'medium' }}>{orderInfo.status}</Typography>
-              </Box>
-            </>
+          {conversation.product && (
+             <>
+               <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                 <Typography variant="body2" color="text.secondary">Product</Typography>
+                 <Typography variant="body2" sx={{ fontWeight: 'medium' }}>{conversation.product.title}</Typography>
+               </Box>
+             </>
           )}
           <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-            <Typography variant="body2" color="text.secondary">Messages</Typography>
-            <Typography variant="body2" sx={{ fontWeight: 'medium' }}>{conversation.messages.length}</Typography>
+            <Typography variant="body2" color="text.secondary">Status</Typography>
+            <Typography variant="body2" sx={{ fontWeight: 'medium', textTransform: 'capitalize' }}>
+              {conversation.status?.toLowerCase() || 'Active'}
+            </Typography>
           </Box>
           <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
             <Typography variant="body2" color="text.secondary">Last Message</Typography>
             <Typography variant="body2" sx={{ fontWeight: 'medium', textAlign: 'right' }}>
-              {conversation.lastMessageTime}
+              {conversation.lastMessageAt ? new Date(conversation.lastMessageAt).toLocaleString() : 'N/A'}
             </Typography>
           </Box>
         </Box>
