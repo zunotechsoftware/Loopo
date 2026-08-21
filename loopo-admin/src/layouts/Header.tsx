@@ -5,10 +5,13 @@ import {
   AppBar, Toolbar, IconButton, Typography, Avatar,
   Menu, MenuItem, Box, Divider, ListItemIcon, Badge
 } from '@mui/material';
-import {
-  Menu as MenuIcon, Logout, AccountCircle, NotificationsOutlined,
-  Search, Fullscreen, CalendarToday
-} from '@mui/icons-material';
+import MenuIcon from '@mui/icons-material/Menu';
+import Logout from '@mui/icons-material/Logout';
+import AccountCircle from '@mui/icons-material/AccountCircle';
+import NotificationsOutlined from '@mui/icons-material/NotificationsOutlined';
+import Search from '@mui/icons-material/Search';
+import Fullscreen from '@mui/icons-material/Fullscreen';
+import CalendarToday from '@mui/icons-material/CalendarToday';
 import { useAuth } from '@/hooks/useAuth';
 import { usePathname, useRouter } from 'next/navigation';
 

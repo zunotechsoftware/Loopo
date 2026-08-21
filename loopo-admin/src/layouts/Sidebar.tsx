@@ -5,12 +5,32 @@ import {
   Box, Drawer, List, ListItem, ListItemButton, ListItemIcon,
   ListItemText, Typography, Avatar, Collapse, IconButton
 } from '@mui/material';
-import {
-  Dashboard, People, Storefront, Inventory, Category, ShoppingCart, Payment,
-  AccountBalanceWallet, Message, Star, Assessment, ViewCarousel, FeaturedVideo,
-  LocalOffer, CardMembership, NotificationsActive, Description, Article,
-  Settings, Security, FactCheck, ExpandMore, ExpandLess, Logout, ReportProblem, SupportAgent
-} from '@mui/icons-material';
+import Dashboard from '@mui/icons-material/Dashboard';
+import People from '@mui/icons-material/People';
+import Storefront from '@mui/icons-material/Storefront';
+import Inventory from '@mui/icons-material/Inventory';
+import Category from '@mui/icons-material/Category';
+import ShoppingCart from '@mui/icons-material/ShoppingCart';
+import Payment from '@mui/icons-material/Payment';
+import AccountBalanceWallet from '@mui/icons-material/AccountBalanceWallet';
+import Message from '@mui/icons-material/Message';
+import Star from '@mui/icons-material/Star';
+import Assessment from '@mui/icons-material/Assessment';
+import ViewCarousel from '@mui/icons-material/ViewCarousel';
+import FeaturedVideo from '@mui/icons-material/FeaturedVideo';
+import LocalOffer from '@mui/icons-material/LocalOffer';
+import CardMembership from '@mui/icons-material/CardMembership';
+import NotificationsActive from '@mui/icons-material/NotificationsActive';
+import Description from '@mui/icons-material/Description';
+import Article from '@mui/icons-material/Article';
+import Settings from '@mui/icons-material/Settings';
+import Security from '@mui/icons-material/Security';
+import FactCheck from '@mui/icons-material/FactCheck';
+import ExpandMore from '@mui/icons-material/ExpandMore';
+import ExpandLess from '@mui/icons-material/ExpandLess';
+import Logout from '@mui/icons-material/Logout';
+import ReportProblem from '@mui/icons-material/ReportProblem';
+import SupportAgent from '@mui/icons-material/SupportAgent';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 

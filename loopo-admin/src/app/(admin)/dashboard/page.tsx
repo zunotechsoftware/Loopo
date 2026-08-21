@@ -5,11 +5,22 @@ import {
   Box, Grid, Card, CardContent, Typography, Avatar, Chip,
   LinearProgress, Divider, IconButton
 } from '@mui/material';
-import {
-  People, Storefront, Inventory, Visibility, AttachMoney, ShoppingCart,
-  TrendingUp, TrendingDown, Category, ViewCarousel, AdminPanelSettings,
-  NotificationsActive, Assessment, Settings, MoreVert, FiberManualRecord
-} from '@mui/icons-material';
+import People from '@mui/icons-material/People';
+import Storefront from '@mui/icons-material/Storefront';
+import Inventory from '@mui/icons-material/Inventory';
+import Visibility from '@mui/icons-material/Visibility';
+import AttachMoney from '@mui/icons-material/AttachMoney';
+import ShoppingCart from '@mui/icons-material/ShoppingCart';
+import TrendingUp from '@mui/icons-material/TrendingUp';
+import TrendingDown from '@mui/icons-material/TrendingDown';
+import Category from '@mui/icons-material/Category';
+import ViewCarousel from '@mui/icons-material/ViewCarousel';
+import AdminPanelSettings from '@mui/icons-material/AdminPanelSettings';
+import NotificationsActive from '@mui/icons-material/NotificationsActive';
+import Assessment from '@mui/icons-material/Assessment';
+import Settings from '@mui/icons-material/Settings';
+import MoreVert from '@mui/icons-material/MoreVert';
+import FiberManualRecord from '@mui/icons-material/FiberManualRecord';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
