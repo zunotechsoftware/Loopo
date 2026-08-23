@@ -20,8 +20,8 @@ interface ProductsState {
 }
 
 const initialState: ProductsState = {
-  // Start empty — HomeView dispatches fetchProductsThunk on mount
-  items: [],
+  // Initialize with MOCK_PRODUCTS so UI renders instantly on load
+  items: MOCK_PRODUCTS,
   favorites: [],
   filters: {
     searchQuery: '',

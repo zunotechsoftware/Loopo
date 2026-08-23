@@ -7,6 +7,7 @@ import walletReducer from './slices/walletSlice';
 import uiReducer from './slices/uiSlice';
 import notificationsReducer from './slices/notificationsSlice';
 import authReducer from './slices/authSlice';
+import sellReducer from './slices/sellSlice';
 
 export const store = configureStore({
   reducer: {
@@ -18,6 +19,7 @@ export const store = configureStore({
     ui: uiReducer,
     notifications: notificationsReducer,
     auth: authReducer,
+    sell: sellReducer,
   },
 });
 
