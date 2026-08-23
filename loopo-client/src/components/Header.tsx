@@ -54,9 +54,14 @@ export default function Header() {
   const [inputSearch, setInputSearch] = useState('');
   const debouncedSearch = useDebounce(inputSearch, 300);
 
+  const [mounted, setMounted] = useState(false);
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const [recentSearches, setRecentSearches] = useState<string[]>([
     'iPhone 13',
