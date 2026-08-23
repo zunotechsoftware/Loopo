@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Smartphone,
   Car,
@@ -22,10 +23,11 @@ import ProductCard from '../ui/ProductCard';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { setActiveTab } from '@/redux/slices/navigationSlice';
 import { setCategoryFilter, fetchProductsThunk } from '@/redux/slices/productsSlice';
-import { setSellModalOpen } from '@/redux/slices/uiSlice';
+import { ROUTES } from '@/routes/routes';
 
 export default function HomeView() {
   const dispatch = useAppDispatch();
+  const router = useRouter();
   const products = useAppSelector((state) => state.products.items);
   const filters = useAppSelector((state) => state.products.filters);
   const isLoading = useAppSelector((state) => state.products.loading);
@@ -95,13 +97,18 @@ export default function HomeView() {
 
           <div className="flex items-center gap-3 pt-2">
             <button
-              onClick={() => dispatch(setActiveTab('categories'))}
+              onClick={() => {
+                dispatch(setActiveTab('categories'));
+                router.push(ROUTES.CATEGORIES);
+              }}
               className="bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-bold text-sm px-6 py-3 rounded-2xl shadow-md shadow-emerald-500/20 transition-all duration-200"
             >
               Browse Categories
             </button>
             <button
-              onClick={() => dispatch(setSellModalOpen(true))}
+              onClick={() => {
+                router.push('/sell/category');
+              }}
               className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 font-bold text-sm px-6 py-3 rounded-2xl transition-all duration-200"
             >
               Sell Your Item
@@ -124,7 +131,10 @@ export default function HomeView() {
         <div className="flex items-center justify-between">
           <h2 className="font-extrabold text-slate-900 text-lg tracking-tight">Browse by Category</h2>
           <button
-            onClick={() => dispatch(setActiveTab('categories'))}
+            onClick={() => {
+              dispatch(setActiveTab('categories'));
+              router.push(ROUTES.CATEGORIES);
+            }}
             className="text-xs font-bold text-emerald-600 hover:underline flex items-center gap-1"
           >
             <span>View all</span>
@@ -135,12 +145,14 @@ export default function HomeView() {
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
           {MOCK_CATEGORIES.map((cat) => {
             const IconComponent = getCategoryIcon(cat.iconName);
+            const slug = (cat as any).slug || cat.name.toLowerCase().replace(/\s+/g, '-');
             return (
               <div
                 key={cat.id}
                 onClick={() => {
                   dispatch(setCategoryFilter(cat.name));
                   dispatch(setActiveTab('categories'));
+                  router.push(`/categories/${encodeURIComponent(slug)}`);
                 }}
                 className="group bg-white p-3.5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:border-emerald-200 transition-all duration-200 text-center cursor-pointer flex flex-col items-center justify-center space-y-2"
               >
@@ -160,44 +172,28 @@ export default function HomeView() {
       {/* Recommended for You Grid */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="font-extrabold text-slate-900 text-lg tracking-tight">
-            Recommended for you
-          </h2>
-          <button
-            onClick={() => dispatch(setActiveTab('categories'))}
-            className="text-xs font-bold text-emerald-600 hover:underline flex items-center gap-1"
-          >
-            <span>View all</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
+          <div>
+            <h2 className="font-extrabold text-slate-900 text-lg tracking-tight">Fresh Recommendations</h2>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">Handpicked items near your location</p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-500 font-medium hidden sm:inline">Showing verified ads</span>
+          </div>
         </div>
 
-        {isLoading ? (
-          // Loading skeleton
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="bg-white rounded-2xl border border-slate-100 overflow-hidden animate-pulse">
-                <div className="h-48 bg-slate-200" />
-                <div className="p-3 space-y-2">
-                  <div className="h-4 bg-slate-200 rounded-lg w-3/4" />
-                  <div className="h-3 bg-slate-100 rounded-lg w-1/2" />
-                  <div className="h-5 bg-slate-200 rounded-lg w-1/3" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : filteredProducts.length === 0 ? (
-          <div className="bg-white rounded-2xl p-12 text-center border border-slate-100 space-y-3">
-            <div className="text-slate-400 font-medium">No items found matching your filters.</div>
-            <button
-              onClick={() => dispatch(setCategoryFilter('All Categories'))}
-              className="text-xs font-bold text-emerald-600 hover:underline"
-            >
-              Reset Filters
-            </button>
+        {filteredProducts.length === 0 ? (
+          <div className="bg-white rounded-3xl p-12 text-center border border-slate-100 shadow-sm space-y-3">
+            <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto font-bold text-lg">
+              ?
+            </div>
+            <h3 className="font-extrabold text-slate-800 text-base">No listings found</h3>
+            <p className="text-xs text-slate-500 max-w-sm mx-auto">
+              We couldn&apos;t find any products matching your current search or category filter. Try clearing your filters.
+            </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {filteredProducts.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}
@@ -205,45 +201,41 @@ export default function HomeView() {
         )}
       </div>
 
-      {/* Trust & Assurance Badges Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-slate-100">
-        <div className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-            <ShieldCheck className="w-5 h-5" />
+      {/* Trust & Features Banner */}
+      <div className="bg-white rounded-3xl p-6 md:p-8 border border-slate-100 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="flex items-start gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold shrink-0">
+            <ShieldCheck className="w-6 h-6" />
           </div>
-          <div>
-            <div className="font-bold text-xs text-slate-900">Safe & Secure</div>
-            <div className="text-[11px] font-medium text-slate-400">Your safety is our priority.</div>
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-            <Users className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="font-bold text-xs text-slate-900">Trusted Community</div>
-            <div className="text-[11px] font-medium text-slate-400">Millions of happy users.</div>
+          <div className="space-y-1">
+            <h4 className="font-extrabold text-slate-900 text-sm">Verified Sellers</h4>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Every seller undergoes government ID & phone verification before posting ads.
+            </p>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-            <Zap className="w-5 h-5" />
+        <div className="flex items-start gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold shrink-0">
+            <Users className="w-6 h-6" />
           </div>
-          <div>
-            <div className="font-bold text-xs text-slate-900">Quick & Easy</div>
-            <div className="text-[11px] font-medium text-slate-400">List in minutes, sell fast.</div>
+          <div className="space-y-1">
+            <h4 className="font-extrabold text-slate-900 text-sm">Direct Local Inquiries</h4>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Chat directly with nearby buyers & sellers with built-in offer price negotiation.
+            </p>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center shrink-0">
-            <Leaf className="w-5 h-5" />
+        <div className="flex items-start gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold shrink-0">
+            <Zap className="w-6 h-6" />
           </div>
-          <div>
-            <div className="font-bold text-xs text-slate-900">Better for Planet</div>
-            <div className="text-[11px] font-medium text-slate-400">Reuse today for a better tomorrow.</div>
+          <div className="space-y-1">
+            <h4 className="font-extrabold text-slate-900 text-sm">Instant Ad Publishing</h4>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Post your unused items in under 60 seconds with instant photo upload and location lookup.
+            </p>
           </div>
         </div>
       </div>

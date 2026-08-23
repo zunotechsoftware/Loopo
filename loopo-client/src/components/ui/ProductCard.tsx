@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import { Heart, MapPin, Clock } from 'lucide-react';
 import { Product } from '@/mockData/products';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
@@ -13,6 +14,7 @@ interface ProductCardProps {
 
 export default function ProductCard({ product }: ProductCardProps) {
   const dispatch = useAppDispatch();
+  const router = useRouter();
   const favorites = useAppSelector((state) => state.products.favorites);
   const isFavorite = favorites.includes(product?.id || '');
 
@@ -29,9 +31,16 @@ export default function ProductCard({ product }: ProductCardProps) {
   const dateStr = typeof product?.postedDate === 'string' ? product.postedDate : 'Recently';
   const displayDate = dateStr.replace(/^Posted\s*/i, '');
 
+  const handleCardClick = () => {
+    if (product?.id) {
+      dispatch(openProductDetail(product.id));
+      router.push(`/listing/${encodeURIComponent(product.id)}`);
+    }
+  };
+
   return (
     <div className="group bg-white rounded-2xl border border-slate-100/90 shadow-sm hover:shadow-xl hover:border-slate-200 transition-all duration-300 overflow-hidden flex flex-col justify-between cursor-pointer">
-      <div onClick={() => dispatch(openProductDetail(product.id))}>
+      <div onClick={handleCardClick}>
         {/* Image Container */}
         <div className="relative aspect-[4/3] bg-slate-100 overflow-hidden">
           {product?.images?.[0] ? (

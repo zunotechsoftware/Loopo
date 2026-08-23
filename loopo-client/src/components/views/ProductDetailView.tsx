@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   ChevronRight,
   MapPin,
@@ -25,11 +26,13 @@ import {
   showToast,
 } from '@/redux/slices/uiSlice';
 import { setActiveConversation } from '@/redux/slices/chatSlice';
+import ProductCard from '../ui/ProductCard';
 
 export default function ProductDetailView() {
   const dispatch = useAppDispatch();
   const selectedProductId = useAppSelector((state) => state.navigation.selectedProductId);
   const products = useAppSelector((state) => state.products.items);
+  const allProducts = products;
   const favorites = useAppSelector((state) => state.products.favorites);
 
   const product = products.find((p) => p?.id === selectedProductId) || products[0];
@@ -52,9 +55,13 @@ export default function ProductDetailView() {
     maximumFractionDigits: 0,
   }).format(priceNum);
 
+  const router = useRouter();
+
   const handleStartChat = () => {
     dispatch(setActiveConversation('conv-buy-1'));
     dispatch(setActiveTab('messages'));
+    dispatch(showToast(`Opening chat conversation with ${product.seller?.name || 'Seller'}...`));
+    router.push('/chats');
   };
 
   return (
@@ -249,6 +256,23 @@ export default function ProductDetailView() {
               <Tag className="w-4 h-4" />
               <span>Make Offer</span>
             </button>
+          </div>
+
+          {/* Recommended / Similar Items Section */}
+          <div className="pt-6 border-t border-slate-100 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-extrabold text-slate-900 text-base">Recommended & Similar Listings</h3>
+              <span className="text-xs font-bold text-emerald-600">Verified Nearby</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {allProducts
+                .filter((p) => p && p.id !== product.id)
+                .slice(0, 4)
+                .map((rec) => (
+                  <ProductCard key={rec.id} product={rec} />
+                ))}
+            </div>
           </div>
         </div>
       </div>
