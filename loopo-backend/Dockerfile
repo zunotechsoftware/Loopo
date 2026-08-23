@@ -29,4 +29,4 @@ COPY --from=builder /app/prisma ./prisma
 EXPOSE 3000
 
 # Run prisma migration deploy and start the application
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main"]
