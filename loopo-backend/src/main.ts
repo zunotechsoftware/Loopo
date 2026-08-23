@@ -13,9 +13,13 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   const configService = app.get(ConfigService);
-  const redisIoAdapter = new RedisIoAdapter(configService);
-  await redisIoAdapter.connectToRedis();
-  app.useWebSocketAdapter(redisIoAdapter);
+  try {
+    const redisIoAdapter = new RedisIoAdapter(configService);
+    await redisIoAdapter.connectToRedis();
+    app.useWebSocketAdapter(redisIoAdapter);
+  } catch (e) {
+    console.warn('[Redis] Connection skipped or offline:', e);
+  }
 
   app.setGlobalPrefix('api/v1');
 
