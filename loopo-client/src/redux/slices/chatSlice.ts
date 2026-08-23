@@ -10,8 +10,8 @@ interface ChatState {
 }
 
 const initialState: ChatState = {
-  conversations: [],
-  activeConversationId: '',
+  conversations: MOCK_CONVERSATIONS,
+  activeConversationId: MOCK_CONVERSATIONS[0]?.id || 'conv-buy-1',
   chatFilterTab: 'buying',
   loading: false,
 };

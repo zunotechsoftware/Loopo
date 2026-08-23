@@ -37,14 +37,19 @@ export default function HomeView() {
 
   // Filter products based on search or category if set
   const filteredProducts = products.filter((p) => {
+    if (!p) return false;
+    const titleStr = (p.title || '').toLowerCase();
+    const catStr = (p.category || '').toLowerCase();
+    const queryStr = (filters.searchQuery || '').toLowerCase();
+
     const matchesSearch =
-      !filters.searchQuery ||
-      p.title.toLowerCase().includes(filters.searchQuery.toLowerCase()) ||
-      p.category.toLowerCase().includes(filters.searchQuery.toLowerCase());
+      !queryStr ||
+      titleStr.includes(queryStr) ||
+      catStr.includes(queryStr);
 
     const matchesCategory =
       filters.category === 'All Categories' ||
-      p.category.toLowerCase() === filters.category.toLowerCase();
+      catStr === (filters.category || '').toLowerCase();
 
     return matchesSearch && matchesCategory;
   });

@@ -266,7 +266,7 @@ export default function MessagesView() {
             </div>
 
             {/* Render Messages */}
-            {activeConv.messages.map((msg) => {
+            {(activeConv?.messages || []).map((msg) => {
               const isUser = msg.sender === 'user';
 
               if (msg.isOffer) {

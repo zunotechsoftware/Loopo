@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import Link from 'next/link';
+import { useRouter, usePathname } from 'next/navigation';
 import {
   Search,
   MapPin,
@@ -17,23 +19,34 @@ import {
   Tag,
   Clock,
   LogIn,
+  ShieldAlert,
+  PlusCircle,
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
-import { setActiveTab, openProductDetail, openCategory } from '@/redux/slices/navigationSlice';
-import { setSearchQuery, setCategoryFilter } from '@/redux/slices/productsSlice';
-import { setLocation, setAuthModalOpen, showToast } from '@/redux/slices/uiSlice';
+import { setSearchQuery } from '@/redux/slices/productsSlice';
+import { setLocation, showToast } from '@/redux/slices/uiSlice';
 import { logout } from '@/redux/slices/authSlice';
 import { useDebounce } from '@/hooks/useDebounce';
+import { ROUTES } from '@/routes/routes';
 
 export default function Header() {
+  const router = useRouter();
+  const pathname = usePathname();
   const dispatch = useAppDispatch();
-  const activeTab = useAppSelector((state) => state.navigation.activeTab);
   const location = useAppSelector((state) => state.ui.location);
   const favorites = useAppSelector((state) => state.products.favorites);
   const conversations = useAppSelector((state) => state.chat.conversations);
   const notifications = useAppSelector((state) => state.notifications.items);
   const products = useAppSelector((state) => state.products.items);
   const { isAuthenticated, user } = useAppSelector((state) => state.auth);
+
+  const isAdmin =
+    isAuthenticated &&
+    user &&
+    ((user as any).role === 'ADMIN' ||
+      (user as any).role === 'SUPER_ADMIN' ||
+      user.email?.includes('admin') ||
+      user.email === 'admin@loopo.com');
 
   const totalUnreadChats = conversations.reduce((acc, c) => acc + c.unreadCount, 0);
   const totalUnreadNotifs = notifications.filter((n) => !n.isRead).length;
@@ -93,36 +106,64 @@ export default function Header() {
         setRecentSearches([inputSearch.trim(), ...recentSearches.slice(0, 4)]);
       }
       dispatch(setSearchQuery(inputSearch.trim()));
+      setShowSearchDropdown(false);
+      router.push(`${ROUTES.SEARCH}?q=${encodeURIComponent(inputSearch.trim())}`);
+    } else {
+      setShowSearchDropdown(false);
+      router.push(ROUTES.SEARCH);
     }
-    setShowSearchDropdown(false);
-    dispatch(setActiveTab('home'));
   };
 
   const handleSelectProduct = (productId: string) => {
     setShowSearchDropdown(false);
-    dispatch(openProductDetail(productId));
+    router.push(ROUTES.LISTING_DETAIL(productId));
   };
 
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-slate-100 shadow-sm">
       <div className="max-w-[1600px] mx-auto px-4 lg:px-6 h-16 flex items-center justify-between gap-4">
         {/* Left: Brand Logo */}
-        <div
-          onClick={() => dispatch(setActiveTab('home'))}
-          className="flex items-center gap-2.5 cursor-pointer group select-none shrink-0"
-        >
+        <Link href={ROUTES.HOME} className="flex items-center gap-2.5 shrink-0 group select-none">
           <img
             src="/loopo.png"
             alt="Loopo"
             className="h-10 w-auto object-contain group-hover:scale-105 transition-transform duration-200"
           />
-        </div>
+        </Link>
 
-        {/* Center: Global Debounced Search Bar */}
+        {/* Header Navigation Links (Desktop) */}
+        <nav className="hidden xl:flex items-center gap-1 text-xs font-bold text-slate-600">
+          <Link
+            href={ROUTES.HOME}
+            className={`px-3 py-1.5 rounded-lg transition-colors ${
+              pathname === ROUTES.HOME ? 'text-emerald-600 bg-emerald-50' : 'hover:text-slate-900 hover:bg-slate-50'
+            }`}
+          >
+            Home
+          </Link>
+          <Link
+            href={ROUTES.CATEGORIES}
+            className={`px-3 py-1.5 rounded-lg transition-colors ${
+              pathname.startsWith(ROUTES.CATEGORIES) ? 'text-emerald-600 bg-emerald-50' : 'hover:text-slate-900 hover:bg-slate-50'
+            }`}
+          >
+            Categories
+          </Link>
+          <Link
+            href={ROUTES.SEARCH}
+            className={`px-3 py-1.5 rounded-lg transition-colors ${
+              pathname.startsWith(ROUTES.SEARCH) ? 'text-emerald-600 bg-emerald-50' : 'hover:text-slate-900 hover:bg-slate-50'
+            }`}
+          >
+            Search
+          </Link>
+        </nav>
+
+        {/* Center: Global Search Bar */}
         <form
           ref={searchContainerRef}
           onSubmit={handleSearchSubmit}
-          className="relative flex-1 max-w-2xl flex items-center bg-slate-50 hover:bg-slate-100/80 transition-colors border border-slate-200/80 rounded-full p-1.5 focus-within:ring-2 focus-within:ring-emerald-500/30 focus-within:border-emerald-500"
+          className="relative flex-1 max-w-xl flex items-center bg-slate-50 hover:bg-slate-100/80 transition-colors border border-slate-200/80 rounded-full p-1.5 focus-within:ring-2 focus-within:ring-emerald-500/30 focus-within:border-emerald-500"
         >
           <div className="pl-3 pr-2 flex items-center text-slate-400">
             <Search className="w-4 h-4" />
@@ -130,7 +171,7 @@ export default function Header() {
 
           <input
             type="text"
-            placeholder="Search cars, mobiles, furniture and more..."
+            placeholder="Search cars, mobiles, furniture..."
             value={inputSearch}
             onFocus={() => setShowSearchDropdown(true)}
             onChange={(e) => {
@@ -161,7 +202,7 @@ export default function Header() {
               className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 whitespace-nowrap hover:text-emerald-600 transition-colors"
             >
               <MapPin className="w-3.5 h-3.5 text-emerald-600" />
-              <span>{location}</span>
+              <span>{location.split(',')[0]}</span>
               <ChevronDown className="w-3 h-3 text-slate-400" />
             </button>
 
@@ -192,19 +233,18 @@ export default function Header() {
 
           <button
             type="submit"
-            className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-5 py-2 rounded-full shadow-sm hover:shadow transition-all duration-200 shrink-0"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2 rounded-full shadow-sm hover:shadow transition-all duration-200 shrink-0"
           >
             Search
           </button>
 
-          {/* DEBOUNCED GLOBAL SEARCH OVERLAY POPUP */}
+          {/* Search Suggestions Dropdown */}
           {showSearchDropdown && (
             <div className="absolute left-0 right-0 top-14 bg-white rounded-3xl shadow-2xl border border-slate-100 p-4 z-50 max-h-96 overflow-y-auto space-y-4 animate-in fade-in zoom-in-95 duration-150">
-              {/* Search Suggestions matching debounced value */}
               {debouncedSearch.trim() ? (
                 matchingProducts.length === 0 ? (
                   <div className="text-center py-6 text-slate-400 text-xs font-medium">
-                    No results found for "<span className="font-bold text-slate-700">{debouncedSearch}</span>"
+                    No results found for &quot;<span className="font-bold text-slate-700">{debouncedSearch}</span>&quot;
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -239,7 +279,6 @@ export default function Header() {
                   </div>
                 )
               ) : (
-                /* Recent Searches & Quick Links */
                 <div className="space-y-3">
                   <div className="flex items-center justify-between px-1">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
@@ -265,7 +304,7 @@ export default function Header() {
                           setInputSearch(term);
                           dispatch(setSearchQuery(term));
                           setShowSearchDropdown(false);
-                          dispatch(setActiveTab('home'));
+                          router.push(`${ROUTES.SEARCH}?q=${encodeURIComponent(term)}`);
                         }}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-xs font-semibold text-slate-700 transition-colors"
                       >
@@ -280,13 +319,22 @@ export default function Header() {
           )}
         </form>
 
-        {/* Right: Actions & User Account */}
+        {/* Right Actions */}
         <div className="flex items-center gap-2 lg:gap-3 shrink-0">
+          {/* Primary CTA: SELL */}
+          <Link
+            href={ROUTES.SELL}
+            className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold text-xs px-4 py-2.5 rounded-full shadow-md shadow-emerald-500/20 transition-all"
+          >
+            <PlusCircle className="w-4 h-4" />
+            <span>SELL</span>
+          </Link>
+
           {/* Messages Icon */}
-          <button
-            onClick={() => dispatch(setActiveTab('messages'))}
+          <Link
+            href={ROUTES.CHATS}
             className={`relative p-2.5 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors ${
-              activeTab === 'messages' ? 'bg-emerald-50 text-emerald-600' : ''
+              pathname.startsWith(ROUTES.CHATS) ? 'bg-emerald-50 text-emerald-600' : ''
             }`}
             title="Messages"
           >
@@ -296,13 +344,13 @@ export default function Header() {
                 {totalUnreadChats}
               </span>
             )}
-          </button>
+          </Link>
 
           {/* Notifications Bell */}
-          <button
-            onClick={() => dispatch(setActiveTab('notifications'))}
+          <Link
+            href={ROUTES.NOTIFICATIONS}
             className={`relative p-2.5 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors ${
-              activeTab === 'notifications' ? 'bg-emerald-50 text-emerald-600' : ''
+              pathname === ROUTES.NOTIFICATIONS ? 'bg-emerald-50 text-emerald-600' : ''
             }`}
             title="Notifications"
           >
@@ -312,13 +360,13 @@ export default function Header() {
                 {totalUnreadNotifs}
               </span>
             )}
-          </button>
+          </Link>
 
-          {/* Saved Items */}
-          <button
-            onClick={() => dispatch(setActiveTab('saved'))}
-            className={`relative p-2.5 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors ${
-              activeTab === 'saved' ? 'bg-emerald-50 text-emerald-600' : ''
+          {/* Favorites */}
+          <Link
+            href={ROUTES.FAVOURITES}
+            className={`relative p-2.5 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors hidden md:flex ${
+              pathname === ROUTES.FAVOURITES ? 'bg-emerald-50 text-emerald-600' : ''
             }`}
             title="Saved Items"
           >
@@ -328,9 +376,9 @@ export default function Header() {
                 {favorites.length}
               </span>
             )}
-          </button>
+          </Link>
 
-          {/* User Account / Login CTA */}
+          {/* Profile Menu or Login */}
           {isAuthenticated && user ? (
             <div className="relative">
               <button
@@ -352,52 +400,45 @@ export default function Header() {
                 <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
               </button>
 
-              {/* Profile Dropdown Menu */}
               {showProfileDropdown && (
-                <div className="absolute right-0 top-11 w-48 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-1">
-                  <button
-                    onClick={() => {
-                      dispatch(setActiveTab('profile'));
-                      setShowProfileDropdown(false);
-                    }}
+                <div className="absolute right-0 top-11 w-52 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-1">
+                  <Link
+                    href={ROUTES.PROFILE}
+                    onClick={() => setShowProfileDropdown(false)}
                     className="w-full text-left px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
                   >
                     <User className="w-4 h-4 text-emerald-600" />
                     <span>My Profile</span>
-                  </button>
+                  </Link>
 
-                  <button
-                    onClick={() => {
-                      dispatch(setActiveTab('my-ads'));
-                      setShowProfileDropdown(false);
-                    }}
+                  <Link
+                    href={ROUTES.MY_LISTINGS}
+                    onClick={() => setShowProfileDropdown(false)}
                     className="w-full text-left px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
                   >
                     <Package className="w-4 h-4 text-emerald-600" />
                     <span>My Listings</span>
-                  </button>
+                  </Link>
 
-                  <button
-                    onClick={() => {
-                      dispatch(setActiveTab('wallet'));
-                      setShowProfileDropdown(false);
-                    }}
-                    className="w-full text-left px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
-                  >
-                    <WalletIcon className="w-4 h-4 text-emerald-600" />
-                    <span>Wallet & Boost</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      dispatch(setActiveTab('settings'));
-                      setShowProfileDropdown(false);
-                    }}
+                  <Link
+                    href={ROUTES.SETTINGS}
+                    onClick={() => setShowProfileDropdown(false)}
                     className="w-full text-left px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
                   >
                     <Settings className="w-4 h-4 text-emerald-600" />
                     <span>Settings</span>
-                  </button>
+                  </Link>
+
+                  {isAdmin && (
+                    <Link
+                      href={ROUTES.ADMIN}
+                      onClick={() => setShowProfileDropdown(false)}
+                      className="w-full text-left px-4 py-2 text-xs font-bold text-purple-700 hover:bg-purple-50 flex items-center gap-2"
+                    >
+                      <ShieldAlert className="w-4 h-4 text-purple-600" />
+                      <span>Admin Portal</span>
+                    </Link>
+                  )}
 
                   <div className="border-t border-slate-100 my-1 pt-1">
                     <button
@@ -405,6 +446,7 @@ export default function Header() {
                         dispatch(logout());
                         setShowProfileDropdown(false);
                         dispatch(showToast('Logged out successfully'));
+                        router.push(ROUTES.HOME);
                       }}
                       className="w-full text-left px-4 py-2 text-xs font-bold text-red-600 hover:bg-red-50 flex items-center gap-2"
                     >
@@ -416,13 +458,13 @@ export default function Header() {
               )}
             </div>
           ) : (
-            <button
-              onClick={() => dispatch(setAuthModalOpen(true))}
-              className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-full shadow-sm transition-all"
+            <Link
+              href={ROUTES.LOGIN}
+              className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-full shadow-sm transition-all"
             >
               <LogIn className="w-4 h-4" />
-              <span>Login / Register</span>
-            </button>
+              <span>Login</span>
+            </Link>
           )}
         </div>
       </div>

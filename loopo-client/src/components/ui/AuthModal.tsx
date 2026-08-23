@@ -40,6 +40,7 @@ export default function AuthModal() {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [city, setCity] = useState('');
+  const [otpCode, setOtpCode] = useState(['', '', '', '']);
   const box0Ref = React.useRef<HTMLInputElement>(null);
   const box1Ref = React.useRef<HTMLInputElement>(null);
   const box2Ref = React.useRef<HTMLInputElement>(null);

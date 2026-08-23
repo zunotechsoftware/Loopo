@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  # 1. PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: loopo-postgres-prod
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: prodpassword123  # Change this to a secure database password
+      POSTGRES_DB: loopo_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  # 2. Redis for BullMQ & WebSockets
+  redis:
+    image: redis:7-alpine
+    container_name: loopo-redis-prod
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  # 3. NestJS API Server
+  backend:
+    image: <your-dockerhub-username>/loopo-backend:latest
+    container_name: loopo-backend-app
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://postgres:prodpassword123@postgres:5432/loopo_db?schema=public
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - JWT_ACCESS_SECRET=your_jwt_access_secret_change_me
+      - JWT_REFRESH_SECRET=your_jwt_refresh_secret_change_me
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:

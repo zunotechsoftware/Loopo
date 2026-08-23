@@ -32,16 +32,25 @@ export default function ProductDetailView() {
   const products = useAppSelector((state) => state.products.items);
   const favorites = useAppSelector((state) => state.products.favorites);
 
-  const product = products.find((p) => p.id === selectedProductId) || products[0];
-  const isFavorite = favorites.includes(product.id);
+  const product = products.find((p) => p?.id === selectedProductId) || products[0];
+  const isFavorite = favorites.includes(product?.id || '');
 
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
+  if (!product) {
+    return (
+      <div className="p-12 text-center text-slate-500 font-medium bg-white rounded-3xl border border-slate-100">
+        Loading listing details...
+      </div>
+    );
+  }
+
+  const priceNum = typeof product.price === 'number' ? product.price : Number(product.price) || 0;
   const formattedPrice = new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
     maximumFractionDigits: 0,
-  }).format(product.price);
+  }).format(priceNum);
 
   const handleStartChat = () => {
     dispatch(setActiveConversation('conv-buy-1'));
