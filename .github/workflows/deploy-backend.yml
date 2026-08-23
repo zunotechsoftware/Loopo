@@ -3,9 +3,10 @@ name: Deploy Loopo Backend
 on:
   push:
     branches:
-      - main  # Change to "master" if your default branch is master
+      - main
+      - development
     paths:
-      - 'loopo-backend/**'  # Only trigger when files in the backend folder change
+      - 'loopo-backend/**'
 
 jobs:
   build-and-deploy:
