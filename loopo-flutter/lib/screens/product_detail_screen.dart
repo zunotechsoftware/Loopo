@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import 'seller_profile_screen.dart';
 import 'report_issue_screen.dart';
+import 'chat_conversation_screen.dart';
 
 // TODO: [Backend Integration] Fetch product details from GET /api/v1/products/:id
 // TODO: [Backend Integration] Toggle product wishlist/favorite status via POST /api/v1/favorites/:productId
@@ -806,10 +807,19 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       height: 52,
                       child: ElevatedButton.icon(
                         onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Starting chat with Alex...'),
-                              backgroundColor: AppColors.appGreen,
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ChatConversationScreen(
+                                chatData: {
+                                  'id': 'conv-101',
+                                  'itemTitle': title,
+                                  'itemPrice': price,
+                                  'sellerName': 'Alex Johnson',
+                                  'sellerAvatar': 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop',
+                                  'itemImage': 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?q=80&w=400&auto=format&fit=crop',
+                                },
+                              ),
                             ),
                           );
                         },
