@@ -1,0 +1,52 @@
+name: Deploy Loopo Backend
+
+on:
+  push:
+    branches:
+      - main  # Change to "master" if your default branch is master
+    paths:
+      - 'loopo-backend/**'  # Only trigger when files in the backend folder change
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout the codebase
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 2. Set up Docker Buildx (for optimized builds)
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 3. Log in to Docker Hub
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # 4. Build and Push Backend Docker Image
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./loopo-backend
+          file: ./loopo-backend/Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/loopo-backend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # 5. SSH into Lightsail Server and Redeploy
+      - name: SSH Deploy to Lightsail
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.LIGHTSAIL_HOST }}
+          username: ${{ secrets.LIGHTSAIL_USER }}
+          key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+          script: |
+            cd ~/loopo-deploy
+            sudo docker compose pull
+            sudo docker compose up -d
+            sudo docker image prune -f  # Cleans up old images to save disk space
