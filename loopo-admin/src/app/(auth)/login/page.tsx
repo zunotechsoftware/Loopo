@@ -76,8 +76,10 @@ export default function LoginPage() {
               fullWidth
               required
               type="email"
+              placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              slotProps={{ inputLabel: { shrink: true } }}
             />
             
             <TextField
@@ -86,20 +88,24 @@ export default function LoginPage() {
               fullWidth
               required
               type={showPassword ? 'text' : 'password'}
+              placeholder="Enter your password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              slotProps={{ input: { 
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      onClick={() => setShowPassword(!showPassword)}
-                      edge="end"
-                    >
-                      {showPassword ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-               } }}
+              slotProps={{
+                inputLabel: { shrink: true },
+                input: { 
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        onClick={() => setShowPassword(!showPassword)}
+                        edge="end"
+                      >
+                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                },
+              }}
             />
 
             <Button

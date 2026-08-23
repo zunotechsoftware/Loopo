@@ -18,7 +18,7 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@ne
 import { ChatService } from '../services/chat.service';
 import { ChatGateway } from '../gateways/chat.gateway';
 import { CreateConversationDto, UpdateConversationSettingsDto } from '../dto/conversation.dto';
-import { SendMessageDto, GetMessagesQueryDto, SearchMessagesQueryDto, GetUploadUrlDto, CreateAttachmentDto } from '../dto/message.dto';
+import { SendMessageDto, GetMessagesQueryDto, SearchMessagesQueryDto, GetUploadUrlDto, CreateAttachmentDto, EditMessageDto } from '../dto/message.dto';
 import { JwtAuthGuard } from '../../../shared/common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../shared/common/guards/roles.guard';
 import { PermissionsGuard } from '../../../shared/common/guards/permissions.guard';
@@ -156,7 +156,32 @@ export class ChatController {
   @ApiParam({ name: 'id', description: 'Message ID' })
   async deleteMessage(@Param('id') id: string, @Request() req: any) {
     const result = await this.chatService.deleteMessage(id, req.user.id);
+    
+    this.chatGateway.server.to(`conversation:${result.conversationId}`).emit('message_deleted', {
+      conversationId: result.conversationId,
+      messageId: id,
+    });
+
     return { message: 'Message deleted successfully', data: result };
+  }
+
+  @Patch('messages/:id')
+  @Permissions('chat.send')
+  @ApiOperation({ summary: 'Edit the content of a message' })
+  @ApiParam({ name: 'id', description: 'Message ID' })
+  async editMessage(
+    @Param('id') id: string,
+    @Body() dto: EditMessageDto,
+    @Request() req: any,
+  ) {
+    const result = await this.chatService.editMessage(id, req.user.id, dto.content);
+    
+    this.chatGateway.server.to(`conversation:${result.conversationId}`).emit('message_edited', {
+      conversationId: result.conversationId,
+      message: result,
+    });
+
+    return { message: 'Message edited successfully', data: result };
   }
 
   @Patch('messages/:id/read')
@@ -183,12 +208,40 @@ export class ChatController {
     return { message: 'Messages marked as read successfully', data: result };
   }
 
+  @Post('messages/:id/react')
+  @Permissions('chat.send')
+  @ApiOperation({ summary: 'Toggle a reaction on a message' })
+  @ApiParam({ name: 'id', description: 'Message ID' })
+  async reactToMessage(
+    @Param('id') id: string,
+    @Body('emoji') emoji: string,
+    @Request() req: any,
+  ) {
+    const result = await this.chatService.toggleReaction(id, req.user.id, emoji);
+    
+    this.chatGateway.server.to(`conversation:${result.conversationId}`).emit('message_reaction', {
+      conversationId: result.conversationId,
+      messageId: id,
+      userId: req.user.id,
+      emoji: result.emoji,
+      action: result.action,
+    });
+
+    return { message: 'Reaction toggled successfully', data: result };
+  }
+
   @Patch('messages/:id/delete')
   @Permissions('chat.delete')
   @ApiOperation({ summary: 'Soft delete a message as sender' })
   @ApiParam({ name: 'id', description: 'Message ID' })
   async softDeleteMessage(@Param('id') id: string, @Request() req: any) {
     const result = await this.chatService.deleteMessage(id, req.user.id);
+
+    this.chatGateway.server.to(`conversation:${result.conversationId}`).emit('message_deleted', {
+      conversationId: result.conversationId,
+      messageId: id,
+    });
+
     return { message: 'Message soft deleted successfully', data: result };
   }
 

@@ -4,8 +4,8 @@ import { ApiProperty } from '@nestjs/swagger';
 import { MessageType } from '../enums/message-type.enum';
 
 export class CreateAttachmentDto {
-  @ApiProperty({ description: 'Original file URL in AWS S3', example: 'https://loopo-marketplace.s3.amazonaws.com/chat-attachments/img.png' })
-  @IsUrl()
+  @ApiProperty({ description: 'Original file URL in AWS S3 or Blob', example: 'https://loopo-marketplace.s3.amazonaws.com/chat-attachments/img.png' })
+  @IsString()
   originalUrl: string;
 
   @ApiProperty({ description: 'Generated thumbnail URL', required: false })
@@ -45,8 +45,9 @@ export class SendMessageDto {
   conversationId: string;
 
   @ApiProperty({ description: 'Content of the message', example: 'Hello, is this product still available?' })
+  @IsOptional()
   @IsString()
-  content: string;
+  content?: string;
 
   @ApiProperty({ description: 'Type of the message', enum: MessageType, example: MessageType.TEXT })
   @IsEnum(MessageType)
@@ -58,6 +59,17 @@ export class SendMessageDto {
   @ValidateNested({ each: true })
   @Type(() => CreateAttachmentDto)
   attachments?: CreateAttachmentDto[];
+
+  @ApiProperty({ description: 'ID of the message being replied to', example: '123e4567-e89b-12d3-a456-426614174000', required: false })
+  @IsOptional()
+  @IsUUID()
+  replyToMessageId?: string;
+}
+
+export class EditMessageDto {
+  @ApiProperty({ description: 'New content of the message', example: 'Hello, is this product still available? (Edited)' })
+  @IsString()
+  content: string;
 }
 
 export class GetMessagesQueryDto {

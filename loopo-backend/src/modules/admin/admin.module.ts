@@ -13,6 +13,8 @@ import { AdminSettingsModule } from './settings/admin-settings.module';
 import { AdminFeatureFlagsModule } from './feature-flags/admin-feature-flags.module';
 import { AdminSystemModule } from './system/admin-system.module';
 import { AdminSellersModule } from './sellers/admin-sellers.module';
+import { AdminAdvertisementsModule } from './advertisements/admin-advertisements.module';
+import { AdminCouponsModule } from './coupons/admin-coupons.module';
 
 @Module({
   imports: [
@@ -30,6 +32,8 @@ import { AdminSellersModule } from './sellers/admin-sellers.module';
     AdminFeatureFlagsModule,
     AdminSystemModule,
     AdminSellersModule,
+    AdminAdvertisementsModule,
+    AdminCouponsModule,
   ],
   controllers: [],
   providers: [],

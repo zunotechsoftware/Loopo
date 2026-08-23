@@ -5,10 +5,13 @@ import {
   AppBar, Toolbar, IconButton, Typography, Avatar,
   Menu, MenuItem, Box, Divider, ListItemIcon, Badge
 } from '@mui/material';
-import {
-  Menu as MenuIcon, Logout, AccountCircle, NotificationsOutlined,
-  Search, Fullscreen, CalendarToday
-} from '@mui/icons-material';
+import MenuIcon from '@mui/icons-material/Menu';
+import Logout from '@mui/icons-material/Logout';
+import AccountCircle from '@mui/icons-material/AccountCircle';
+import NotificationsOutlined from '@mui/icons-material/NotificationsOutlined';
+import Search from '@mui/icons-material/Search';
+import Fullscreen from '@mui/icons-material/Fullscreen';
+import CalendarToday from '@mui/icons-material/CalendarToday';
 import { useAuth } from '@/hooks/useAuth';
 import { usePathname, useRouter } from 'next/navigation';
 
@@ -94,6 +97,48 @@ export default function Header({ drawerWidth, handleDrawerToggle }: HeaderProps)
           <IconButton color="inherit" size="small" sx={{ color: '#64748b' }}>
             <Fullscreen fontSize="small" />
           </IconButton>
+
+          {/* User Avatar & Menu */}
+          <IconButton onClick={(e) => setAnchorEl(e.currentTarget)} size="small" sx={{ ml: 0.5 }}>
+            <Avatar sx={{ width: 34, height: 34, bgcolor: '#1d4ed8', fontSize: '0.85rem', fontWeight: 600 }}>
+              {user?.firstName?.[0] || user?.email?.[0]?.toUpperCase() || 'A'}
+            </Avatar>
+          </IconButton>
+          <Menu
+            anchorEl={anchorEl}
+            open={Boolean(anchorEl)}
+            onClose={() => setAnchorEl(null)}
+            onClick={() => setAnchorEl(null)}
+            transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+            anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+            slotProps={{
+              paper: {
+                sx: {
+                  mt: 1, minWidth: 200, borderRadius: 2,
+                  boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
+                },
+              },
+            }}
+          >
+            <Box sx={{ px: 2, py: 1.5 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                {user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Admin User'}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {user?.email || 'admin@loopo.com'}
+              </Typography>
+            </Box>
+            <Divider />
+            <MenuItem onClick={() => router.push('/settings')}>
+              <ListItemIcon><AccountCircle fontSize="small" /></ListItemIcon>
+              Profile
+            </MenuItem>
+            <Divider />
+            <MenuItem onClick={logout} sx={{ color: 'error.main' }}>
+              <ListItemIcon><Logout fontSize="small" sx={{ color: 'error.main' }} /></ListItemIcon>
+              Logout
+            </MenuItem>
+          </Menu>
         </Box>
       </Toolbar>
     </AppBar>

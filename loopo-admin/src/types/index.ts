@@ -162,13 +162,19 @@ export interface AnalyticsSummary {
 // --- Review Types ---
 export interface Review {
   id: string;
+  title?: string;
   productId: string;
   productTitle: string;
+  productImage?: string;
+  productCategory?: string;
   userId: string;
   userName: string;
+  userEmail?: string;
+  userAvatar?: string;
   rating: number;
   comment: string;
-  status: 'Published' | 'Hidden' | 'Flagged';
+  status: 'Published' | 'Hidden' | 'Flagged' | 'Removed';
+  orderId?: string;
   createdAt: string;
 }
 
@@ -217,4 +223,65 @@ export interface SystemSetting {
   description: string;
   type: 'text' | 'boolean' | 'number' | 'select';
   options?: string[];
+}
+
+// --- Brand Types ---
+export interface Brand {
+  id: string;
+  name: string;
+  slug: string;
+  shortDescription?: string;
+  description?: string;
+  categoryId?: string;
+  category?: Category;
+  country?: string;
+  website?: string;
+  establishedYear?: number;
+  logoUrl?: string;
+  bannerUrl?: string;
+  seoTitle?: string;
+  seoDescription?: string;
+  isActive: boolean;
+  isFeatured: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+  _count?: {
+    products: number;
+  };
+}
+
+export interface BrandStats {
+  total: number;
+  active: number;
+  inactive: number;
+  featured: number;
+  totalProducts: number;
+}
+
+export interface SystemReport {
+  id: string;
+  name: string;
+  shortDescription: string;
+  category: 'Sales' | 'Users' | 'Products' | 'Orders' | 'Finance' | 'Refunds' | 'Sellers' | 'Payments' | 'Activity';
+  type: 'Summary' | 'Detailed';
+  description: string;
+  lastGenerated: string;
+  status: 'Generated' | 'Scheduled';
+}
+
+export interface Complaint {
+  id: string;
+  complaintId: string;
+  userName: string;
+  userEmail: string;
+  userAvatar?: string;
+  subjectTitle: string;
+  subjectDescription: string;
+  category: 'Orders' | 'Payments' | 'Refunds' | 'Technical' | 'Account' | 'Sellers' | 'Delivery';
+  priority: 'High' | 'Medium' | 'Low';
+  status: 'Open' | 'In Progress' | 'Resolved' | 'Closed';
+  channel: 'Email' | 'Chat' | 'Web' | 'Phone';
+  createdAt: string;
+  updatedAt: string;
 }

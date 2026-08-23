@@ -12,12 +12,12 @@ import { BannerType } from '@prisma/client';
 @ApiTags('Admin - Banners')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
-@Controller('api/v1/admin/banners')
+@Controller('admin/banners')
 export class AdminBannersController {
   constructor(private readonly bannersService: AdminBannersService) {}
 
   @Get()
-  @Permissions('admin.settings.manage')
+  @Permissions('settings.manage')
   @ApiOperation({ summary: 'Get all banners' })
   @ApiQuery({ name: 'type', enum: BannerType, required: false })
   @ApiQuery({ name: 'isActive', type: Boolean, required: false })
@@ -28,8 +28,15 @@ export class AdminBannersController {
     return this.bannersService.getAllBanners(type, isActive);
   }
 
+  @Get(':id')
+  @Permissions('settings.manage')
+  @ApiOperation({ summary: 'Get a banner by ID' })
+  async getBannerById(@Param('id') id: string) {
+    return this.bannersService.getBannerById(id);
+  }
+
   @Post()
-  @Permissions('admin.settings.manage')
+  @Permissions('settings.manage')
   @ApiOperation({ summary: 'Create a new banner' })
   async createBanner(
     @CurrentUser('id') userId: string,
@@ -39,7 +46,7 @@ export class AdminBannersController {
   }
 
   @Put(':id')
-  @Permissions('admin.settings.manage')
+  @Permissions('settings.manage')
   @ApiOperation({ summary: 'Update a banner' })
   async updateBanner(
     @Param('id') id: string,
@@ -50,7 +57,7 @@ export class AdminBannersController {
   }
 
   @Delete(':id')
-  @Permissions('admin.settings.manage')
+  @Permissions('settings.manage')
   @ApiOperation({ summary: 'Delete a banner' })
   async deleteBanner(@Param('id') id: string) {
     return this.bannersService.deleteBanner(id);

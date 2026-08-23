@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../services/notification_service.dart';
 import 'notification_screen.dart';
-
-// TODO: [Backend Integration] Connect to Notification WebSocket / Server-Sent Events (SSE) for real-time notification pushes.
-// TODO: [Backend Integration] Fetch paginated notification list from GET /api/v1/notifications?page=1&limit=20.
-// TODO: [Backend Integration] Call PATCH /api/v1/notifications/:id/read to update notification read status on DB.
-// TODO: [Backend Integration] Call DELETE /api/v1/notifications/clear-all to clear user notifications.
 
 class NotificationItem {
   final String id;
@@ -37,67 +33,86 @@ class NotificationsListScreen extends StatefulWidget {
 }
 
 class _NotificationsListScreenState extends State<NotificationsListScreen> {
-  // Mock notifications for demonstration
-  final List<NotificationItem> _notifications = [
-    NotificationItem(
-      id: '1',
-      title: 'Price Drop Alert! 📉',
-      message: 'iPhone 14 Pro Max in Koramangala is now available for ₹75,000 (was ₹78,500).',
-      time: '10m ago',
-      icon: Icons.local_offer_rounded,
-      iconColor: AppColors.appGreen,
-      isRead: false,
-      type: 'PROMO',
-    ),
-    NotificationItem(
-      id: '2',
-      title: 'New Message from Alex 💬',
-      message: '"Is the Royal Enfield Classic 350 still available for test ride?"',
-      time: '45m ago',
-      icon: Icons.chat_bubble_rounded,
-      iconColor: AppColors.appBlue,
-      isRead: false,
-      type: 'CHAT',
-    ),
-    NotificationItem(
-      id: '3',
-      title: 'Order Shipped 📦',
-      message: 'Your order #LP-88421 for Sony Headphones has been dispatched.',
-      time: '2h ago',
-      icon: Icons.local_shipping_rounded,
-      iconColor: const Color(0xFFAB47BC),
-      isRead: true,
-      type: 'ORDER',
-    ),
-    NotificationItem(
-      id: '4',
-      title: 'Security Alert 🔒',
-      message: 'Successful login detected from Android Emulator (Bangalore, IN).',
-      time: '5h ago',
-      icon: Icons.security_rounded,
-      iconColor: const Color(0xFFEF5350),
-      isRead: true,
-      type: 'SECURITY',
-    ),
-    NotificationItem(
-      id: '5',
-      title: 'Listing Approved ✅',
-      message: 'Your listing "L-Shape Sofa Set" is now live and visible to buyers near you.',
-      time: '1d ago',
-      icon: Icons.check_circle_rounded,
-      iconColor: AppColors.appGreen,
-      isRead: true,
-      type: 'LISTING',
-    ),
-  ];
+  final NotificationService _notificationService = NotificationService();
+  List<NotificationItem> _notifications = [];
+  bool _isLoading = true;
 
+  @override
+  void initState() {
+    super.initState();
+    _loadNotifications();
+  }
+
+  Future<void> _loadNotifications() async {
+    setState(() => _isLoading = true);
+    try {
+      final data = await _notificationService.getNotifications();
+      final items = data['items'] as List? ?? [];
+      setState(() {
+        _notifications = items.map((n) {
+          final type = (n['type'] as String? ?? '').toUpperCase();
+          return NotificationItem(
+            id: n['id']?.toString() ?? '',
+            title: n['title'] ?? 'Notification',
+            message: n['body'] ?? n['description'] ?? '',
+            time: n['createdAt'] != null
+                ? _formatTime(DateTime.tryParse(n['createdAt']))
+                : 'Recently',
+            icon: _iconForType(type),
+            iconColor: _colorForType(type),
+            isRead: n['isRead'] == true,
+            type: type,
+          );
+        }).toList();
+        _isLoading = false;
+      });
+    } catch (_) {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  String _formatTime(DateTime? dt) {
+    if (dt == null) return 'Recently';
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
+  }
+
+  IconData _iconForType(String type) {
+    switch (type) {
+      case 'CHAT': return Icons.chat_bubble_rounded;
+      case 'ORDER': return Icons.local_shipping_rounded;
+      case 'PROMO': return Icons.local_offer_rounded;
+      case 'SECURITY': return Icons.security_rounded;
+      default: return Icons.notifications_rounded;
+    }
+  }
+
+  Color _colorForType(String type) {
+    switch (type) {
+      case 'CHAT': return AppColors.appBlue;
+      case 'ORDER': return const Color(0xFFAB47BC);
+      case 'PROMO': return AppColors.appGreen;
+      case 'SECURITY': return const Color(0xFFEF5350);
+      default: return AppColors.appGreen;
+    }
+  }
+
+  void _markAsRead(String id) {
+    setState(() {
+      final idx = _notifications.indexWhere((n) => n.id == id);
+      if (idx != -1) _notifications[idx].isRead = true;
+    });
+    _notificationService.markRead(id);
+  }
   void _markAllAsRead() {
-    // TODO: [Backend Integration] Call PATCH /api/v1/notifications/mark-all-read
     setState(() {
       for (var n in _notifications) {
         n.isRead = true;
       }
     });
+    _notificationService.markAllRead();
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('All notifications marked as read'),
@@ -107,7 +122,6 @@ class _NotificationsListScreenState extends State<NotificationsListScreen> {
   }
 
   void _clearAll() {
-    // TODO: [Backend Integration] Call DELETE /api/v1/notifications
     setState(() {
       _notifications.clear();
     });
@@ -199,17 +213,22 @@ class _NotificationsListScreenState extends State<NotificationsListScreen> {
           ),
         ],
       ),
-      body: _notifications.isEmpty
-          ? _buildEmptyState()
-          : ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: _notifications.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                final item = _notifications[index];
-                return _buildNotificationCard(item);
-              },
-            ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _notifications.isEmpty
+              ? _buildEmptyState()
+              : ListView.separated(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: _notifications.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 12),
+                  itemBuilder: (context, index) {
+                    final item = _notifications[index];
+                    return GestureDetector(
+                      onTap: () => _markAsRead(item.id),
+                      child: _buildNotificationCard(item),
+                    );
+                  },
+                ),
     );
   }
 

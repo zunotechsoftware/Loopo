@@ -1,9 +1,17 @@
-// lib/services/auth_service.dart
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
+import 'auth_session.dart';
 
 class AuthService {
+  String _parseError(Map<String, dynamic> data, String fallback) {
+    final msg = data['message'];
+    if (msg is List) {
+      return msg.join('\n');
+    }
+    return msg?.toString() ?? fallback;
+  }
+
   Future<Map<String, dynamic>> register({
     required String firstName,
     required String lastName,
@@ -11,24 +19,43 @@ class AuthService {
     required String password,
     String? phone,
   }) async {
-    final response = await http.post(
-      Uri.parse(ApiConfig.registerUrl),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'firstName': firstName,
-        'lastName': lastName,
-        'email': email,
-        'password': password,
-        'phone': phone,
-      }),
-    );
+    try {
+      final response = await http
+          .post(
+            Uri.parse(ApiConfig.registerUrl),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'firstName': firstName,
+              'lastName': lastName,
+              'email': email,
+              'password': password,
+              'phone': phone,
+            }),
+          )
+          .timeout(const Duration(seconds: 25));
 
-    final responseData = jsonDecode(response.body);
+      final responseData = jsonDecode(response.body) as Map<String, dynamic>;
 
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      return responseData;
-    } else {
-      throw Exception(responseData['message'] ?? 'Registration failed');
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = responseData['data'];
+        if (data is Map) {
+          final tokens = data['tokens'];
+          final token = (tokens is Map ? tokens['accessToken'] : null) ??
+              data['accessToken'] ??
+              data['token'];
+          if (token != null) {
+            AuthSession.setToken(token.toString());
+          }
+        }
+        return responseData;
+      } else {
+        throw Exception(_parseError(responseData, 'Registration failed (${response.statusCode})'));
+      }
+    } catch (e) {
+      if (e.toString().contains('TimeoutException')) {
+        throw Exception('Server is taking too long to respond. Please try again.');
+      }
+      rethrow;
     }
   }
 
@@ -36,21 +63,40 @@ class AuthService {
     required String email,
     required String password,
   }) async {
-    final response = await http.post(
-      Uri.parse(ApiConfig.loginUrl),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'email': email,
-        'password': password,
-      }),
-    );
+    try {
+      final response = await http
+          .post(
+            Uri.parse(ApiConfig.loginUrl),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'email': email,
+              'password': password,
+            }),
+          )
+          .timeout(const Duration(seconds: 25));
 
-    final responseData = jsonDecode(response.body);
+      final responseData = jsonDecode(response.body) as Map<String, dynamic>;
 
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      return responseData;
-    } else {
-      throw Exception(responseData['message'] ?? 'Login failed');
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = responseData['data'];
+        if (data is Map) {
+          final tokens = data['tokens'];
+          final token = (tokens is Map ? tokens['accessToken'] : null) ??
+              data['accessToken'] ??
+              data['token'];
+          if (token != null) {
+            AuthSession.setToken(token.toString());
+          }
+        }
+        return responseData;
+      } else {
+        throw Exception(_parseError(responseData, 'Login failed (${response.statusCode})'));
+      }
+    } catch (e) {
+      if (e.toString().contains('TimeoutException')) {
+        throw Exception('Server connection timed out. Please try again.');
+      }
+      rethrow;
     }
   }
 

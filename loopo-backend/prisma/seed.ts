@@ -76,6 +76,11 @@ async function main() {
     'reviews.update',
     'reviews.delete',
     'reviews.moderate',
+    'brands.view',
+    'brands.create',
+    'brands.update',
+    'brands.delete',
+    'brands.manage',
   ];
 
   const permissionsMap = new Map<string, any>();
@@ -119,6 +124,7 @@ async function main() {
       'reviews.create',
       'reviews.update',
       'reviews.delete',
+      'brands.view',
     ],
   };
 
@@ -432,6 +438,42 @@ async function main() {
   }
   console.log('Categories seeded.');
 
+  // 11.5. Seed Brands
+  const brandsData = [
+    { name: 'Apple', slug: 'apple', category: 'Electronics', country: 'United States', website: 'https://www.apple.com', year: 1976, logo: 'https://logo.clearbit.com/apple.com', featured: true, desc: 'Premium consumer electronics and software' },
+    { name: 'Samsung', slug: 'samsung', category: 'Electronics', country: 'South Korea', website: 'https://www.samsung.com', year: 1938, logo: 'https://logo.clearbit.com/samsung.com', featured: true, desc: 'Global leader in electronics and mobile technology' },
+    { name: 'Xiaomi', slug: 'xiaomi', category: 'Electronics', country: 'China', website: 'https://www.mi.com', year: 2010, logo: 'https://logo.clearbit.com/mi.com', featured: false, desc: 'Innovative consumer electronics at affordable prices' },
+    { name: 'Nike', slug: 'nike', category: 'Mobiles', country: 'United States', website: 'https://www.nike.com', year: 1964, logo: 'https://logo.clearbit.com/nike.com', featured: true, desc: 'World-renowned athletic footwear and apparel' },
+    { name: 'Sony', slug: 'sony', category: 'Electronics', country: 'Japan', website: 'https://www.sony.com', year: 1946, logo: 'https://logo.clearbit.com/sony.com', featured: false, desc: 'Entertainment and electronics conglomerate' },
+    { name: 'Dell', slug: 'dell', category: 'Electronics', country: 'United States', website: 'https://www.dell.com', year: 1984, logo: 'https://logo.clearbit.com/dell.com', featured: false, desc: 'Leading computer technology company' },
+    { name: 'HP', slug: 'hp', category: 'Electronics', country: 'United States', website: 'https://www.hp.com', year: 1939, logo: 'https://logo.clearbit.com/hp.com', featured: false, desc: 'Computing and printing products and services' },
+    { name: 'Adidas', slug: 'adidas', category: 'Mobiles', country: 'Germany', website: 'https://www.adidas.com', year: 1949, logo: 'https://logo.clearbit.com/adidas.com', featured: false, desc: 'Athletic and casual sportswear brand' },
+    { name: 'Bosch', slug: 'bosch', category: 'Home & Living', country: 'Germany', website: 'https://www.bosch.com', year: 1886, logo: 'https://logo.clearbit.com/bosch.com', featured: false, desc: 'Engineering and technology solutions' },
+    { name: 'Canon', slug: 'canon', category: 'Electronics', country: 'Japan', website: 'https://www.canon.com', year: 1937, logo: 'https://logo.clearbit.com/canon.com', featured: false, desc: 'Imaging and optical products specialist' },
+  ];
+
+  for (const b of brandsData) {
+    const cat = categories[b.category];
+    await prisma.brand.upsert({
+      where: { slug: b.slug },
+      update: {},
+      create: {
+        name: b.name,
+        slug: b.slug,
+        shortDescription: b.desc,
+        description: `${b.name} is a globally recognized brand known for quality and innovation. ${b.desc}.`,
+        categoryId: cat?.id || null,
+        country: b.country,
+        website: b.website,
+        establishedYear: b.year,
+        logoUrl: b.logo,
+        isActive: true,
+        isFeatured: b.featured,
+      },
+    });
+  }
+  console.log('Brands seeded.');
+
   // 12. Seed Sellers
   const sellersData = [
     { email: 'ajay@example.com', firstName: 'Ajay', lastName: 'Patel', storeName: 'Ajay Electronics', phone: '+91 98765 43210', rating: 4.8, reviews: 128, sales: 876540, verification: 'VERIFIED', listings: 42, kyc: 'APPROVED' },
@@ -505,6 +547,67 @@ async function main() {
     }
   }
   console.log('Products seeded.');
+
+  // 14. Seed Banners
+  const bannersData = [
+    { title: 'Mega Sale Banner', type: 'HOMEPAGE', imageUrl: 'https://via.placeholder.com/800x200/4F46E5/FFFFFF?text=MEGA+SALE', targetUrl: '/sale', sortOrder: 1, isActive: true, audience: 'ALL', startDate: new Date(), endDate: new Date(new Date().setMonth(new Date().getMonth() + 1)) },
+    { title: 'New Arrivals Banner', type: 'HOMEPAGE', imageUrl: 'https://via.placeholder.com/800x200/10B981/FFFFFF?text=NEW+ARRIVALS', targetUrl: '/new', sortOrder: 2, isActive: true, audience: 'ALL', startDate: new Date(), endDate: new Date(new Date().setMonth(new Date().getMonth() + 1)) },
+    { title: 'Electronics Fest', type: 'CATEGORY', imageUrl: 'https://via.placeholder.com/800x200/8B5CF6/FFFFFF?text=ELECTRONICS+FEST', targetUrl: '/category/electronics', sortOrder: 3, isActive: true, audience: 'ALL', startDate: new Date(), endDate: new Date(new Date().setMonth(new Date().getMonth() + 1)) },
+    { title: 'Welcome Offer', type: 'POPUP', imageUrl: 'https://via.placeholder.com/400x400/F59E0B/FFFFFF?text=WELCOME+OFFER', targetUrl: '/signup', sortOrder: 4, isActive: true, audience: 'GUEST', startDate: new Date(), endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)) },
+    { title: 'Clearance Sale', type: 'PROMOTIONAL', imageUrl: 'https://via.placeholder.com/800x200/EC4899/FFFFFF?text=CLEARANCE+SALE', targetUrl: '/clearance', sortOrder: 5, isActive: false, audience: 'ALL', startDate: new Date(new Date().setMonth(new Date().getMonth() - 2)), endDate: new Date(new Date().setMonth(new Date().getMonth() - 1)) },
+  ];
+
+  for (const bd of bannersData) {
+    const existingB = await prisma.banner.findFirst({ where: { title: bd.title } });
+    if (!existingB) {
+      await prisma.banner.create({
+        data: {
+          title: bd.title,
+          type: bd.type as any,
+          imageUrl: bd.imageUrl,
+          targetUrl: bd.targetUrl,
+          sortOrder: bd.sortOrder,
+          isActive: bd.isActive,
+          audience: bd.audience,
+          startDate: bd.startDate,
+          endDate: bd.endDate
+        }
+      });
+    }
+  }
+  console.log('Banners seeded.');
+
+  // 15. Seed Advertisements
+  const advertisementsData = [
+    { title: 'Summer Sale Banner', type: 'BANNER', placement: 'Home Page - Top', campaign: 'Summer Sale 2024', status: 'ACTIVE', imageUrl: 'https://via.placeholder.com/800x200/4F46E5/FFFFFF?text=SUMMER+SALE', targetUrl: '/summer-sale', impressions: 260500, clicks: 12400, spend: 64500, startDate: new Date('2024-05-15'), endDate: new Date('2024-05-31') },
+    { title: 'Electronics Fest', type: 'BANNER', placement: 'Category Page', campaign: 'Electronics Fest', status: 'ACTIVE', imageUrl: 'https://via.placeholder.com/800x200/10B981/FFFFFF?text=ELECTRONICS+FEST', targetUrl: '/electronics', impressions: 180200, clicks: 8700, spend: 18500, startDate: new Date('2024-05-05'), endDate: new Date('2024-05-25') },
+    { title: 'Mega Discount Ad', type: 'IMAGE_AD', placement: 'Listing Page', campaign: 'Mega Discount', status: 'PAUSED', imageUrl: 'https://via.placeholder.com/400x400/F59E0B/FFFFFF?text=MEGA+DISCOUNT', targetUrl: '/mega-discount', impressions: 85500, clicks: 3200, spend: 8400, startDate: new Date('2024-05-01'), endDate: new Date('2024-05-20') },
+    { title: 'Download App Now', type: 'TEXT_AD', placement: 'Sidebar', campaign: 'App Promotion', status: 'ACTIVE', imageUrl: null, targetUrl: '/download', impressions: 120700, clicks: 6600, spend: 11200, startDate: new Date('2024-04-05'), endDate: new Date('2024-05-10') },
+    { title: 'Fashion Sale 40% OFF', type: 'BANNER', placement: 'Home Page - Middle', campaign: 'Fashion Sale', status: 'COMPLETED', imageUrl: 'https://via.placeholder.com/800x200/EC4899/FFFFFF?text=FASHION+SALE', targetUrl: '/fashion', impressions: 210300, clicks: 9500, spend: 20400, startDate: new Date('2024-04-15'), endDate: new Date('2024-04-30') },
+  ];
+
+  for (const ad of advertisementsData) {
+    const existingAd = await prisma.advertisement.findFirst({ where: { title: ad.title } });
+    if (!existingAd) {
+      await prisma.advertisement.create({
+        data: {
+          title: ad.title,
+          type: ad.type as any,
+          placement: ad.placement,
+          campaign: ad.campaign,
+          status: ad.status as any,
+          imageUrl: ad.imageUrl,
+          targetUrl: ad.targetUrl,
+          impressions: ad.impressions,
+          clicks: ad.clicks,
+          spend: ad.spend,
+          startDate: ad.startDate,
+          endDate: ad.endDate
+        }
+      });
+    }
+  }
+  console.log('Advertisements seeded.');
 
   console.log('Database seeding finished.');
 }

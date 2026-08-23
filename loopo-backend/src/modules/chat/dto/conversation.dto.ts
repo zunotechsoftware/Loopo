@@ -2,9 +2,15 @@ import { IsUUID, IsBoolean, IsOptional, IsDateString } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateConversationDto {
-  @ApiProperty({ description: 'The product listing ID to start the conversation for', example: '123e4567-e89b-12d3-a456-426614174000' })
+  @ApiProperty({ description: 'The product listing ID to start the conversation for (optional for direct chats)', example: '123e4567-e89b-12d3-a456-426614174000', required: false })
+  @IsOptional()
   @IsUUID()
-  productId: string;
+  productId?: string;
+
+  @ApiProperty({ description: 'The user ID to start a direct conversation with (required if productId is not provided)', example: '123e4567-e89b-12d3-a456-426614174000', required: false })
+  @IsOptional()
+  @IsUUID()
+  participantId?: string;
 }
 
 export class UpdateConversationSettingsDto {

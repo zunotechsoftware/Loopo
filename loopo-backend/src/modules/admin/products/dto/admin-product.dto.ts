@@ -1,5 +1,6 @@
-import { IsString, IsNotEmpty, IsOptional, IsInt, Min } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsInt, Min, IsNumber, IsEnum } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ProductCondition } from '@prisma/client';
 
 export class RejectProductDto {
   @ApiProperty({ description: 'Reason for rejection' })
@@ -25,4 +26,27 @@ export class BoostProductDto {
   @IsInt()
   @Min(1)
   durationDays: number;
+}
+
+export class UpdateProductDto {
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  title?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  description?: string;
+
+  @ApiPropertyOptional()
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  price?: number;
+
+  @ApiPropertyOptional({ enum: ProductCondition })
+  @IsEnum(ProductCondition)
+  @IsOptional()
+  condition?: ProductCondition;
 }

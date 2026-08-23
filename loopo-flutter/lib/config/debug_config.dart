@@ -18,9 +18,15 @@ import 'package:flutter/foundation.dart';
 class DebugConfig {
   DebugConfig._();
 
+  /// Master flag to bypass all backend server delays/network checks for rapid UI development.
+  /// Set to `true` to bypass slow server responses and show all screens instantly.
+  /// Set to `false` to test live backend integration with https://loopo-711b.onrender.com.
+  /// Can be overridden at run time via: flutter run --dart-define=BYPASS_AUTH=true
+  static const bool isBypassAuth = false;
+
   // ── Master switch ──────────────────────────────────────────────────────────
   /// Set to `false` to disable all debug prefill even in debug builds.
-  static const bool enabled = true;
+  static const bool enabled = false;
 
   /// Whether [enabled] is actually active (debug mode AND flag is on).
   static bool get isActive => kDebugMode && enabled;

@@ -3,15 +3,37 @@
 import React from 'react';
 import {
   Box, Drawer, List, ListItem, ListItemButton, ListItemIcon,
-  ListItemText, Typography, Avatar, Collapse
+  ListItemText, Typography, Avatar, Collapse, IconButton
 } from '@mui/material';
-import {
-  Dashboard, People, Storefront, Inventory, Category, ShoppingCart, Payment,
-  AccountBalanceWallet, Message, Star, Assessment, ViewCarousel, FeaturedVideo,
-  LocalOffer, CardMembership, NotificationsActive, Description, Article,
-  Settings, Security, FactCheck, ExpandMore, ExpandLess
-} from '@mui/icons-material';
+import Dashboard from '@mui/icons-material/Dashboard';
+import People from '@mui/icons-material/People';
+import Storefront from '@mui/icons-material/Storefront';
+import Inventory from '@mui/icons-material/Inventory';
+import Category from '@mui/icons-material/Category';
+import ShoppingCart from '@mui/icons-material/ShoppingCart';
+import Payment from '@mui/icons-material/Payment';
+import AccountBalanceWallet from '@mui/icons-material/AccountBalanceWallet';
+import Message from '@mui/icons-material/Message';
+import Star from '@mui/icons-material/Star';
+import Assessment from '@mui/icons-material/Assessment';
+import ViewCarousel from '@mui/icons-material/ViewCarousel';
+import FeaturedVideo from '@mui/icons-material/FeaturedVideo';
+import LocalOffer from '@mui/icons-material/LocalOffer';
+import CardMembership from '@mui/icons-material/CardMembership';
+import NotificationsActive from '@mui/icons-material/NotificationsActive';
+import Description from '@mui/icons-material/Description';
+import Article from '@mui/icons-material/Article';
+import Email from '@mui/icons-material/Email';
+import Settings from '@mui/icons-material/Settings';
+import Security from '@mui/icons-material/Security';
+import FactCheck from '@mui/icons-material/FactCheck';
+import ExpandMore from '@mui/icons-material/ExpandMore';
+import ExpandLess from '@mui/icons-material/ExpandLess';
+import Logout from '@mui/icons-material/Logout';
+import ReportProblem from '@mui/icons-material/ReportProblem';
+import SupportAgent from '@mui/icons-material/SupportAgent';
 import { usePathname, useRouter } from 'next/navigation';
+import { useAuth } from '@/hooks/useAuth';
 
 interface SidebarProps {
   drawerWidth: number;
@@ -65,7 +87,9 @@ const NAV_GROUPS: NavGroup[] = [
       },
       { text: 'Payments', icon: <Payment fontSize="small" />, path: '/payments' },
       { text: 'Messages', icon: <Message fontSize="small" />, path: '/messages' },
+      { text: 'Support Tickets', icon: <Assessment fontSize="small" />, path: '/support' },
       { text: 'Reviews', icon: <Star fontSize="small" />, path: '/reviews' },
+      { text: 'Complaints', icon: <ReportProblem fontSize="small" />, path: '/complaints' },
       { text: 'Reports', icon: <Assessment fontSize="small" />, path: '/reports' },
     ],
   },
@@ -76,6 +100,7 @@ const NAV_GROUPS: NavGroup[] = [
       { text: 'Advertisements', icon: <FeaturedVideo fontSize="small" />, path: '/ads' },
       { text: 'Coupons', icon: <LocalOffer fontSize="small" />, path: '/coupons' },
       { text: 'Subscriptions', icon: <CardMembership fontSize="small" />, path: '/subscriptions' },
+      { text: 'Email Templates', icon: <Email fontSize="small" />, path: '/email-templates' },
       { text: 'Notifications', icon: <NotificationsActive fontSize="small" />, path: '/notifications' },
     ],
   },
@@ -99,6 +124,7 @@ const NAV_GROUPS: NavGroup[] = [
 export default function Sidebar({ drawerWidth, mobileOpen, handleDrawerToggle }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { user, logout } = useAuth();
   
   // Default expanded state based on pathname
   const [openMenus, setOpenMenus] = React.useState<Record<string, boolean>>({
@@ -247,16 +273,20 @@ export default function Sidebar({ drawerWidth, mobileOpen, handleDrawerToggle }:
 
       {/* Footer Profile */}
       <Box sx={{ p: 2, m: 2, mt: 'auto', bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 2, display: 'flex', alignItems: 'center', gap: 1.5 }}>
-        <Avatar src="https://i.pravatar.cc/150?u=a042581f4e29026704d" sx={{ width: 36, height: 36 }} />
+        <Avatar sx={{ width: 36, height: 36, bgcolor: '#1d4ed8', fontSize: '0.85rem', fontWeight: 600 }}>
+          {user?.firstName?.[0] || user?.email?.[0]?.toUpperCase() || 'A'}
+        </Avatar>
         <Box sx={{ flexGrow: 1, overflow: 'hidden' }}>
           <Typography variant="subtitle2" sx={{ fontSize: '0.8rem', fontWeight: 600, color: 'white', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-            Admin User
+            {user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Admin User'}
           </Typography>
           <Typography variant="caption" sx={{ color: '#94a3b8', fontSize: '0.7rem' }}>
-            Super Admin
+            {user?.email || 'Super Admin'}
           </Typography>
         </Box>
-        <ExpandMore sx={{ fontSize: 18, color: '#64748b' }} />
+        <IconButton onClick={logout} size="small" sx={{ color: '#ef4444', '&:hover': { bgcolor: 'rgba(239,68,68,0.15)' } }}>
+          <Logout sx={{ fontSize: 18 }} />
+        </IconButton>
       </Box>
     </Box>
   );

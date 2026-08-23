@@ -128,8 +128,8 @@ class _OtpScreenState extends State<OtpScreen> {
   }
 
   void _handleVerify() async {
-    // ── Debug bypass: OTP already pre-filled, skip verify API ──────────────
-    if (DebugConfig.isActive) {
+    if (DebugConfig.isBypassAuth || DebugConfig.isActive) {
+      AuthSession.setToken('mock_dev_bypass_token');
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const LocationScreen()),

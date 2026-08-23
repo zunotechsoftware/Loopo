@@ -1,5 +1,5 @@
 import api from './api';
-import { Category, Product, AdminUser, Report, Transaction, Subscription, AuditLog, Notification, Banner } from '@/types';
+import { Category, Product, AdminUser, Report, Transaction, Subscription, AuditLog, Notification, Banner, Brand } from '@/types';
 
 // --- Users Service ---
 export const usersService = {
@@ -9,47 +9,62 @@ export const usersService = {
     search?: string;
     role?: string;
     status?: string;
-  }) => api.get('/api/v1/admin/users', { params }),
-  getById: (id: string) => api.get(`/api/v1/admin/users/${id}`),
-  create: (data: Record<string, any>) => api.post('/api/v1/admin/users', data),
-  update: (id: string, data: Record<string, any>) => api.patch(`/api/v1/admin/users/${id}`, data),
-  delete: (id: string) => api.delete(`/api/v1/admin/users/${id}`),
+  }) => api.get('/admin/users', { params }),
+  getById: (id: string) => api.get(`/admin/users/${id}`),
+  create: (data: Record<string, any>) => api.post('/admin/users', data),
+  update: (id: string, data: Record<string, any>) => api.patch(`/admin/users/${id}`, data),
+  delete: (id: string) => api.delete(`/admin/users/${id}`),
   updateStatus: (id: string, status: string) =>
-    api.patch(`/api/v1/admin/users/${id}/status`, { status }),
+    api.patch(`/admin/users/${id}/status`, { status }),
   updateRoles: (id: string, roles: string[]) =>
-    api.patch(`/api/v1/admin/users/${id}/roles`, { roles }),
-  suspend: (id: string) => api.patch(`/api/v1/admin/users/${id}/status`, { status: 'SUSPENDED' }),
-  activate: (id: string) => api.patch(`/api/v1/admin/users/${id}/status`, { status: 'ACTIVE' }),
-  block: (id: string) => api.patch(`/api/v1/admin/users/${id}/status`, { status: 'BLOCKED' }),
+    api.patch(`/admin/users/${id}/roles`, { roles }),
+  suspend: (id: string) => api.patch(`/admin/users/${id}/status`, { status: 'SUSPENDED' }),
+  activate: (id: string) => api.patch(`/admin/users/${id}/status`, { status: 'ACTIVE' }),
+  block: (id: string) => api.patch(`/admin/users/${id}/status`, { status: 'BLOCKED' }),
 };
 
 // --- Sellers Service ---
 export const sellersService = {
-  getAll: (params?: Record<string, unknown>) => api.get('/api/v1/admin/sellers', { params }),
-  getById: (id: string) => api.get(`/api/v1/admin/sellers/${id}`),
-  verify: (id: string) => api.patch(`/api/v1/admin/sellers/${id}/verify`),
-  suspend: (id: string) => api.patch(`/api/v1/admin/sellers/${id}/suspend`),
-  approveKyc: (id: string) => api.patch(`/api/v1/admin/sellers/${id}/approve-kyc`),
+  getAll: (params?: Record<string, unknown>) => api.get('/admin/sellers', { params }),
+  getById: (id: string) => api.get(`/admin/sellers/${id}`),
+  verify: (id: string) => api.patch(`/admin/sellers/${id}/verify`),
+  suspend: (id: string) => api.patch(`/admin/sellers/${id}/suspend`),
+  approveKyc: (id: string) => api.patch(`/admin/sellers/${id}/approve-kyc`),
 };
 
 // --- Products Service ---
 export const productsService = {
-  getAll: (params?: Record<string, unknown>) => api.get('/api/v1/admin/products', { params }),
-  getById: (id: string) => api.get(`/api/v1/admin/products/${id}`),
-  approve: (id: string) => api.patch(`/api/v1/admin/products/${id}/approve`),
-  reject: (id: string, reason: string) => api.patch(`/api/v1/admin/products/${id}/reject`, { reason }),
-  feature: (id: string, featured: boolean) => api.patch(`/api/v1/admin/products/${id}/feature`, { featured }),
-  remove: (id: string) => api.delete(`/api/v1/admin/products/${id}`),
+  getAll: (params?: Record<string, unknown>) => api.get('/admin/products', { params }),
+  getById: (id: string) => api.get(`/admin/products/${id}`),
+  approve: (id: string) => api.patch(`/admin/products/${id}/approve`),
+  reject: (id: string, reason: string) => api.patch(`/admin/products/${id}/reject`, { reason }),
+  feature: (id: string, featured: boolean) => api.patch(`/admin/products/${id}/feature`, { featured }),
+  remove: (id: string) => api.delete(`/admin/products/${id}`),
+  getStats: () => api.get('/admin/products/stats'),
+  getLocations: () => api.get('/admin/products/locations'),
+  update: (id: string, data: Partial<Product>) => api.patch(`/admin/products/${id}`, data),
 };
 
 // --- Categories Service ---
 export const categoriesService = {
-  getAll: (params?: Record<string, unknown>) => api.get('/api/v1/admin/categories', { params }),
-  getById: (id: string) => api.get(`/api/v1/admin/categories/${id}`),
-  create: (data: Partial<Category>) => api.post('/api/v1/admin/categories', data),
-  update: (id: string, data: Partial<Category>) => api.put(`/api/v1/admin/categories/${id}`, data),
-  delete: (id: string) => api.delete(`/api/v1/admin/categories/${id}`),
-  getStats: () => api.get('/api/v1/admin/categories/stats'),
+  getAll: (params?: Record<string, unknown>) => api.get('/admin/categories', { params }),
+  getById: (id: string) => api.get(`/admin/categories/${id}`),
+  create: (data: Partial<Category>) => api.post('/admin/categories', data),
+  update: (id: string, data: Partial<Category>) => api.put(`/admin/categories/${id}`, data),
+  delete: (id: string) => api.delete(`/admin/categories/${id}`),
+  getStats: () => api.get('/admin/categories/stats'),
+};
+
+// --- Brands Service ---
+export const brandsService = {
+  getAll: (params?: Record<string, unknown>) => api.get('/brands', { params }),
+  getById: (id: string) => api.get(`/brands/${id}`),
+  create: (data: Partial<Brand>) => api.post('/brands', data),
+  update: (id: string, data: Partial<Brand>) => api.put(`/brands/${id}`, data),
+  delete: (id: string) => api.delete(`/brands/${id}`),
+  getStats: () => api.get('/brands/stats'),
+  toggleFeatured: (id: string, isFeatured: boolean) => api.patch(`/brands/${id}/featured`, { isFeatured }),
+  updateStatus: (id: string, isActive: boolean) => api.patch(`/brands/${id}/status`, { isActive }),
 };
 
 
@@ -93,9 +108,12 @@ export const reviewsService = {
 
 // --- Notifications Service ---
 export const notificationsService = {
-  getAll: () => api.get('/admin/notifications'),
-  send: (data: Partial<Notification>) => api.post('/admin/notifications/send', data),
-  create: (data: Partial<Notification>) => api.post('/admin/notifications', data),
+  getAll: (params?: Record<string, unknown>) => api.get('/admin/notifications', { params }),
+  getById: (id: string) => api.get(`/admin/notifications/${id}`),
+  create: (data: Record<string, any>) => api.post('/admin/notifications', data),
+  update: (id: string, data: Record<string, any>) => api.patch(`/admin/notifications/${id}`, data),
+  delete: (id: string) => api.delete(`/admin/notifications/${id}`),
+  getStats: () => api.get('/admin/notifications/stats'),
 };
 
 // --- Banners Service ---
@@ -128,4 +146,13 @@ export const rolesService = {
   update: (id: string, data: Record<string, unknown>) => api.patch(`/admin/roles/${id}`, data),
   delete: (id: string) => api.delete(`/admin/roles/${id}`),
   getPermissions: () => api.get('/admin/permissions'),
+};
+
+// --- Email Templates Service ---
+export const emailTemplatesService = {
+  getAll: (params?: Record<string, unknown>) => api.get('/admin/email-templates', { params }),
+  getById: (id: string) => api.get(`/admin/email-templates/${id}`),
+  create: (data: Record<string, any>) => api.post('/admin/email-templates', data),
+  update: (id: string, data: Record<string, any>) => api.patch(`/admin/email-templates/${id}`, data),
+  getStats: () => api.get('/admin/email-templates/stats'),
 };

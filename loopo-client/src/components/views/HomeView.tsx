@@ -1,0 +1,247 @@
+'use client';
+
+import React, { useEffect } from 'react';
+import {
+  Smartphone,
+  Car,
+  Bike,
+  Tv,
+  Sofa,
+  Shirt,
+  BookOpen,
+  Home,
+  ShieldCheck,
+  Users,
+  Zap,
+  Leaf,
+  ArrowRight,
+  Sparkles,
+} from 'lucide-react';
+import { MOCK_CATEGORIES } from '@/mockData/categories';
+import ProductCard from '../ui/ProductCard';
+import { useAppDispatch, useAppSelector } from '@/redux/hooks';
+import { setActiveTab } from '@/redux/slices/navigationSlice';
+import { setCategoryFilter, fetchProductsThunk } from '@/redux/slices/productsSlice';
+import { setSellModalOpen } from '@/redux/slices/uiSlice';
+
+export default function HomeView() {
+  const dispatch = useAppDispatch();
+  const products = useAppSelector((state) => state.products.items);
+  const filters = useAppSelector((state) => state.products.filters);
+  const isLoading = useAppSelector((state) => state.products.loading);
+
+  // Fetch real products from API on mount
+  useEffect(() => {
+    dispatch(fetchProductsThunk({}));
+  }, [dispatch]);
+
+  // Filter products based on search or category if set
+  const filteredProducts = products.filter((p) => {
+    const matchesSearch =
+      !filters.searchQuery ||
+      p.title.toLowerCase().includes(filters.searchQuery.toLowerCase()) ||
+      p.category.toLowerCase().includes(filters.searchQuery.toLowerCase());
+
+    const matchesCategory =
+      filters.category === 'All Categories' ||
+      p.category.toLowerCase() === filters.category.toLowerCase();
+
+    return matchesSearch && matchesCategory;
+  });
+
+  const getCategoryIcon = (iconName: string) => {
+    switch (iconName) {
+      case 'Smartphone':
+        return Smartphone;
+      case 'Car':
+        return Car;
+      case 'Bike':
+        return Bike;
+      case 'Tv':
+        return Tv;
+      case 'Sofa':
+        return Sofa;
+      case 'Shirt':
+        return Shirt;
+      case 'BookOpen':
+        return BookOpen;
+      default:
+        return Home;
+    }
+  };
+
+  return (
+    <div className="space-y-8 animate-in fade-in duration-300">
+      {/* Hero Banner Section */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-50 via-teal-50/60 to-emerald-100/50 p-6 md:p-10 border border-emerald-100 shadow-sm">
+        <div className="relative z-10 max-w-xl space-y-4">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-600/10 text-emerald-700 text-xs font-bold">
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>India&apos;s #1 Sustainable Marketplace</span>
+          </div>
+
+          <h1 className="text-3xl md:text-4xl lg:text-5xl font-black text-slate-900 leading-tight tracking-tight">
+            Buy. <span className="text-emerald-600">Sell.</span> Reuse. Repeat.
+          </h1>
+
+          <p className="text-sm md:text-base text-slate-600 font-medium leading-relaxed">
+            Join millions of people on Loopo to buy, sell and give items a second life.
+          </p>
+
+          <div className="flex items-center gap-3 pt-2">
+            <button
+              onClick={() => dispatch(setActiveTab('categories'))}
+              className="bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-bold text-sm px-6 py-3 rounded-2xl shadow-md shadow-emerald-500/20 transition-all duration-200"
+            >
+              Browse Categories
+            </button>
+            <button
+              onClick={() => dispatch(setSellModalOpen(true))}
+              className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 font-bold text-sm px-6 py-3 rounded-2xl transition-all duration-200"
+            >
+              Sell Your Item
+            </button>
+          </div>
+        </div>
+
+        {/* Decorative Product Illustration / Graphic */}
+        <div className="absolute right-4 bottom-0 hidden lg:block w-96 h-full pointer-events-none">
+          <img
+            src="https://images.unsplash.com/photo-1555041469-a586c61ea9bc?q=80&w=800&auto=format&fit=crop"
+            alt="Hero Banner Decor"
+            className="w-80 h-48 object-cover rounded-2xl shadow-2xl transform rotate-3 translate-y-6 border-4 border-white"
+          />
+        </div>
+      </div>
+
+      {/* Browse by Category */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="font-extrabold text-slate-900 text-lg tracking-tight">Browse by Category</h2>
+          <button
+            onClick={() => dispatch(setActiveTab('categories'))}
+            className="text-xs font-bold text-emerald-600 hover:underline flex items-center gap-1"
+          >
+            <span>View all</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+          {MOCK_CATEGORIES.map((cat) => {
+            const IconComponent = getCategoryIcon(cat.iconName);
+            return (
+              <div
+                key={cat.id}
+                onClick={() => {
+                  dispatch(setCategoryFilter(cat.name));
+                  dispatch(setActiveTab('categories'));
+                }}
+                className="group bg-white p-3.5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:border-emerald-200 transition-all duration-200 text-center cursor-pointer flex flex-col items-center justify-center space-y-2"
+              >
+                <div
+                  className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 ${cat.color}`}
+                >
+                  <IconComponent className="w-6 h-6 stroke-[2]" />
+                </div>
+                <div className="font-bold text-xs text-slate-900 line-clamp-1">{cat.name}</div>
+                <div className="text-[10px] font-medium text-slate-400">{cat.count}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Recommended for You Grid */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="font-extrabold text-slate-900 text-lg tracking-tight">
+            Recommended for you
+          </h2>
+          <button
+            onClick={() => dispatch(setActiveTab('categories'))}
+            className="text-xs font-bold text-emerald-600 hover:underline flex items-center gap-1"
+          >
+            <span>View all</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {isLoading ? (
+          // Loading skeleton
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="bg-white rounded-2xl border border-slate-100 overflow-hidden animate-pulse">
+                <div className="h-48 bg-slate-200" />
+                <div className="p-3 space-y-2">
+                  <div className="h-4 bg-slate-200 rounded-lg w-3/4" />
+                  <div className="h-3 bg-slate-100 rounded-lg w-1/2" />
+                  <div className="h-5 bg-slate-200 rounded-lg w-1/3" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : filteredProducts.length === 0 ? (
+          <div className="bg-white rounded-2xl p-12 text-center border border-slate-100 space-y-3">
+            <div className="text-slate-400 font-medium">No items found matching your filters.</div>
+            <button
+              onClick={() => dispatch(setCategoryFilter('All Categories'))}
+              className="text-xs font-bold text-emerald-600 hover:underline"
+            >
+              Reset Filters
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            {filteredProducts.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Trust & Assurance Badges Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-slate-100">
+        <div className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+            <ShieldCheck className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="font-bold text-xs text-slate-900">Safe & Secure</div>
+            <div className="text-[11px] font-medium text-slate-400">Your safety is our priority.</div>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+            <Users className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="font-bold text-xs text-slate-900">Trusted Community</div>
+            <div className="text-[11px] font-medium text-slate-400">Millions of happy users.</div>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+            <Zap className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="font-bold text-xs text-slate-900">Quick & Easy</div>
+            <div className="text-[11px] font-medium text-slate-400">List in minutes, sell fast.</div>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center shrink-0">
+            <Leaf className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="font-bold text-xs text-slate-900">Better for Planet</div>
+            <div className="text-[11px] font-medium text-slate-400">Reuse today for a better tomorrow.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

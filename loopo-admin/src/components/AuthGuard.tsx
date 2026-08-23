@@ -6,17 +6,19 @@ import { useAuth } from '@/hooks/useAuth';
 import { Box, CircularProgress } from '@mui/material';
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!isAuthenticated && pathname !== '/login') {
-      router.push('/login');
+    if (!isLoading && !isAuthenticated && pathname !== '/login') {
+      router.replace('/login');
     }
-  }, [isAuthenticated, pathname, router]);
+  }, [isAuthenticated, isLoading, pathname, router]);
 
-  if (!isAuthenticated && pathname !== '/login') {
+  // Show spinner while auth state is being resolved from localStorage
+  // OR when not authenticated (waiting for redirect to /login)
+  if (isLoading || (!isAuthenticated && pathname !== '/login')) {
     return (
       <Box sx={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center' }}>
         <CircularProgress />
