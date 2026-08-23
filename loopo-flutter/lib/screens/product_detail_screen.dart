@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import 'seller_profile_screen.dart';
+import 'report_issue_screen.dart';
 
 // TODO: [Backend Integration] Fetch product details from GET /api/v1/products/:id
 // TODO: [Backend Integration] Toggle product wishlist/favorite status via POST /api/v1/favorites/:productId
@@ -493,87 +495,103 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       // Seller Info Card
                       _buildSectionTitle('Seller Information'),
                       const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.04),
-                              blurRadius: 12,
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const SellerProfileScreen(
+                                sellerName: 'Alex Johnson',
+                                isVerified: true,
+                                rating: 4.8,
+                                reviewCount: 34,
+                                memberSince: '2022',
+                              ),
                             ),
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            Stack(
-                              children: [
-                                Container(
-                                  width: 52,
-                                  height: 52,
-                                  decoration: BoxDecoration(
-                                    gradient: const LinearGradient(
-                                      colors: [AppColors.appGreen, Color(0xFF3DA84A)],
-                                    ),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Center(
-                                    child: Text(
-                                      'A',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 22,
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.04),
+                                blurRadius: 12,
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              Stack(
+                                children: [
+                                  Container(
+                                    width: 52,
+                                    height: 52,
+                                    decoration: BoxDecoration(
+                                      gradient: const LinearGradient(
+                                        colors: [AppColors.appGreen, Color(0xFF3DA84A)],
                                       ),
-                                    ),
-                                  ),
-                                ),
-                                Positioned(
-                                  bottom: 0,
-                                  right: 0,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(2),
-                                    decoration: const BoxDecoration(
-                                      color: Colors.white,
                                       shape: BoxShape.circle,
                                     ),
-                                    child: const Icon(Icons.verified, size: 14, color: AppColors.appGreen),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'Alex Johnson',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.appDark,
+                                    child: const Center(
+                                      child: Text(
+                                        'A',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 22,
+                                        ),
+                                      ),
                                     ),
                                   ),
-                                  const SizedBox(height: 4),
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.star_rounded, size: 14, color: Colors.orange),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        '$rating (34 reviews)',
-                                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                  Positioned(
+                                    bottom: 0,
+                                    right: 0,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(2),
+                                      decoration: const BoxDecoration(
+                                        color: Colors.white,
+                                        shape: BoxShape.circle,
                                       ),
-                                      const SizedBox(width: 8),
-                                      const Text('•  Member 2 yrs', style: TextStyle(fontSize: 11, color: Colors.black45)),
-                                    ],
+                                      child: const Icon(Icons.verified, size: 14, color: AppColors.appGreen),
+                                    ),
                                   ),
                                 ],
                               ),
-                            ),
-                            const Icon(Icons.chevron_right, color: Colors.black26),
-                          ],
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Alex Johnson',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.appDark,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.star_rounded, size: 14, color: Colors.orange),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          '$rating (34 reviews)',
+                                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        const Text('•  Member 2 yrs', style: TextStyle(fontSize: 11, color: Colors.black45)),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(Icons.chevron_right, color: Colors.black26),
+                            ],
+                          ),
                         ),
                       ),
 
@@ -707,6 +725,27 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               ),
                             ),
                           ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Center(
+                        child: TextButton.icon(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ReportIssueScreen(
+                                  targetTitle: title,
+                                  targetId: widget.product['id'] ?? 'p1',
+                                ),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.flag_outlined, color: Colors.redAccent, size: 18),
+                          label: const Text(
+                            'Report suspicious ad or seller',
+                            style: TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.w700),
+                          ),
                         ),
                       ),
                     ],

@@ -3,12 +3,16 @@ import '../services/user_service.dart';
 import '../services/auth_session.dart';
 import '../theme/app_colors.dart';
 import 'login_screen.dart';
-import 'notification_screen.dart';
 import 'kyc_verification_screen.dart';
 import 'favorites_screen.dart';
 import 'help_support_screen.dart';
 import 'chat_list_screen.dart';
 import 'my_ads_screen.dart';
+import 'offers_screen.dart';
+import 'saved_searches_screen.dart';
+import 'settings_screen.dart';
+import 'blocked_users_screen.dart';
+import 'safety_guidelines_screen.dart';
 
 // TODO: [Backend Integration] Implement S3 profile image upload via POST /api/v1/users/profile-image/upload-url and POST /api/v1/users/profile-image
 // TODO: [Backend Integration] Implement cover image upload via POST /api/v1/users/cover-image/upload-url and POST /api/v1/users/cover-image
@@ -454,6 +458,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           );
                         },
                       ),
+                      const SizedBox(height: 12),
+                      _actionRow(
+                        icon: Icons.local_offer_outlined,
+                        title: 'Offer & Bargain Center',
+                        subtitle: 'Manage price offers made & received',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const OffersScreen()),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      _actionRow(
+                        icon: Icons.bookmark_outline,
+                        title: 'Saved Searches & Alerts',
+                        subtitle: 'Keyword alerts & notification triggers',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const SavedSearchesScreen()),
+                          );
+                        },
+                      ),
                     ],
                   ),
 
@@ -464,32 +492,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     icon: Icons.settings_outlined,
                     children: [
                       _actionRow(
-                        icon: Icons.notifications_active_outlined,
-                        title: 'Notification Settings',
-                        subtitle: 'Email, SMS, Push & Activity preferences',
+                        icon: Icons.settings_applications_outlined,
+                        title: 'Settings & Security',
+                        subtitle: 'Push alerts, theme, password & sessions',
                         onTap: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => const NotificationScreen()),
+                            MaterialPageRoute(builder: (_) => const SettingsScreen()),
                           );
                         },
                       ),
                       const SizedBox(height: 12),
                       _actionRow(
-                        icon: Icons.lock_outline_rounded,
-                        title: 'Privacy & Security',
-                        subtitle: 'Password, two-factor auth & sessions',
+                        icon: Icons.block_outlined,
+                        title: 'Blocked Users',
+                        subtitle: 'Manage blocked sellers & buyers',
                         onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Privacy & Security settings active')),
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const BlockedUsersScreen()),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      _actionRow(
+                        icon: Icons.shield_outlined,
+                        title: 'Safety & Trust Guidelines',
+                        subtitle: 'Rules for safe local trading',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const SafetyGuidelinesScreen()),
                           );
                         },
                       ),
                       const SizedBox(height: 12),
                       _actionRow(
                         icon: Icons.help_outline_rounded,
-                        title: 'Help, Safety & Support',
-                        subtitle: 'FAQs, buyer safety rules & live support',
+                        title: 'Help, Support & Contact',
+                        subtitle: 'FAQs & customer support',
                         onTap: () {
                           Navigator.push(
                             context,
