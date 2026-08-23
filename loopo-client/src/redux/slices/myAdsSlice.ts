@@ -67,7 +67,24 @@ function normaliseDbItem(p: any): MyAdItem {
 }
 
 const initialState: MyAdsState = {
-  ads: [],
+  ads: [
+    {
+      id: 'my-1',
+      title: 'iPhone 15 Pro Max 256GB Natural Titanium',
+      price: '₹78,000',
+      postedDate: 'Posted on 20 Aug 2026',
+      image: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?q=80&w=400&auto=format&fit=crop',
+      status: 'Active',
+    },
+    {
+      id: 'my-2',
+      title: 'Sony WH-1000XM5 Wireless Headphones',
+      price: '₹22,000',
+      postedDate: 'Posted on 15 Aug 2026',
+      image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=400&auto=format&fit=crop',
+      status: 'Sold',
+    },
+  ],
   activeFilter: 'Active',
   loading: false,
 };
@@ -101,7 +118,24 @@ export const fetchMyAdsThunk = createAsyncThunk('myAds/fetchMyAds', async () => 
     return raw.map(normaliseDbItem);
   }
 
-  return [];
+  return [
+    {
+      id: 'my-1',
+      title: 'iPhone 15 Pro Max 256GB Natural Titanium',
+      price: '₹78,000',
+      postedDate: 'Posted on 20 Aug 2026',
+      image: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?q=80&w=400&auto=format&fit=crop',
+      status: 'Active' as const,
+    },
+    {
+      id: 'my-2',
+      title: 'Sony WH-1000XM5 Wireless Headphones',
+      price: '₹22,000',
+      postedDate: 'Posted on 15 Aug 2026',
+      image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=400&auto=format&fit=crop',
+      status: 'Sold' as const,
+    },
+  ];
 });
 
 export const myAdsSlice = createSlice({
