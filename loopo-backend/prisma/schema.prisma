@@ -101,6 +101,14 @@ model User {
   adminSessions           AdminSession[]            @relation("AdminSessions")
   adminNotifications      AdminNotification[]       @relation("AdminNotifications")
   announcementsCreated    SystemAnnouncement[]      @relation("AnnouncementsCreated")
+  supportTicketsCreated   SupportTicket[]           @relation("UserSupportTickets")
+  supportTicketsAssigned  SupportTicket[]           @relation("AssignedSupportTickets")
+  ticketMessagesSent      TicketMessage[]
+  ticketNotesCreated      TicketInternalNote[]
+  complaintsCreated       Complaint[]               @relation("UserComplaints")
+  complaintsAssigned      Complaint[]               @relation("AssignedComplaints")
+  complaintMessagesSent   ComplaintMessage[]
+  complaintNotesCreated   ComplaintInvestigationNote[]
 
   @@index([email])
   @@index([phone])
@@ -2279,3 +2287,267 @@ model Notification {
 
   @@map("notifications")
 }
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_FOR_USER
+  RESOLVED
+  CLOSED
+}
+
+enum TicketChannel {
+  EMAIL
+  CHAT
+  WEB
+  PHONE
+}
+
+enum TicketSenderType {
+  USER
+  AGENT
+  SYSTEM
+}
+
+model SupportTicket {
+  id                 String               @id @default(uuid()) @db.Uuid
+  ticketNumber       String               @unique // e.g. TKT-0001254
+  userId             String?              @db.Uuid
+  userName           String
+  userEmail          String
+  userPhone          String?
+  subject            String
+  category           String
+  priority           TicketPriority       @default(MEDIUM)
+  status             TicketStatus         @default(OPEN)
+  channel            TicketChannel        @default(WEB)
+  assignedAgent      String?
+  assignedToId       String?              @db.Uuid
+
+  // Related order / product context
+  relatedOrderId     String?
+  relatedProductName String?
+  relatedAmount      String?
+  relatedOrderStatus String?
+
+  lastReplyAt        DateTime             @default(now())
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  user               User?                @relation("UserSupportTickets", fields: [userId], references: [id], onDelete: SetNull)
+  assignedTo         User?                @relation("AssignedSupportTickets", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  messages           TicketMessage[]
+  internalNotes      TicketInternalNote[]
+  activityLogs       TicketActivityLog[]
+
+  @@index([status])
+  @@index([priority])
+  @@index([category])
+  @@index([ticketNumber])
+  @@index([userEmail])
+  @@map("support_tickets")
+}
+
+model TicketMessage {
+  id          String           @id @default(uuid()) @db.Uuid
+  ticketId    String           @db.Uuid
+  senderId    String?          @db.Uuid
+  senderType  TicketSenderType @default(USER)
+  senderName  String
+  message     String           @db.Text
+  attachments Json?            // Array of { name: string, url: string, size: string }
+  createdAt   DateTime         @default(now())
+
+  ticket      SupportTicket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  sender      User?            @relation(fields: [senderId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId])
+  @@map("ticket_messages")
+}
+
+model TicketInternalNote {
+  id         String        @id @default(uuid()) @db.Uuid
+  ticketId   String        @db.Uuid
+  authorId   String?       @db.Uuid
+  authorName String
+  note       String        @db.Text
+  createdAt  DateTime      @default(now())
+
+  ticket     SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author     User?         @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId])
+  @@map("ticket_internal_notes")
+}
+
+model TicketActivityLog {
+  id        String        @id @default(uuid()) @db.Uuid
+  ticketId  String        @db.Uuid
+  operator  String
+  action    String
+  createdAt DateTime      @default(now())
+
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@map("ticket_activity_logs")
+}
+
+enum ComplaintStatus {
+  SUBMITTED
+  ASSIGNED
+  INVESTIGATING
+  ACTION_REQUIRED
+  RESOLVED
+  CLOSED
+}
+
+enum ComplaintPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum ComplaintSeverity {
+  MINOR
+  MODERATE
+  MAJOR
+  CRITICAL
+}
+
+enum ComplaintChannel {
+  EMAIL
+  CHAT
+  WEB
+  PHONE
+}
+
+enum ComplaintMessageType {
+  CUSTOMER
+  VENDOR
+  INTERNAL
+}
+
+model Complaint {
+  id                 String                       @id @default(uuid()) @db.Uuid
+  complaintNumber    String                       @unique // e.g. CMP-0001248
+  userId             String?                      @db.Uuid
+  userName           String
+  userEmail          String
+  userPhone          String?
+  vendorId           String?                      @db.Uuid
+  vendorName         String?
+
+  relatedOrderId     String?
+  relatedAmount      String?
+  relatedOrderStatus String?
+
+  subjectTitle       String
+  subjectDescription String                       @db.Text
+  category           String                       // Orders, Payments, Refunds, Technical, Account, Sellers, Delivery
+  priority           ComplaintPriority            @default(MEDIUM)
+  severity           ComplaintSeverity            @default(MODERATE)
+  status             ComplaintStatus              @default(SUBMITTED)
+  channel            ComplaintChannel             @default(EMAIL)
+
+  assignedDepartment String?                      // Support, Billing, Fraud, Logistics, Seller Relations, Technical
+  assignedAgent      String?
+  assignedToId       String?                      @db.Uuid
+
+  targetResolutionAt DateTime?
+  resolvedAt         DateTime?
+  closedAt           DateTime?
+
+  evidenceFiles      Json?                        // Array of { name: string, url: string, size: string }
+
+  createdAt          DateTime                     @default(now())
+  updatedAt          DateTime                     @updatedAt
+
+  user               User?                        @relation("UserComplaints", fields: [userId], references: [id], onDelete: SetNull)
+  assignedTo         User?                        @relation("AssignedComplaints", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  messages           ComplaintMessage[]
+  investigationNotes ComplaintInvestigationNote[]
+  resolutions        ComplaintResolution[]
+  activityLogs       ComplaintActivityLog[]
+
+  @@index([status])
+  @@index([priority])
+  @@index([category])
+  @@index([complaintNumber])
+  @@index([userEmail])
+  @@map("complaints")
+}
+
+model ComplaintMessage {
+  id          String               @id @default(uuid()) @db.Uuid
+  complaintId String               @db.Uuid
+  senderId    String?              @db.Uuid
+  senderType  ComplaintMessageType @default(CUSTOMER) // CUSTOMER, VENDOR, INTERNAL
+  senderName  String
+  message     String               @db.Text
+  attachments Json?                // Array of { name: string, url: string, size: string }
+  createdAt   DateTime             @default(now())
+
+  complaint   Complaint            @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  sender      User?                @relation(fields: [senderId], references: [id], onDelete: SetNull)
+
+  @@index([complaintId])
+  @@map("complaint_messages")
+}
+
+model ComplaintInvestigationNote {
+  id          String    @id @default(uuid()) @db.Uuid
+  complaintId String    @db.Uuid
+  authorId    String?   @db.Uuid
+  authorName  String
+  findings    String    @db.Text
+  remarks     String?   @db.Text
+  createdAt   DateTime  @default(now())
+
+  complaint   Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  author      User?     @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([complaintId])
+  @@map("complaint_investigation_notes")
+}
+
+model ComplaintResolution {
+  id             String    @id @default(uuid()) @db.Uuid
+  complaintId    String    @db.Uuid
+  resolutionType String    // REFUND, CREDIT, VENDOR_PENALTY, REPLACEMENT, REJECTION, EXPLANATION
+  amount         String?
+  summary        String    @db.Text
+  approvedBy     String
+  approvedAt     DateTime  @default(now())
+
+  complaint      Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+
+  @@index([complaintId])
+  @@map("complaint_resolutions")
+}
+
+model ComplaintActivityLog {
+  id          String    @id @default(uuid()) @db.Uuid
+  complaintId String    @db.Uuid
+  operator    String
+  action      String
+  details     String?
+  createdAt   DateTime  @default(now())
+
+  complaint   Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+
+  @@index([complaintId])
+  @@map("complaint_activity_logs")
+}
+
+

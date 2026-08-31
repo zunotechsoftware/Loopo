@@ -64,6 +64,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { text: 'Users', icon: <People fontSize="small" />, path: '/users' },
       { text: 'Sellers', icon: <Storefront fontSize="small" />, path: '/sellers' },
+      { text: 'KYC Verification', icon: <FactCheck fontSize="small" />, path: '/kyc' },
       { 
         text: 'Listings', 
         icon: <Inventory fontSize="small" />, 

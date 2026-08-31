@@ -16,6 +16,14 @@ export class KycRepository {
         user: {
           include: {
             profile: true,
+            kycDocuments: {
+              where: { deletedAt: null },
+              include: {
+                frontImage: true,
+                backImage: true,
+                selfieImage: true,
+              },
+            },
           },
         },
       },
