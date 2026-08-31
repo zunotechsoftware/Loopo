@@ -156,3 +156,79 @@ export const emailTemplatesService = {
   update: (id: string, data: Record<string, any>) => api.patch(`/admin/email-templates/${id}`, data),
   getStats: () => api.get('/admin/email-templates/stats'),
 };
+
+// --- KYC Service ---
+export const kycService = {
+  getAll: (params?: {
+    status?: string;
+    skip?: number;
+    take?: number;
+  }) => api.get('/admin/kyc', { params }),
+  getById: (id: string) => api.get(`/admin/kyc/${id}`),
+  approve: (id: string) => api.patch(`/admin/kyc/${id}/approve`),
+  reject: (id: string, remarks: string) => api.patch(`/admin/kyc/${id}/reject`, { remarks }),
+};
+
+// --- Support Tickets Service ---
+export const supportTicketsService = {
+  getAll: (params?: {
+    status?: string;
+    priority?: string;
+    category?: string;
+    channel?: string;
+    agent?: string;
+    search?: string;
+    skip?: number;
+    take?: number;
+  }) => api.get('/admin/support/tickets', { params }),
+  getStats: () => api.get('/admin/support/tickets/stats'),
+  getById: (id: string) => api.get(`/admin/support/tickets/${id}`),
+  sendReply: (id: string, data: { message: string; attachments?: Array<{ name: string; url: string; size: string }> }) =>
+    api.post(`/admin/support/tickets/${id}/reply`, data),
+  addNote: (id: string, data: { note: string }) =>
+    api.post(`/admin/support/tickets/${id}/notes`, data),
+  updateStatus: (id: string, status: string) =>
+    api.patch(`/admin/support/tickets/${id}/status`, { status }),
+  updatePriority: (id: string, priority: string) =>
+    api.patch(`/admin/support/tickets/${id}/priority`, { priority }),
+  assignAgent: (id: string, agentName: string) =>
+    api.patch(`/admin/support/tickets/${id}/assign`, { agentName }),
+  escalate: (id: string, data: { department: string; reason?: string }) =>
+    api.post(`/admin/support/tickets/${id}/escalate`, data),
+};
+
+// --- Complaints Service ---
+export const complaintsService = {
+  getAll: (params?: {
+    status?: string;
+    priority?: string;
+    severity?: string;
+    category?: string;
+    channel?: string;
+    department?: string;
+    agent?: string;
+    search?: string;
+    startDate?: string;
+    endDate?: string;
+    skip?: number;
+    take?: number;
+  }) => api.get('/admin/complaints', { params }),
+  getStats: () => api.get('/admin/complaints/stats'),
+  getCategoriesBreakdown: () => api.get('/admin/complaints/categories-breakdown'),
+  getById: (id: string) => api.get(`/admin/complaints/${id}`),
+  create: (data: Record<string, any>) => api.post('/admin/complaints', data),
+  addMessage: (id: string, data: { message: string; senderType?: string; senderName?: string; attachments?: Array<{ name: string; url: string; size: string }> }) =>
+    api.post(`/admin/complaints/${id}/messages`, data),
+  addNote: (id: string, data: { findings: string; remarks?: string }) =>
+    api.post(`/admin/complaints/${id}/notes`, data),
+  updateStatus: (id: string, status: string) =>
+    api.patch(`/admin/complaints/${id}/status`, { status }),
+  assign: (id: string, data: { department?: string; agentName?: string }) =>
+    api.patch(`/admin/complaints/${id}/assign`, data),
+  resolve: (id: string, data: { resolutionType: string; amount?: string; summary: string }) =>
+    api.post(`/admin/complaints/${id}/resolve`, data),
+  escalate: (id: string, data: { department: string; reason?: string }) =>
+    api.post(`/admin/complaints/${id}/escalate`, data),
+};
+
+

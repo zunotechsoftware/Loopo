@@ -609,6 +609,671 @@ async function main() {
   }
   console.log('Advertisements seeded.');
 
+  // 16. Seed KYC Documents for Venkatesh Sekar
+  const venkateshEmail = 'venkatesh@gmail.com';
+  let venkUser = await prisma.user.findUnique({
+    where: { email: venkateshEmail },
+    include: { profile: true, sellerProfile: true },
+  });
+
+  if (!venkUser) {
+    const passwordHash = await bcrypt.hash('Password123', 10);
+    venkUser = await prisma.user.create({
+      data: {
+        email: venkateshEmail,
+        phone: '+91 81234 56789',
+        password: passwordHash,
+        firstName: 'Venkatesh',
+        lastName: 'Sekar',
+        status: 'ACTIVE',
+        provider: 'LOCAL',
+        isEmailVerified: true,
+        isPhoneVerified: true,
+        profile: {
+          create: {
+            firstName: 'Venkatesh',
+            lastName: 'Sekar',
+            displayName: 'Venkatesh Sekar',
+            email: venkateshEmail,
+            phone: '+91 81234 56789',
+            dateOfBirth: new Date('1995-08-15'),
+            gender: 'Male',
+            country: 'India',
+            state: 'Tamil Nadu',
+            city: 'Hosur',
+            zipCode: '635109',
+            status: 'ACTIVE',
+            verifiedBadge: false,
+          },
+        },
+        sellerProfile: {
+          create: {
+            displayName: 'Venkatesh Sekar',
+            storeName: 'Venkatesh Store',
+            verificationStatus: 'PENDING',
+            kycStatus: 'SUBMITTED',
+            sellerRating: 0.0,
+            totalSales: 0,
+            totalListings: 0,
+          },
+        },
+        sellerStatistics: {
+          create: {
+            averageRating: 0.0,
+            totalReviews: 0,
+          },
+        },
+      },
+      include: { profile: true, sellerProfile: true },
+    });
+  }
+
+  // Ensure MediaFiles and KycDocuments exist for Venkatesh Sekar
+  const existingKyc = await prisma.kycDocument.findFirst({
+    where: { userId: venkUser.id },
+  });
+
+  if (!existingKyc) {
+    // 1. Create Media Files (use local urls matching our saved files)
+    const mediaAadhaarFront = await prisma.mediaFile.create({
+      data: {
+        userId: venkUser.id,
+        fileName: 'aadhaar_front.jpg',
+        fileUrl: '/images/aadhaar_front.jpg', // loopo-admin serves images from public/images
+        fileSize: 624929,
+        mimeType: 'image/jpeg',
+        category: 'KYC_FRONT',
+        status: 'READY',
+      },
+    });
+
+    const mediaAadhaarBack = await prisma.mediaFile.create({
+      data: {
+        userId: venkUser.id,
+        fileName: 'aadhaar_back.jpg',
+        fileUrl: '/images/aadhaar_back.jpg',
+        fileSize: 670382,
+        mimeType: 'image/jpeg',
+        category: 'KYC_BACK',
+        status: 'READY',
+      },
+    });
+
+    const mediaPanFront = await prisma.mediaFile.create({
+      data: {
+        userId: venkUser.id,
+        fileName: 'pan_front.jpg',
+        fileUrl: '/images/pan_card.jpg',
+        fileSize: 988234,
+        mimeType: 'image/jpeg',
+        category: 'KYC_FRONT',
+        status: 'READY',
+      },
+    });
+
+    const mediaSelfie = await prisma.mediaFile.create({
+      data: {
+        userId: venkUser.id,
+        fileName: 'selfie.jpg',
+        fileUrl: '/images/selfie.jpg',
+        fileSize: 680605,
+        mimeType: 'image/jpeg',
+        category: 'KYC_SELFIE',
+        status: 'READY',
+      },
+    });
+
+    // 2. Create KYC Documents (Aadhaar & PAN)
+    await prisma.kycDocument.create({
+      data: {
+        userId: venkUser.id,
+        documentType: 'AADHAAR',
+        documentNumber: '1234 5678 9012',
+        frontImageId: mediaAadhaarFront.id,
+        backImageId: mediaAadhaarBack.id,
+        selfieImageId: mediaSelfie.id,
+        status: 'SUBMITTED',
+        submittedAt: new Date('2026-08-21T22:42:00Z'),
+        remarks: 'KYC Submitted by user',
+      },
+    });
+
+    await prisma.kycDocument.create({
+      data: {
+        userId: venkUser.id,
+        documentType: 'PAN',
+        documentNumber: 'ABCDE1234F',
+        frontImageId: mediaPanFront.id,
+        selfieImageId: mediaSelfie.id,
+        status: 'SUBMITTED',
+        submittedAt: new Date('2026-08-21T22:42:00Z'),
+      },
+    });
+
+    console.log('KycDocuments seeded for Venkatesh Sekar.');
+  }
+
+  // --- Seed Support Tickets ---
+  console.log('Seeding Support Tickets...');
+  const USERS_LIST = [
+    { name: 'Rahul Sharma', email: 'rahul.sharma@email.com', phone: '+91 98765 43210' },
+    { name: 'Priya Patel', email: 'priya.patel@email.com', phone: '+91 91234 56789' },
+    { name: 'Amit Kumar', email: 'amit.kumar@email.com', phone: '+91 88776 65544' },
+    { name: 'Sneha Reddy', email: 'sneha.reddy@email.com', phone: '+91 99887 76655' },
+    { name: 'Vikram Singh', email: 'vikram.singh@email.com', phone: '+91 97654 32109' },
+    { name: 'Neha Verma', email: 'neha.verma@email.com', phone: '+91 96543 21098' },
+    { name: 'Arjun Mehta', email: 'arjun.mehta@email.com', phone: '+91 95432 10987' },
+    { name: 'Kavya Nair', email: 'kavya.nair@email.com', phone: '+91 94321 09876' },
+    { name: 'Rohit Das', email: 'rohit.das@email.com', phone: '+91 93210 98765' },
+    { name: 'Ananya Joshi', email: 'ananya.joshi@email.com', phone: '+91 92109 87654' },
+    { name: 'Sanjay Gupta', email: 'sanjay.gupta@email.com', phone: '+91 91098 76543' },
+    { name: 'Deepa Krishnan', email: 'deepa.k@email.com', phone: '+91 90987 65432' },
+    { name: 'Vijay Chawla', email: 'vijay.chawla@email.com', phone: '+91 89876 54321' },
+    { name: 'Meera Sen', email: 'meera.sen@email.com', phone: '+91 88765 43210' },
+    { name: 'Karthik Raja', email: 'karthik.raja@email.com', phone: '+91 87654 32109' },
+    { name: 'Pooja Hegde', email: 'pooja.hegde@email.com', phone: '+91 86543 21098' }
+  ];
+
+  const TKT_CATEGORIES = ['Listings', 'Payments', 'Refunds', 'Technical', 'Account', 'Payouts', 'Orders'];
+  const TKT_PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'] as const;
+  const TKT_STATUSES = ['OPEN', 'IN_PROGRESS', 'WAITING_FOR_USER', 'RESOLVED', 'CLOSED'] as const;
+  const TKT_CHANNELS = ['EMAIL', 'CHAT', 'WEB', 'PHONE'] as const;
+  const TKT_AGENTS = ['Support Agent A', 'Admin User', 'Support Specialist B', 'Manager C'];
+
+  const TKT_SUBJECTS: Record<string, string[]> = {
+    Listings: [
+      'Image upload limit exceeded error',
+      'Listing rejected without clear reason',
+      'Cannot edit active product listing details',
+      'Listing description formatting is broken',
+      'Item details not showing under Mobiles category'
+    ],
+    Payments: [
+      'Invoice not received for order #ORD-2831',
+      'Payment completed but status still Escrow Pending',
+      'Bank account verification pending for 3 days',
+      'Double debited for subscription boost package',
+      'Failed payment message on checkout screen'
+    ],
+    Refunds: [
+      'Refund not processed for canceled order',
+      'Canceled booking refund timeline inquiry',
+      'Refund transaction reference missing',
+      'Wrong refund amount credited to bank card',
+      'Dispute refund request for order #ORD-1229'
+    ],
+    Technical: [
+      'Login page loops and doesn\'t redirect',
+      'App crashes frequently on camera capture',
+      'Push notifications not delivering on Android',
+      'Profile image upload throws server error 500',
+      'Search bar filter results are unresponsive'
+    ],
+    Account: [
+      'Seller account suspension appeal',
+      'Reset password verification email not received',
+      'Update profile mobile number request',
+      'Verify business tax registration document',
+      'Close account and delete user profile data'
+    ],
+    Payouts: [
+      'Seller payout delayed for completed orders',
+      'Payout bank details update failing',
+      'Commission fee structure question',
+      'Missing payout settlement statement for May',
+      'Minimum payout threshold limits check'
+    ],
+    Orders: [
+      'Item received is not as described in listing',
+      'Courier partner tracking status update request',
+      'Cancel order request for #ORD-12932',
+      'Delivery address incorrect after order confirmation',
+      'Buyer claims package not received but marked delivered'
+    ]
+  };
+
+  for (let i = 0; i < 150; i++) {
+    const idNum = 1254 - i;
+    const ticketNumber = `TKT-000${idNum}`;
+    const user = USERS_LIST[i % USERS_LIST.length];
+    const category = TKT_CATEGORIES[i % TKT_CATEGORIES.length];
+    const subjects = TKT_SUBJECTS[category] || TKT_SUBJECTS['Payments'];
+    const subject = subjects[i % subjects.length];
+    const priority = TKT_PRIORITIES[i % TKT_PRIORITIES.length];
+    const status = TKT_STATUSES[i % TKT_STATUSES.length];
+    const channel = TKT_CHANNELS[i % TKT_CHANNELS.length];
+    const assignedAgent = TKT_AGENTS[i % TKT_AGENTS.length];
+
+    const day = Math.max(1, 12 - Math.floor(i / 13));
+    const hour = (10 + (i * 7)) % 12 || 12;
+    const min = (15 + (i * 9)) % 60;
+    const createdDate = new Date(2024, 4, day, hour, min);
+
+    const existingTicket = await prisma.supportTicket.findUnique({
+      where: { ticketNumber }
+    });
+
+    if (!existingTicket) {
+      await prisma.supportTicket.create({
+        data: {
+          ticketNumber,
+          userName: user.name,
+          userEmail: user.email,
+          userPhone: user.phone,
+          subject,
+          category,
+          priority,
+          status,
+          channel,
+          assignedAgent,
+          relatedOrderId: `#ORD-${12450 - i}`,
+          relatedProductName: `${category} Order - Item #${100 + i}`,
+          relatedAmount: `₹${((i % 10) + 1) * 3500 + 999}`,
+          relatedOrderStatus: status === 'RESOLVED' || status === 'CLOSED' ? 'Payment Completed' : 'Escrow Pending',
+          createdAt: createdDate,
+          updatedAt: createdDate,
+          lastReplyAt: createdDate,
+          messages: {
+            create: [
+              {
+                senderType: 'USER',
+                senderName: user.name,
+                message: `Hello support team, I am reaching out regarding: "${subject}". Can you please assist me with this request as soon as possible?`,
+                createdAt: createdDate,
+                attachments: i % 2 === 0 ? [{ name: 'error_screenshot.png', url: '/images/aadhaar_front.jpg', size: '245 KB' }] : undefined
+              }
+            ]
+          },
+          internalNotes: {
+            create: [
+              {
+                authorName: 'System Audit',
+                note: `Ticket verified. Customer profile matches records. Assigned to ${assignedAgent}.`,
+                createdAt: createdDate
+              }
+            ]
+          },
+          activityLogs: {
+            create: [
+              {
+                operator: user.name,
+                action: `Support ticket submitted by user via ${channel}`,
+                createdAt: createdDate
+              },
+              {
+                operator: 'System Router',
+                action: `Ticket auto-assigned to ${assignedAgent}`,
+                createdAt: createdDate
+              }
+            ]
+          }
+        }
+      });
+    }
+  }
+  console.log('150 Support Tickets seeded to PostgreSQL database.');
+
+  // --- Seed Complaints ---
+  console.log('Seeding Complaints...');
+  const COMPLAINT_CATEGORIES = ['Orders', 'Payments', 'Refunds', 'Technical', 'Account', 'Sellers', 'Delivery'];
+  const COMPLAINT_PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'] as const;
+  const COMPLAINT_SEVERITIES = ['MINOR', 'MODERATE', 'MAJOR', 'CRITICAL'] as const;
+  const COMPLAINT_STATUSES = ['SUBMITTED', 'ASSIGNED', 'INVESTIGATING', 'ACTION_REQUIRED', 'RESOLVED', 'CLOSED'] as const;
+  const COMPLAINT_CHANNELS = ['EMAIL', 'CHAT', 'WEB', 'PHONE'] as const;
+  const COMPLAINT_DEPARTMENTS = ['Support', 'Billing', 'Fraud & Safety', 'Logistics', 'Seller Relations', 'Technical'];
+  const COMPLAINT_VENDORS = ['TechZone Electronics', 'UrbanStyle Fashion', 'ElectroWorld Hub', 'MobileHub Store', 'Loopo Official', 'LensCraft Pro', 'Express Logistics', 'GadgetCare India', 'Vogue Apparel'];
+
+  const SPECIFIC_COMPLAINTS = [
+    {
+      complaintNumber: 'CMP-0001248',
+      userName: 'Rahul Sharma',
+      userEmail: 'rahul.sharma@email.com',
+      userPhone: '+91 98765 43210',
+      subjectTitle: 'Item not as described',
+      subjectDescription: 'The product I received is completely different from what was shown in the listing pictures. The color is wrong and it has scratches on the back cover.',
+      category: 'Orders',
+      priority: 'HIGH' as const,
+      severity: 'MAJOR' as const,
+      status: 'SUBMITTED' as const,
+      channel: 'EMAIL' as const,
+      vendorName: 'TechZone Electronics',
+      relatedOrderId: '#ORD-9821',
+      relatedAmount: '₹24,999',
+      relatedOrderStatus: 'Delivered',
+      createdDate: new Date('2024-05-12T10:31:00Z'),
+      updatedDate: new Date('2024-05-12T10:31:00Z')
+    },
+    {
+      complaintNumber: 'CMP-0001247',
+      userName: 'Priya Patel',
+      userEmail: 'priya.patel@email.com',
+      userPhone: '+91 91234 56789',
+      subjectTitle: 'Payment issue',
+      subjectDescription: 'Payment was deducted from my bank account but order status is still showing Pending. Transaction reference #TXN-881921.',
+      category: 'Payments',
+      priority: 'HIGH' as const,
+      severity: 'MAJOR' as const,
+      status: 'INVESTIGATING' as const,
+      channel: 'CHAT' as const,
+      vendorName: 'UrbanStyle Fashion',
+      relatedOrderId: '#ORD-9820',
+      relatedAmount: '₹3,499',
+      relatedOrderStatus: 'Payment Verification',
+      createdDate: new Date('2024-05-12T09:15:00Z'),
+      updatedDate: new Date('2024-05-12T11:20:00Z')
+    },
+    {
+      complaintNumber: 'CMP-0001246',
+      userName: 'Amit Kumar',
+      userEmail: 'amit.kumar@email.com',
+      userPhone: '+91 88776 65544',
+      subjectTitle: 'Refund not received',
+      subjectDescription: 'I requested a refund but have not received it after 7 business days. Gateway stated refund was issued on May 4.',
+      category: 'Refunds',
+      priority: 'MEDIUM' as const,
+      severity: 'MODERATE' as const,
+      status: 'ACTION_REQUIRED' as const,
+      channel: 'WEB' as const,
+      vendorName: 'ElectroWorld Hub',
+      relatedOrderId: '#ORD-9818',
+      relatedAmount: '₹8,200',
+      relatedOrderStatus: 'Refund Requested',
+      createdDate: new Date('2024-05-11T20:45:00Z'),
+      updatedDate: new Date('2024-05-11T21:50:00Z')
+    },
+    {
+      complaintNumber: 'CMP-0001245',
+      userName: 'Sneha Reddy',
+      userEmail: 'sneha.reddy@email.com',
+      userPhone: '+91 99887 76655',
+      subjectTitle: 'Unable to upload images',
+      subjectDescription: 'I am unable to upload supporting images when disputing an item condition. The file upload button throws a network error.',
+      category: 'Technical',
+      priority: 'MEDIUM' as const,
+      severity: 'MINOR' as const,
+      status: 'SUBMITTED' as const,
+      channel: 'EMAIL' as const,
+      vendorName: 'MobileHub Store',
+      relatedOrderId: '#ORD-9815',
+      relatedAmount: '₹12,450',
+      relatedOrderStatus: 'Delivered',
+      createdDate: new Date('2024-05-11T18:20:00Z'),
+      updatedDate: new Date('2024-05-11T18:20:00Z')
+    },
+    {
+      complaintNumber: 'CMP-0001244',
+      userName: 'Vikram Singh',
+      userEmail: 'vikram.singh@email.com',
+      userPhone: '+91 97654 32109',
+      subjectTitle: 'Account verification issue',
+      subjectDescription: 'My account is under review for more than 5 days. All Aadhaar and PAN documents were submitted properly.',
+      category: 'Account',
+      priority: 'LOW' as const,
+      severity: 'MINOR' as const,
+      status: 'RESOLVED' as const,
+      channel: 'PHONE' as const,
+      vendorName: 'Loopo Official',
+      relatedOrderId: '#ORD-9810',
+      relatedAmount: '₹0',
+      relatedOrderStatus: 'Completed',
+      createdDate: new Date('2024-05-10T16:30:00Z'),
+      updatedDate: new Date('2024-05-11T10:15:00Z')
+    },
+    {
+      complaintNumber: 'CMP-0001243',
+      userName: 'Neha Verma',
+      userEmail: 'neha.verma@email.com',
+      userPhone: '+91 96543 21098',
+      subjectTitle: 'Login problems',
+      subjectDescription: 'I can\'t login to my account on mobile app after password reset. SMS OTP arrives delayed by 10 minutes.',
+      category: 'Technical',
+      priority: 'HIGH' as const,
+      severity: 'MODERATE' as const,
+      status: 'RESOLVED' as const,
+      channel: 'CHAT' as const,
+      vendorName: 'Loopo Official',
+      relatedOrderId: '#ORD-9807',
+      relatedAmount: '₹0',
+      relatedOrderStatus: 'Completed',
+      createdDate: new Date('2024-05-10T14:30:00Z'),
+      updatedDate: new Date('2024-05-10T17:40:00Z')
+    },
+    {
+      complaintNumber: 'CMP-0001242',
+      userName: 'Arjun Mehta',
+      userEmail: 'arjun.mehta@email.com',
+      userPhone: '+91 95432 10987',
+      subjectTitle: 'Seller not responding',
+      subjectDescription: 'The seller is not replying to messages regarding the warranty certificate and invoice for the camera lens.',
+      category: 'Sellers',
+      priority: 'MEDIUM' as const,
+      severity: 'MODERATE' as const,
+      status: 'ASSIGNED' as const,
+      channel: 'EMAIL' as const,
+      vendorName: 'LensCraft Pro',
+      relatedOrderId: '#ORD-9801',
+      relatedAmount: '₹45,000',
+      relatedOrderStatus: 'Delivered',
+      createdDate: new Date('2024-05-09T11:20:00Z'),
+      updatedDate: new Date('2024-05-09T11:20:00Z')
+    },
+    {
+      complaintNumber: 'CMP-0001241',
+      userName: 'Kavya Nair',
+      userEmail: 'kavya.nair@email.com',
+      userPhone: '+91 94321 09876',
+      subjectTitle: 'Delivery delayed',
+      subjectDescription: 'My order is delayed by more than 4 days past the scheduled delivery window without any courier update.',
+      category: 'Delivery',
+      priority: 'LOW' as const,
+      severity: 'MINOR' as const,
+      status: 'RESOLVED' as const,
+      channel: 'WEB' as const,
+      vendorName: 'Express Logistics',
+      relatedOrderId: '#ORD-9795',
+      relatedAmount: '₹1,850',
+      relatedOrderStatus: 'In Transit',
+      createdDate: new Date('2024-05-09T10:00:00Z'),
+      updatedDate: new Date('2024-05-09T15:15:00Z')
+    },
+    {
+      complaintNumber: 'CMP-0001240',
+      userName: 'Rohit Das',
+      userEmail: 'rohit.das@email.com',
+      userPhone: '+91 93210 98765',
+      subjectTitle: 'Damaged item received',
+      subjectDescription: 'I received a damaged item with broken screen glass. Box was torn during transit. Requested replacement.',
+      category: 'Orders',
+      priority: 'HIGH' as const,
+      severity: 'CRITICAL' as const,
+      status: 'CLOSED' as const,
+      channel: 'EMAIL' as const,
+      vendorName: 'GadgetCare India',
+      relatedOrderId: '#ORD-9788',
+      relatedAmount: '₹18,900',
+      relatedOrderStatus: 'Replaced & Closed',
+      createdDate: new Date('2024-05-08T19:15:00Z'),
+      updatedDate: new Date('2024-05-09T19:45:00Z')
+    },
+    {
+      complaintNumber: 'CMP-0001239',
+      userName: 'Ananya Joshi',
+      userEmail: 'ananya.joshi@email.com',
+      userPhone: '+91 92109 87654',
+      subjectTitle: 'Wrong item delivered',
+      subjectDescription: 'I received a different item (size S instead of L) from what I ordered. Need return pickup scheduled.',
+      category: 'Orders',
+      priority: 'MEDIUM' as const,
+      severity: 'MODERATE' as const,
+      status: 'CLOSED' as const,
+      channel: 'CHAT' as const,
+      vendorName: 'Vogue Apparel',
+      relatedOrderId: '#ORD-9780',
+      relatedAmount: '₹2,200',
+      relatedOrderStatus: 'Return Completed',
+      createdDate: new Date('2024-05-08T17:45:00Z'),
+      updatedDate: new Date('2024-05-08T20:30:00Z')
+    }
+  ];
+
+  // Seed top 10 specific complaints
+  for (const c of SPECIFIC_COMPLAINTS) {
+    const existing = await prisma.complaint.findUnique({ where: { complaintNumber: c.complaintNumber } });
+    if (!existing) {
+      await prisma.complaint.create({
+        data: {
+          complaintNumber: c.complaintNumber,
+          userName: c.userName,
+          userEmail: c.userEmail,
+          userPhone: c.userPhone,
+          vendorName: c.vendorName,
+          relatedOrderId: c.relatedOrderId,
+          relatedAmount: c.relatedAmount,
+          relatedOrderStatus: c.relatedOrderStatus,
+          subjectTitle: c.subjectTitle,
+          subjectDescription: c.subjectDescription,
+          category: c.category,
+          priority: c.priority,
+          severity: c.severity,
+          status: c.status,
+          channel: c.channel,
+          assignedDepartment: 'Support',
+          assignedAgent: 'Admin User',
+          evidenceFiles: [
+            { name: 'evidence_photo.jpg', url: '/images/aadhaar_front.jpg', size: '340 KB' },
+            { name: 'invoice_copy.pdf', url: '/images/pan_card.jpg', size: '180 KB' }
+          ],
+          createdAt: c.createdDate,
+          updatedAt: c.updatedDate,
+          targetResolutionAt: new Date(c.createdDate.getTime() + 48 * 3600 * 1000),
+          messages: {
+            create: [
+              {
+                senderType: 'CUSTOMER',
+                senderName: c.userName,
+                message: c.subjectDescription,
+                createdAt: c.createdDate,
+                attachments: [{ name: 'issue_screenshot.jpg', url: '/images/aadhaar_front.jpg', size: '340 KB' }]
+              },
+              {
+                senderType: 'VENDOR',
+                senderName: c.vendorName,
+                message: `Vendor acknowledged ticket for ${c.relatedOrderId}. Investigation underway.`,
+                createdAt: new Date(c.createdDate.getTime() + 3600 * 1000)
+              }
+            ]
+          },
+          investigationNotes: {
+            create: [
+              {
+                authorName: 'Investigation Officer',
+                findings: `Verified initial complaint for order ${c.relatedOrderId}. Customer evidence reviewed against seller records.`,
+                remarks: 'Requested invoice verification from billing gateway.',
+                createdAt: c.createdDate
+              }
+            ]
+          },
+          activityLogs: {
+            create: [
+              {
+                operator: c.userName,
+                action: `Formal complaint submitted via ${c.channel}`,
+                details: c.subjectTitle,
+                createdAt: c.createdDate
+              },
+              {
+                operator: 'System Dispatcher',
+                action: 'Assigned to Support Department (Officer: Admin User)',
+                createdAt: new Date(c.createdDate.getTime() + 1800 * 1000)
+              }
+            ]
+          }
+        }
+      });
+    }
+  }
+
+  // Seed remaining 140 complaints
+  for (let i = 10; i < 150; i++) {
+    const idNum = 1248 - i;
+    const complaintNumber = `CMP-000${idNum}`;
+    const user = USERS_LIST[i % USERS_LIST.length];
+    const category = COMPLAINT_CATEGORIES[i % COMPLAINT_CATEGORIES.length];
+    const priority = COMPLAINT_PRIORITIES[i % COMPLAINT_PRIORITIES.length];
+    const severity = COMPLAINT_SEVERITIES[i % COMPLAINT_SEVERITIES.length];
+    const status = COMPLAINT_STATUSES[i % COMPLAINT_STATUSES.length];
+    const channel = COMPLAINT_CHANNELS[i % COMPLAINT_CHANNELS.length];
+    const vendor = COMPLAINT_VENDORS[i % COMPLAINT_VENDORS.length];
+    const dept = COMPLAINT_DEPARTMENTS[i % COMPLAINT_DEPARTMENTS.length];
+
+    const day = Math.max(1, 12 - Math.floor(i / 13));
+    const hour = (9 + (i * 3)) % 12 || 10;
+    const min = (10 + (i * 7)) % 60;
+    const createdDate = new Date(2024, 4, day, hour, min);
+
+    const existing = await prisma.complaint.findUnique({ where: { complaintNumber } });
+    if (!existing) {
+      await prisma.complaint.create({
+        data: {
+          complaintNumber,
+          userName: user.name,
+          userEmail: user.email,
+          userPhone: user.phone,
+          vendorName: vendor,
+          relatedOrderId: `#ORD-${9800 - i}`,
+          relatedAmount: `₹${((i % 12) + 1) * 2200 + 499}`,
+          relatedOrderStatus: status === 'RESOLVED' || status === 'CLOSED' ? 'Settled' : 'Under Dispute',
+          subjectTitle: `${category} issue - ${complaintNumber}`,
+          subjectDescription: `Formal customer dispute filed regarding ${category.toLowerCase()} under order #ORD-${9800 - i}.`,
+          category,
+          priority,
+          severity,
+          status,
+          channel,
+          assignedDepartment: dept,
+          assignedAgent: 'Admin User',
+          evidenceFiles: [
+            { name: 'evidence_doc.pdf', url: '/images/aadhaar_front.jpg', size: '210 KB' }
+          ],
+          createdAt: createdDate,
+          updatedAt: createdDate,
+          targetResolutionAt: new Date(createdDate.getTime() + 48 * 3600 * 1000),
+          messages: {
+            create: [
+              {
+                senderType: 'CUSTOMER',
+                senderName: user.name,
+                message: `Formal complaint regarding ${category.toLowerCase()} transaction issue. Please resolve promptly.`,
+                createdAt: createdDate
+              }
+            ]
+          },
+          investigationNotes: {
+            create: [
+              {
+                authorName: 'Audit Inspector',
+                findings: `Customer transaction logged on ${createdDate.toLocaleDateString()}. Assigned to ${dept}.`,
+                remarks: 'Standard investigation protocol active.',
+                createdAt: createdDate
+              }
+            ]
+          },
+          activityLogs: {
+            create: [
+              {
+                operator: user.name,
+                action: `Complaint filed via ${channel}`,
+                details: `${category} dispute`,
+                createdAt: createdDate
+              }
+            ]
+          }
+        }
+      });
+    }
+  }
+  console.log('150 Complaints seeded to PostgreSQL database.');
+
   console.log('Database seeding finished.');
 }
 

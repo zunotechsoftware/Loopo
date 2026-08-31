@@ -160,6 +160,27 @@ export interface AnalyticsSummary {
 }
 
 // --- Review Types ---
+export interface ReviewModerationLog {
+  action: string;
+  moderator: string;
+  timestamp: string;
+  note?: string;
+}
+
+export interface ReviewResponse {
+  text: string;
+  responder: string;
+  createdAt: string;
+  isPublic: boolean;
+}
+
+export interface ReviewRatingBreakdown {
+  quality: number;
+  value: number;
+  delivery: number;
+  customerService: number;
+}
+
 export interface Review {
   id: string;
   title?: string;
@@ -167,15 +188,23 @@ export interface Review {
   productTitle: string;
   productImage?: string;
   productCategory?: string;
+  vendorId?: string;
+  vendorName?: string;
   userId: string;
   userName: string;
   userEmail?: string;
   userAvatar?: string;
   rating: number;
+  ratingBreakdown?: ReviewRatingBreakdown;
   comment: string;
-  status: 'Published' | 'Hidden' | 'Flagged' | 'Removed';
+  status: 'Submitted' | 'Under Review' | 'Approved' | 'Rejected' | 'Published' | 'Hidden' | 'Flagged' | 'Removed';
   orderId?: string;
   createdAt: string;
+  isEdited?: boolean;
+  isReported?: boolean;
+  reportReason?: string;
+  response?: ReviewResponse;
+  moderationHistory?: ReviewModerationLog[];
 }
 
 // --- Notification Types ---
@@ -284,4 +313,55 @@ export interface Complaint {
   channel: 'Email' | 'Chat' | 'Web' | 'Phone';
   createdAt: string;
   updatedAt: string;
+}
+
+// --- KYC Document Types ---
+export interface KycMediaFile {
+  id: string;
+  fileUrl: string;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+}
+
+export type KycStatus = 'DRAFT' | 'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED';
+export type KycDocumentType = 'PASSPORT' | 'DRIVING_LICENSE' | 'NATIONAL_ID' | 'PAN' | 'AADHAAR';
+
+export interface KycDocument {
+  id: string;
+  userId: string;
+  documentType: KycDocumentType;
+  documentNumber: string;
+  frontImageId: string;
+  backImageId?: string;
+  selfieImageId: string;
+  status: KycStatus;
+  submittedAt?: string;
+  approvedAt?: string;
+  rejectedAt?: string;
+  reviewedBy?: string;
+  remarks?: string;
+  createdAt: string;
+  updatedAt: string;
+  frontImage: KycMediaFile;
+  backImage?: KycMediaFile;
+  selfieImage: KycMediaFile;
+  user: {
+    id: string;
+    email: string;
+    phone?: string;
+    firstName?: string;
+    lastName?: string;
+    profile?: {
+      firstName?: string;
+      lastName?: string;
+      displayName?: string;
+      dateOfBirth?: string;
+      gender?: string;
+      city?: string;
+      state?: string;
+      country?: string;
+      zipCode?: string;
+    };
+  };
 }
