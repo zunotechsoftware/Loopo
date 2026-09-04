@@ -80,6 +80,28 @@ export const fetchConversationsThunk = createAsyncThunk(
   }
 );
 
+export const fetchMessagesThunk = createAsyncThunk(
+  'chat/fetchMessages',
+  async (conversationId: string) => {
+    const res = await chatApi.getMessages(conversationId);
+    if (res.success) {
+      return { conversationId, messages: res.data };
+    }
+    throw new Error('Failed to fetch messages');
+  }
+);
+
+export const sendMessageThunk = createAsyncThunk(
+  'chat/sendMessageThunk',
+  async (payload: { conversationId: string; text: string }) => {
+    const res = await chatApi.sendMessage(payload.conversationId, payload.text);
+    if (res.success) {
+      return { conversationId: payload.conversationId, message: res.data };
+    }
+    throw new Error('Failed to send message');
+  }
+);
+
 export const chatSlice = createSlice({
   name: 'chat',
   initialState,
@@ -151,6 +173,39 @@ export const chatSlice = createSlice({
         if (state.conversations.length === 0) {
           state.conversations = MOCK_CONVERSATIONS;
           state.activeConversationId = MOCK_CONVERSATIONS[0]?.id || '';
+        }
+      })
+      .addCase(fetchMessagesThunk.fulfilled, (state, action) => {
+        const { conversationId, messages } = action.payload;
+        const conv = state.conversations.find(c => c.id === conversationId);
+        if (conv) {
+          // Normalize messages
+          conv.messages = Array.isArray(messages) ? messages.map((m: any) => ({
+            id: m.id || m._id || `m-${Date.now()}`,
+            sender: m.senderId === state.activeConversationId /* Note: In a real app we'd compare against current userId */ ? 'other' : 'user', // Basic assumption for now
+            text: m.content || m.text || m.body || '',
+            time: m.createdAt
+              ? new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              : '',
+          })) : [];
+        }
+      })
+      .addCase(sendMessageThunk.fulfilled, (state, action) => {
+        const { conversationId, message } = action.payload;
+        const conv = state.conversations.find((c) => c.id === conversationId);
+        if (conv) {
+          const newMsg = {
+            id: message.id || `m-${Date.now()}`,
+            sender: 'user' as const,
+            text: message.content || message.text || '',
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          };
+          // Don't add if already added by real-time socket
+          if (!conv.messages.find(m => m.id === newMsg.id)) {
+             conv.messages.push(newMsg);
+          }
+          conv.lastMessage = newMsg.text;
+          conv.lastTime = 'Just now';
         }
       });
   },

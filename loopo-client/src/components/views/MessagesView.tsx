@@ -19,9 +19,10 @@ import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import {
   setChatFilterTab,
   setActiveConversation,
-  sendMessage,
   updateOfferStatus,
   fetchConversationsThunk,
+  fetchMessagesThunk,
+  sendMessageThunk,
 } from '@/redux/slices/chatSlice';
 import {
   setOfferModalOpen,
@@ -30,16 +31,53 @@ import {
   showToast,
 } from '@/redux/slices/uiSlice';
 
+import { useSocket } from '@/hooks/useSocket';
+
 export default function MessagesView() {
   const dispatch = useAppDispatch();
   const conversations = useAppSelector((state) => state.chat.conversations);
   const activeConversationId = useAppSelector((state) => state.chat.activeConversationId);
   const chatFilterTab = useAppSelector((state) => state.chat.chatFilterTab);
 
+  const { socket, isConnected, joinConversation, leaveConversation, markMessageRead } = useSocket();
+
   // Fetch real conversations from API on mount
   useEffect(() => {
     dispatch(fetchConversationsThunk());
   }, [dispatch]);
+
+  // Fetch messages when active conversation changes
+  useEffect(() => {
+    if (activeConversationId) {
+      dispatch(fetchMessagesThunk(activeConversationId));
+      if (isConnected) {
+        joinConversation(activeConversationId);
+        // We might want to leave previous ones but for now just joining is fine
+      }
+    }
+  }, [activeConversationId, dispatch, isConnected]);
+
+  // Listen to incoming real-time socket events
+  useEffect(() => {
+    if (!socket) return;
+    
+    const handleReceiveMessage = (msg: any) => {
+      // Re-fetch conversations to get updated unread counts/last message
+      dispatch(fetchConversationsThunk());
+      // Re-fetch messages for active conversation
+      if (activeConversationId) {
+        dispatch(fetchMessagesThunk(activeConversationId));
+        // Inform server we read the new message
+        markMessageRead(activeConversationId, msg.id);
+      }
+    };
+
+    socket.on('receive_message', handleReceiveMessage);
+    
+    return () => {
+      socket.off('receive_message', handleReceiveMessage);
+    };
+  }, [socket, activeConversationId, dispatch]);
 
   // Compute total unread counts for Buying & Selling
   const buyingUnread = conversations
@@ -65,8 +103,8 @@ export default function MessagesView() {
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!textInput.trim()) return;
-    dispatch(sendMessage({ conversationId: activeConv.id, text: textInput }));
+    if (!textInput.trim() || !activeConv) return;
+    dispatch(sendMessageThunk({ conversationId: activeConv.id, text: textInput }));
     setTextInput('');
   };
 
@@ -370,7 +408,7 @@ export default function MessagesView() {
             {quickChips.map((chip) => (
               <button
                 key={chip}
-                onClick={() => dispatch(sendMessage({ conversationId: activeConv.id, text: chip }))}
+                onClick={() => dispatch(sendMessageThunk({ conversationId: activeConv.id, text: chip }))}
                 className="px-3 py-1 bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-[11px] font-semibold text-slate-600 rounded-full whitespace-nowrap transition-colors"
               >
                 {chip}

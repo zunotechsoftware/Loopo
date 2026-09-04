@@ -8,7 +8,11 @@ export const chatApi = {
   },
 
   async sendMessage(conversationId: string, text: string): Promise<ApiResponse<any>> {
-    return apiClient.post('/chat/messages', { conversationId, text });
+    return apiClient.post('/chat/messages', { conversationId, content: text, type: 'TEXT' });
+  },
+
+  async getMessages(conversationId: string): Promise<ApiResponse<any[]>> {
+    return apiClient.get(`/chat/conversations/${conversationId}/messages`);
   },
 
   async updateOfferStatus(
