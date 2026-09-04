@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:loopo/screens/welcome_screen.dart';
+import 'package:loopo/services/location_service.dart';
 
 import 'theme/app_theme.dart';
 
@@ -40,6 +41,9 @@ Future<void> main() async {
   } catch (_) {
     // Silently fall through — ApiConfig falls back to hardcoded dev URL
   }
+
+  // Restore saved location from SharedPreferences
+  await LocationService().loadSavedLocation();
 
   // Show Flutter errors on-screen instead of a blank screen.
   ErrorWidget.builder = (FlutterErrorDetails details) {
