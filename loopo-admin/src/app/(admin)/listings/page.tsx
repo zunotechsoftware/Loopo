@@ -154,16 +154,18 @@ export default function ListingsPage() {
 
       const res = await productsService.getAll(params);
       if (res.data) {
-        const payload = res.data.data || res.data;
-        if (Array.isArray(payload)) {
-          setListings(payload);
-        } else if (payload?.data && Array.isArray(payload.data)) {
-          setListings(payload.data);
-          setTotal(payload.total || 0);
-        } else {
-          setListings([]);
-        }
+        const rawData = res.data;
+        const items = Array.isArray(rawData)
+          ? rawData
+          : Array.isArray(rawData.data)
+          ? rawData.data
+          : Array.isArray(rawData.items)
+          ? rawData.items
+          : [];
+        setListings(items);
+        setTotal(rawData.total !== undefined ? rawData.total : items.length);
       }
+
     } catch (err) {
       console.error('Failed to fetch listings:', err);
     } finally {

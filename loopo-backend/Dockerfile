@@ -28,5 +28,5 @@ COPY --from=builder /app/prisma ./prisma
 
 EXPOSE 3000
 
-# Run prisma migration deploy and start the application
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main.js"]
+# Sync DB schema and start the application
+CMD ["sh", "-c", "npx prisma db push --accept-data-loss && node dist/src/main.js"]
