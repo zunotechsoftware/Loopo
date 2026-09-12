@@ -33,9 +33,14 @@ export class WsJwtGuard implements CanActivate {
         throw new WsException('Unauthorized: Token is missing');
       }
 
-      const secret = this.configService.get<string>('JWT_ACCESS_SECRET') || 'fallback_secret';
+      const secret = this.configService.get<string>('JWT_ACCESS_SECRET');
+      if (!secret) {
+        // No hardcoded fallback: that would make WS auth forgeable by
+        // anyone the moment this env var is unset. See jwt.strategy.ts.
+        throw new WsException('Server misconfiguration: JWT secret not set');
+      }
       const payload = await this.jwtService.verifyAsync(token, { secret });
-      
+
       // Populate user on socket client
       client.data = client.data || {};
       client.data.user = {
