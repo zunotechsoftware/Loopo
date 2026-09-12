@@ -12,7 +12,7 @@ class ApiConfig {
   static const String _overrideBaseUrl = String.fromEnvironment('API_BASE_URL');
 
   static const String _devBaseUrl = 'https://loopo-711b.onrender.com';
-  static const String _prodBaseUrl = 'https://api.loopo.com'; // Production API hostname
+  static const String _prodBaseUrl = 'https://loopo-api.zunotechsoftware.com'; // Production API hostname
 
   static AppEnvironment get environment =>
       _envString.toLowerCase() == 'production'
