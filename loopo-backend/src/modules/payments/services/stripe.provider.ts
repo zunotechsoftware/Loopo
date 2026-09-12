@@ -12,6 +12,9 @@ export class StripeProvider implements IPaymentProvider {
 
   constructor(private readonly configService: ConfigService) {
     this.apiKey = this.configService.get<string>('STRIPE_SECRET_KEY') || 'sk_test_placeholder';
+    if (this.apiKey === 'sk_test_placeholder' && this.configService.get<string>('NODE_ENV') === 'production') {
+      throw new Error('STRIPE_SECRET_KEY is not configured');
+    }
     this.stripe = new Stripe(this.apiKey, {
       apiVersion: '2025-01-27.acacia' as any, // use current/compatible api version
     });
@@ -23,7 +26,7 @@ export class StripeProvider implements IPaymentProvider {
     currency: string,
     metadata: Record<string, any>,
   ): Promise<PaymentProviderResponse> {
-    const isMock = this.apiKey === 'sk_test_placeholder' || this.configService.get<string>('BYPASS_GATEWAY_API') === 'true';
+    const isMock = this.apiKey === 'sk_test_placeholder' || this.isBypassGatewayApi();
     if (isMock) {
       this.logger.warn('Stripe API Key is placeholder. Returning simulated payment intent.');
       return {
@@ -71,7 +74,7 @@ export class StripeProvider implements IPaymentProvider {
     providerOrderId?: string,
     signature?: string,
   ): Promise<PaymentProviderResponse> {
-    const isMock = providerPaymentId.startsWith('pi_mock_') || this.apiKey === 'sk_test_placeholder' || this.configService.get<string>('BYPASS_GATEWAY_API') === 'true';
+    const isMock = providerPaymentId.startsWith('pi_mock_') || this.apiKey === 'sk_test_placeholder' || this.isBypassGatewayApi();
     if (isMock) {
       return {
         success: true,
@@ -106,7 +109,7 @@ export class StripeProvider implements IPaymentProvider {
     amount: number,
     reason?: string,
   ): Promise<RefundProviderResponse> {
-    const isMock = providerPaymentId.startsWith('pi_mock_') || this.apiKey === 'sk_test_placeholder' || this.configService.get<string>('BYPASS_GATEWAY_API') === 'true';
+    const isMock = providerPaymentId.startsWith('pi_mock_') || this.apiKey === 'sk_test_placeholder' || this.isBypassGatewayApi();
     if (isMock) {
       return {
         success: true,
@@ -146,7 +149,9 @@ export class StripeProvider implements IPaymentProvider {
     headers: Record<string, any>,
     secret: string,
   ): boolean {
-    const bypass = this.configService.get<string>('BYPASS_WEBHOOK_SIGNATURE_FOR_TESTING') === 'true';
+    const bypass =
+      this.configService.get<string>('BYPASS_WEBHOOK_SIGNATURE_FOR_TESTING') === 'true' &&
+      this.configService.get<string>('NODE_ENV') !== 'production';
     if (bypass) {
       this.logger.warn('Bypassing Stripe webhook signature verification for testing purposes');
       return true;
@@ -157,12 +162,24 @@ export class StripeProvider implements IPaymentProvider {
       if (!signature) return false;
 
       const verifySecret = secret || this.webhookSecret;
+      if (!verifySecret) {
+        this.logger.error('Stripe webhook secret not configured; rejecting webhook');
+        return false;
+      }
       this.stripe.webhooks.constructEvent(rawBody, signature, verifySecret);
       return true;
     } catch (err) {
       this.logger.error('Stripe webhook signature verification failed', err);
       return false;
     }
+  }
+
+  /** BYPASS_GATEWAY_API is a local-dev convenience only — never honored in production. */
+  private isBypassGatewayApi(): boolean {
+    return (
+      this.configService.get<string>('BYPASS_GATEWAY_API') === 'true' &&
+      this.configService.get<string>('NODE_ENV') !== 'production'
+    );
   }
 
   private mapStatus(stripeStatus: string): string {

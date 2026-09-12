@@ -10,14 +10,29 @@ export class RazorpayProvider implements IPaymentProvider {
   private razorpay: Razorpay;
   private keySecret: string;
   private webhookSecret: string;
+  /** True when no real Razorpay credentials are configured — never true in production. */
+  private readonly isMock: boolean;
 
   constructor(private readonly configService: ConfigService) {
-    const keyId = this.configService.get<string>('RAZORPAY_KEY_ID') || 'rzp_test_placeholder';
-    this.keySecret = this.configService.get<string>('RAZORPAY_KEY_SECRET') || 'secret_placeholder';
+    const keyId = this.configService.get<string>('RAZORPAY_KEY_ID');
+    const keySecret = this.configService.get<string>('RAZORPAY_KEY_SECRET');
+    this.isMock = !keyId || !keySecret;
+
+    if (this.isMock && this.configService.get<string>('NODE_ENV') === 'production') {
+      // Never run with a placeholder/missing key+secret in production: keySecret
+      // doubles as the HMAC key for verifyPayment's signature check, so a
+      // guessable fallback would let anyone forge a "payment succeeded" signature.
+      throw new Error('RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET are not configured');
+    }
+    if (this.isMock) {
+      this.logger.warn('Razorpay credentials not configured — RazorpayProvider running in simulated mode.');
+    }
+
+    this.keySecret = keySecret || '';
     this.webhookSecret = this.configService.get<string>('RAZORPAY_WEBHOOK_SECRET') || '';
 
     this.razorpay = new Razorpay({
-      key_id: keyId,
+      key_id: keyId || 'rzp_test_placeholder',
       key_secret: this.keySecret,
     });
   }
@@ -27,6 +42,16 @@ export class RazorpayProvider implements IPaymentProvider {
     currency: string,
     metadata: Record<string, any>,
   ): Promise<PaymentProviderResponse> {
+    if (this.isMock) {
+      this.logger.warn('Razorpay credentials not configured. Returning simulated order.');
+      return {
+        success: true,
+        providerOrderId: `order_mock_${Date.now()}`,
+        status: 'PENDING',
+        rawResponse: { simulated: true },
+      };
+    }
+
     try {
       this.logger.log(`Creating Razorpay Order for amount: ${amount} ${currency}`);
       // Razorpay expects amount in paise
@@ -60,6 +85,17 @@ export class RazorpayProvider implements IPaymentProvider {
     providerOrderId: string,
     signature?: string,
   ): Promise<PaymentProviderResponse> {
+    if (this.isMock || providerOrderId.startsWith('order_mock_')) {
+      this.logger.warn('Razorpay credentials not configured. Returning simulated verification.');
+      return {
+        success: true,
+        providerPaymentId,
+        providerOrderId,
+        status: 'SUCCESS',
+        rawResponse: { simulated: true },
+      };
+    }
+
     try {
       this.logger.log(`Verifying Razorpay signature - Order ID: ${providerOrderId}, Payment ID: ${providerPaymentId}`);
 
@@ -129,6 +165,16 @@ export class RazorpayProvider implements IPaymentProvider {
     amount: number,
     reason?: string,
   ): Promise<RefundProviderResponse> {
+    if (this.isMock || providerPaymentId.startsWith('order_mock_')) {
+      this.logger.warn('Razorpay credentials not configured. Returning simulated refund.');
+      return {
+        success: true,
+        providerRefundId: `refund_mock_${Date.now()}`,
+        status: 'SUCCESS',
+        rawResponse: { simulated: true },
+      };
+    }
+
     try {
       this.logger.log(`Refunding Razorpay Payment: ${providerPaymentId}, Amount: ${amount}`);
       const refund = await this.razorpay.payments.refund(providerPaymentId, {
@@ -157,7 +203,9 @@ export class RazorpayProvider implements IPaymentProvider {
     headers: Record<string, any>,
     secret: string,
   ): boolean {
-    const bypass = this.configService.get<string>('BYPASS_WEBHOOK_SIGNATURE_FOR_TESTING') === 'true';
+    const bypass =
+      this.configService.get<string>('BYPASS_WEBHOOK_SIGNATURE_FOR_TESTING') === 'true' &&
+      this.configService.get<string>('NODE_ENV') !== 'production';
     if (bypass) {
       this.logger.warn('Bypassing Razorpay webhook signature verification for testing purposes');
       return true;
@@ -168,6 +216,12 @@ export class RazorpayProvider implements IPaymentProvider {
       if (!signature) return false;
 
       const verifySecret = secret || this.webhookSecret;
+      if (!verifySecret) {
+        // No configured secret to verify against — reject rather than HMAC
+        // with an empty key, which anyone could reproduce.
+        this.logger.error('Razorpay webhook secret not configured; rejecting webhook');
+        return false;
+      }
       const expectedSignature = crypto
         .createHmac('sha256', verifySecret)
         .update(rawBody)
