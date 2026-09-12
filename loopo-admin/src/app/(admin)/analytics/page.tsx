@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import {
-  Box, Typography, Card, CardContent, Grid, Tabs, Tab, FormControl,
+  Box, Typography, Card, CardContent, Grid2 as Grid, Tabs, Tab, FormControl,
   InputLabel, Select, MenuItem
 } from '@mui/material';
 import {

@@ -6,7 +6,7 @@ import {
   Table, TableBody, TableCell, TableContainer, TableRow, TableHead,
   Chip, TextField, FormControl, InputLabel, Select, MenuItem,
   Radio, RadioGroup, FormControlLabel, FormLabel, Tab, Tabs,
-  Drawer, Divider, Grid, Paper, Pagination, CircularProgress,
+  Drawer, Divider, Grid2 as Grid, Paper, Pagination, CircularProgress,
   Snackbar, Alert, Checkbox, SelectChangeEvent, Avatar
 } from '@mui/material';
 import {

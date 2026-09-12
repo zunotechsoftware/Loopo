@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import {
-  Box, Typography, Card, CardContent, Grid, Tabs, Tab,
+  Box, Typography, Card, CardContent, Grid2 as Grid, Tabs, Tab,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Chip, Switch, FormControlLabel, Button, TextField, InputAdornment,
   Divider, IconButton, Dialog, DialogTitle, DialogContent, DialogActions,

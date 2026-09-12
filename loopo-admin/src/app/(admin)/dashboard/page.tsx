@@ -2,7 +2,7 @@
 
 import React from 'react';
 import {
-  Box, Grid, Card, CardContent, Typography, Avatar, Chip,
+  Box, Grid2 as Grid, Card, CardContent, Typography, Avatar, Chip,
   LinearProgress, Divider, IconButton
 } from '@mui/material';
 import People from '@mui/icons-material/People';

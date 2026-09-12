@@ -152,9 +152,11 @@ export default function KycPage() {
       setLoading(true);
       const params: any = {};
       if (statusFilter) {
-        if (statusFilter === 'PENDING') params.status = 'SUBMITTED';
-        else if (statusFilter === 'VERIFIED') params.status = 'APPROVED';
-        else params.status = statusFilter;
+        // Backend only supports filtering by a single exact KycStatus.
+        // 'PENDING' spans both SUBMITTED and UNDER_REVIEW (see getStatusChipColor),
+        // so we fetch unfiltered for it and narrow client-side below.
+        if (statusFilter === 'VERIFIED') params.status = 'APPROVED';
+        else if (statusFilter !== 'PENDING') params.status = statusFilter;
       }
 
       const res = await kycService.getAll(params);
@@ -187,11 +189,11 @@ export default function KycPage() {
   const filteredApplications = applications.filter((app) => {
     // 1. Status Filter
     if (statusFilter) {
-      const mappedStatus = app.status; // 'SUBMITTED' / 'PENDING' / 'APPROVED' / 'VERIFIED' / 'REJECTED'
+      const mappedStatus = app.status; // 'DRAFT' / 'SUBMITTED' / 'UNDER_REVIEW' / 'APPROVED' / 'REJECTED'
       if (statusFilter === 'PENDING') {
-        if (mappedStatus !== 'SUBMITTED' && mappedStatus !== 'PENDING') return false;
+        if (mappedStatus !== 'SUBMITTED' && mappedStatus !== 'UNDER_REVIEW') return false;
       } else if (statusFilter === 'VERIFIED') {
-        if (mappedStatus !== 'APPROVED' && mappedStatus !== 'VERIFIED') return false;
+        if (mappedStatus !== 'APPROVED') return false;
       } else if (statusFilter === 'REJECTED') {
         if (mappedStatus !== 'REJECTED') return false;
       }
@@ -237,8 +239,8 @@ export default function KycPage() {
     });
   };
 
-  const pendingCount = applications.filter(a => a.status === 'SUBMITTED' || a.status === 'PENDING').length || 1;
-  const approvedCount = applications.filter(a => a.status === 'APPROVED' || a.status === 'VERIFIED').length || 1;
+  const pendingCount = applications.filter(a => a.status === 'SUBMITTED' || a.status === 'UNDER_REVIEW').length || 1;
+  const approvedCount = applications.filter(a => a.status === 'APPROVED').length || 1;
   const rejectedCount = applications.filter(a => a.status === 'REJECTED').length || 1;
 
   return (

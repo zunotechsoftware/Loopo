@@ -11,7 +11,7 @@ import {
   MenuItem,
   FormControl,
   FormHelperText,
-  Grid,
+  Grid2 as Grid,
   RadioGroup,
   Radio,
   Chip,
