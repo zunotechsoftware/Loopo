@@ -27,20 +27,28 @@ export default function SellPreviewPage() {
           price: priceNum,
           category: formData.category || 'Mobiles',
           condition: formData.condition || 'Like New',
-          location: `${formData.area}, ${formData.city}`,
+          location: `${formData.area || 'Indiranagar'}, ${formData.city || 'Bangalore'}`,
           images: formData.images.length > 0 ? formData.images : [primaryImage],
         })
       );
 
-      const listingId = createProductThunk.fulfilled.match(res) ? res.payload?.id || 'prod-' + Date.now() : 'prod-' + Date.now();
-      dispatch(setPublishedListingId(listingId));
-      dispatch(showToast('Listing published successfully!'));
-      router.push(ROUTES.SELL_SUCCESS);
+      if (createProductThunk.fulfilled.match(res)) {
+        const listingId = res.payload?.id || 'prod-' + Date.now();
+        dispatch(setPublishedListingId(listingId));
+        dispatch(setSubmitting(false));
+        dispatch(showToast('Listing published successfully! 🎉'));
+        router.push(ROUTES.SELL_SUCCESS);
+      } else {
+        dispatch(setSubmitting(false));
+        const err = (res.payload as string) || 'Failed to publish listing. Please verify login.';
+        dispatch(showToast(err));
+      }
     } catch {
       dispatch(setSubmitting(false));
       dispatch(showToast('Failed to publish listing. Please try again.'));
     }
   };
+
 
   return (
     <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-6 animate-in fade-in duration-200">

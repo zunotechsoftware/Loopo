@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { MOCK_WALLET, Transaction } from '@/mockData/wallet';
+import { Transaction } from '@/types';
 import { walletApi } from '@/services/walletApi';
 
 interface WalletState {
@@ -19,7 +19,7 @@ export const fetchWalletThunk = createAsyncThunk('wallet/fetchWallet', async () 
   if (res.success && res.data) {
     return res.data;
   }
-  return { balance: MOCK_WALLET.balance };
+  return { balance: 0, transactions: [] };
 });
 
 export const walletSlice = createSlice({
@@ -35,7 +35,6 @@ export const walletSlice = createSlice({
         date: 'Today',
         amount: action.payload,
       });
-      // Fire-and-forget API call
       walletApi.addFunds(action.payload).catch(() => {});
     },
     boostAd: (state, action: PayloadAction<{ adTitle: string; cost: number }>) => {
@@ -57,9 +56,8 @@ export const walletSlice = createSlice({
       .addCase(fetchWalletThunk.fulfilled, (state, action) => {
         state.loading = false;
         state.balance = action.payload.balance ?? 0;
-        // If backend returns transactions too, hydrate them
         const data = action.payload as any;
-        if (Array.isArray(data.transactions) && data.transactions.length > 0) {
+        if (Array.isArray(data.transactions)) {
           state.transactions = data.transactions.map((t: any) => ({
             id: t.id || t._id || `t-${Date.now()}`,
             type: t.type === 'CREDIT' || t.type === 'credit' ? 'credit' : 'debit',
@@ -73,20 +71,14 @@ export const walletSlice = createSlice({
               : 'Recently',
             amount: t.amount || 0,
           }));
-        } else if (state.transactions.length === 0) {
-          // Use mock transactions as placeholder until real data arrives
-          state.transactions = MOCK_WALLET.transactions;
         }
       })
       .addCase(fetchWalletThunk.rejected, (state) => {
         state.loading = false;
-        if (state.balance === 0) {
-          state.balance = MOCK_WALLET.balance;
-          state.transactions = MOCK_WALLET.transactions;
-        }
       });
   },
 });
 
 export const { addMoney, boostAd } = walletSlice.actions;
 export default walletSlice.reducer;
+

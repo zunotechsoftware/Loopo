@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { MOCK_CONVERSATIONS, Conversation } from '@/mockData/chats';
+import { Conversation } from '@/types';
 import { chatApi } from '@/services/chatApi';
 
 interface ChatState {
@@ -10,8 +10,8 @@ interface ChatState {
 }
 
 const initialState: ChatState = {
-  conversations: MOCK_CONVERSATIONS,
-  activeConversationId: MOCK_CONVERSATIONS[0]?.id || 'conv-buy-1',
+  conversations: [],
+  activeConversationId: '',
   chatFilterTab: 'buying',
   loading: false,
 };
@@ -44,13 +44,13 @@ function normaliseConversation(c: any): Conversation {
     otherPartyAvatar:
       other.profile?.avatarUrl ||
       other.avatarUrl ||
-      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop',
+      '',
     otherPartyRole: c.type === 'selling' ? 'Buyer' : 'Seller',
     itemTitle: product.title || c.productTitle || 'Item',
     itemPrice: product.price ? `₹${product.price.toLocaleString('en-IN')}` : '',
     itemImage:
       (Array.isArray(product.images) ? product.images[0] : product.image) ||
-      'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?q=80&w=400&auto=format&fit=crop',
+      '',
     itemLocation: product.location?.city || product.location || '',
     lastMessage: c.lastMessage || (messages[messages.length - 1]?.text ?? ''),
     lastTime: c.updatedAt
@@ -72,11 +72,9 @@ export const fetchConversationsThunk = createAsyncThunk(
         : Array.isArray(data?.items)
         ? data.items
         : [];
-      if (raw.length > 0) {
-        return raw.map(normaliseConversation);
-      }
+      return raw.map(normaliseConversation);
     }
-    return MOCK_CONVERSATIONS;
+    return [];
   }
 );
 
@@ -147,14 +145,12 @@ export const chatSlice = createSlice({
       })
       .addCase(fetchConversationsThunk.rejected, (state) => {
         state.loading = false;
-        // Fallback to mock data on error
-        if (state.conversations.length === 0) {
-          state.conversations = MOCK_CONVERSATIONS;
-          state.activeConversationId = MOCK_CONVERSATIONS[0]?.id || '';
-        }
+        state.conversations = [];
+        state.activeConversationId = '';
       });
   },
 });
+
 
 export const { setChatFilterTab, setActiveConversation, sendMessage, updateOfferStatus } =
   chatSlice.actions;

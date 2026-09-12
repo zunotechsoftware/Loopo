@@ -4,7 +4,7 @@ import React, { use } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import ProductCard from '@/components/ui/ProductCard';
 import { useAppSelector } from '@/redux/hooks';
-import { MOCK_CATEGORIES } from '@/mockData/categories';
+import { CATEGORIES } from '@/types';
 import { Smartphone, Car, Bike, Tv, Sofa, Shirt, BookOpen, Home, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { ROUTES } from '@/routes/routes';
@@ -20,14 +20,15 @@ export default function CategoryDetailPage({ params }: PageProps) {
   const products = useAppSelector((state) => state.products.items);
 
   // Match category by slug or name
-  const matchedCategory = MOCK_CATEGORIES.find(
+  const matchedCategory = CATEGORIES.find(
     (c) => c.name.toLowerCase().replace(/\s+/g, '-') === categorySlug.toLowerCase()
   );
   const categoryName = matchedCategory ? matchedCategory.name : categorySlug.replace(/-/g, ' ');
 
   const filteredProducts = products.filter(
-    (p) => p.category.toLowerCase() === categoryName.toLowerCase()
+    (p) => (p.category || '').toLowerCase() === categoryName.toLowerCase()
   );
+
 
   return (
     <MainLayout>

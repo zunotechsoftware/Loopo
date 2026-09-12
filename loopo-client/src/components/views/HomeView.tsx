@@ -18,7 +18,8 @@ import {
   ArrowRight,
   Sparkles,
 } from 'lucide-react';
-import { MOCK_CATEGORIES } from '@/mockData/categories';
+import { CATEGORIES } from '@/types';
+
 import ProductCard from '../ui/ProductCard';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { setActiveTab } from '@/redux/slices/navigationSlice';
@@ -143,7 +144,8 @@ export default function HomeView() {
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
-          {MOCK_CATEGORIES.map((cat) => {
+          {CATEGORIES.map((cat) => {
+
             const IconComponent = getCategoryIcon(cat.iconName);
             const slug = (cat as any).slug || cat.name.toLowerCase().replace(/\s+/g, '-');
             return (

@@ -1,5 +1,6 @@
 import { apiClient, ApiResponse } from './apiClient';
-import { Conversation } from '@/mockData/chats';
+import { Conversation } from '@/types';
+
 
 export const chatApi = {
   async getConversations(type?: 'buying' | 'selling'): Promise<ApiResponse<Conversation[]>> {

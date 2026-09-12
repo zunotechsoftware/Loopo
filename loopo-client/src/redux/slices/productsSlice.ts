@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { MOCK_PRODUCTS, Product } from '@/mockData/products';
+import { Product } from '@/types';
 import { productsApi, CreateProductPayload } from '@/services/productsApi';
 
 interface FilterState {
@@ -20,8 +20,7 @@ interface ProductsState {
 }
 
 const initialState: ProductsState = {
-  // Initialize with MOCK_PRODUCTS so UI renders instantly on load
-  items: MOCK_PRODUCTS,
+  items: [],
   favorites: [],
   filters: {
     searchQuery: '',
@@ -40,9 +39,7 @@ function normaliseProduct(p: any): Product {
   const images: string[] =
     Array.isArray(p.images) && p.images.length > 0
       ? p.images.map((img: any) => (typeof img === 'string' ? img : img?.url || img?.path || ''))
-      : [
-          'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?q=80&w=800&auto=format&fit=crop',
-        ];
+      : [];
 
   const seller = p.seller || p.user || {};
 
@@ -68,12 +65,12 @@ function normaliseProduct(p: any): Product {
       avatar:
         seller.profile?.avatarUrl ||
         seller.avatarUrl ||
-        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop',
-      rating: seller.reputation?.averageRating || seller.rating || 4.5,
+        '',
+      rating: seller.reputation?.averageRating || seller.rating || 0,
       reviewCount: seller.reputation?.totalReviews || seller.reviewCount || 0,
       memberSince: seller.createdAt
         ? new Date(seller.createdAt).getFullYear().toString()
-        : '2024',
+        : '',
       isVerified: seller.isEmailVerified || seller.isKycVerified || false,
     },
     description: p.description || '',
@@ -86,27 +83,24 @@ function normaliseProduct(p: any): Product {
 
 export const fetchProductsThunk = createAsyncThunk(
   'products/fetchProducts',
-  async (args?: { category?: string; query?: string }) => {
-    const { category, query } = args || {};
-    const res = await productsApi.getProducts(category, query);
+  async (args?: { category?: string; query?: string; city?: string }) => {
+    const { category, query, city } = args || {};
+    const res = await productsApi.getProducts(category, query, city);
 
     if (res.success) {
       const data = res.data as any;
-      // Backend may return { items: [], total: n } or a flat array
       const rawItems: any[] = Array.isArray(data)
         ? data
         : Array.isArray(data?.items)
         ? data.items
         : [];
 
-      if (rawItems.length > 0) {
-        return rawItems.map(normaliseProduct);
-      }
+      return rawItems.map(normaliseProduct);
     }
-    // Fallback to mock data when backend is cold-starting or empty
-    return MOCK_PRODUCTS;
+    return [];
   }
 );
+
 
 export const createProductThunk = createAsyncThunk(
   'products/createProduct',
@@ -159,19 +153,26 @@ export const productsSlice = createSlice({
       })
       .addCase(fetchProductsThunk.fulfilled, (state, action) => {
         state.loading = false;
-        if (action.payload && action.payload.length > 0) {
-          state.items = action.payload;
-        }
+        const fetchedMap = new Map<string, Product>();
+        action.payload.forEach((item) => fetchedMap.set(item.id, item));
+        state.items.forEach((existing) => {
+          if (!fetchedMap.has(existing.id)) {
+            fetchedMap.set(existing.id, existing);
+          }
+        });
+        state.items = Array.from(fetchedMap.values());
       })
-      .addCase(fetchProductsThunk.rejected, (state) => {
+
+      .addCase(fetchProductsThunk.rejected, (state, action) => {
         state.loading = false;
-        // Keep existing items (or mock fallback) on error
+        state.error = action.error.message || 'Failed to fetch products';
       })
       .addCase(createProductThunk.fulfilled, (state, action) => {
         state.items.unshift(action.payload);
       });
   },
 });
+
 
 export const {
   toggleFavorite,

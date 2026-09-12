@@ -16,7 +16,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
-import { setLocation, showToast } from '@/redux/slices/uiSlice';
+import { setLocation, setLocationData, showToast } from '@/redux/slices/uiSlice';
 import { ROUTES } from '@/routes/routes';
 
 export default function LocationPage() {
@@ -52,31 +52,41 @@ export default function LocationPage() {
   const [isDetectingGps, setIsDetectingGps] = useState(false);
   const [pinPosition, setPinPosition] = useState({ x: 50, y: 50 }); // Map Pin % offset
 
+  const applyIpFallback = async (lat?: number, lng?: number) => {
+    try {
+      const ipRes = await fetch('https://ipapi.co/json/').then(r => r.json());
+      const city = ipRes?.city || 'Bangalore';
+      const state = ipRes?.region || 'Karnataka';
+      const country = ipRes?.country_name || 'India';
+      const displayName = `${city}, ${state}`;
+      setSelectedCity(displayName);
+      dispatch(setLocationData({ displayName, city, state, country, latitude: lat, longitude: lng }));
+      dispatch(showToast(`📍 Location detected: ${city}, ${state}`));
+    } catch {
+      setSelectedCity('Bangalore, Karnataka');
+      dispatch(setLocation('Bangalore, Karnataka'));
+      dispatch(showToast('Could not detect location. Using default.'));
+    }
+  };
+
   const handleDetectGps = () => {
     setIsDetectingGps(true);
 
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
-        (position) => {
+        async (position) => {
           setIsDetectingGps(false);
-          const locName = 'Indiranagar, Bangalore (Current GPS)';
-          setSelectedCity(locName);
-          dispatch(setLocation(locName));
-          dispatch(showToast('📍 Live GPS location detected: Indiranagar, Bangalore'));
+          await applyIpFallback(position.coords.latitude, position.coords.longitude);
         },
-        (error) => {
+        () => {
           setIsDetectingGps(false);
-          setSelectedCity('Indiranagar, Bangalore');
-          dispatch(setLocation('Indiranagar, Bangalore'));
-          dispatch(showToast('📍 Set to default location: Indiranagar, Bangalore'));
+          applyIpFallback();
         },
         { timeout: 5000 }
       );
     } else {
       setIsDetectingGps(false);
-      setSelectedCity('Indiranagar, Bangalore');
-      dispatch(setLocation('Indiranagar, Bangalore'));
-      dispatch(showToast('GPS auto-detected: Indiranagar, Bangalore'));
+      applyIpFallback();
     }
   };
 

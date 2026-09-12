@@ -4,7 +4,7 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { updateSellForm } from '@/redux/slices/sellSlice';
-import { MOCK_CATEGORIES } from '@/mockData/categories';
+import { CATEGORIES } from '@/types';
 import { ROUTES } from '@/routes/routes';
 import { ArrowRight, Grid, Check } from 'lucide-react';
 
@@ -13,10 +13,10 @@ export default function SellCategoryPage() {
   const dispatch = useAppDispatch();
   const { category, subcategory } = useAppSelector((state) => state.sell.formData);
 
-  const selectedCatObj = MOCK_CATEGORIES.find((c) => c.name === category) || MOCK_CATEGORIES[0];
+  const selectedCatObj = CATEGORIES.find((c) => c.name === category) || CATEGORIES[0];
 
   const handleSelectCat = (catName: string) => {
-    const catObj = MOCK_CATEGORIES.find((c) => c.name === catName);
+    const catObj = CATEGORIES.find((c) => c.name === catName);
     dispatch(
       updateSellForm({
         category: catName,
@@ -40,7 +40,8 @@ export default function SellCategoryPage() {
       <div className="space-y-2">
         <label className="text-xs font-bold text-slate-700">Category</label>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {MOCK_CATEGORIES.map((cat) => {
+          {CATEGORIES.map((cat) => {
+
             const isSelected = category === cat.name;
             return (
               <button

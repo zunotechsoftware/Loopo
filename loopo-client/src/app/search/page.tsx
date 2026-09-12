@@ -7,9 +7,10 @@ import ProductCard from '@/components/ui/ProductCard';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { fetchProductsThunk } from '@/redux/slices/productsSlice';
 import { Search, SlidersHorizontal, MapPin, ArrowUpDown, Filter, X, Check, Loader2 } from 'lucide-react';
-import { MOCK_CATEGORIES } from '@/mockData/categories';
+import { CATEGORIES } from '@/types';
 
 function SearchContent() {
+
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -165,9 +166,10 @@ function SearchContent() {
                 className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none"
               >
                 <option value="">All Categories</option>
-                {MOCK_CATEGORIES.map((c) => (
+                {CATEGORIES.map((c) => (
                   <option key={c.id} value={c.name}>{c.name}</option>
                 ))}
+
               </select>
             </div>
 

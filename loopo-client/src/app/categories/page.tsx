@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import MainLayout from '@/components/layout/MainLayout';
-import { MOCK_CATEGORIES } from '@/mockData/categories';
+import { CATEGORIES } from '@/types';
 import { Smartphone, Car, Bike, Tv, Sofa, Shirt, BookOpen, Home, ChevronRight, Grid } from 'lucide-react';
 import { ROUTES } from '@/routes/routes';
 
@@ -47,7 +47,8 @@ export default function CategoriesPage() {
 
         {/* Categories Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {MOCK_CATEGORIES.map((cat) => {
+          {CATEGORIES.map((cat) => {
+
             const Icon = getCategoryIcon(cat.icon);
             const slug = cat.name.toLowerCase().replace(/\s+/g, '-');
 

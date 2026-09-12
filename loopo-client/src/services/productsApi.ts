@@ -1,5 +1,6 @@
 import { apiClient, ApiResponse } from './apiClient';
-import { Product } from '@/mockData/products';
+import { Product } from '@/types';
+
 
 export interface CreateProductPayload {
   title: string;
@@ -35,23 +36,28 @@ function mapConditionToEnum(cond: string): 'NEW' | 'LIKE_NEW' | 'GOOD' | 'FAIR' 
 function parseLocationString(locStr: string) {
   const parts = (locStr || '').split(',').map((p) => p.trim()).filter(Boolean);
   return {
-    city: parts[0] || 'Bangalore',
+    country: 'India',
     state: parts[1] || 'Karnataka',
-    country: parts[2] || 'India',
+    city: parts[1] ? parts[0] : 'Bangalore',
+    area: parts[0] || 'Indiranagar',
+    zipCode: '560038',
   };
 }
 
+
 export const productsApi = {
-  async getProducts(category?: string, query?: string): Promise<ApiResponse<Product[]>> {
+  async getProducts(category?: string, query?: string, city?: string): Promise<ApiResponse<Product[]>> {
     const params = new URLSearchParams();
     if (category && category !== 'All Categories') params.append('category', category);
     if (query) params.append('search', query);
+    if (city) params.append('city', city);
 
     const queryString = params.toString();
     const endpoint = queryString ? `/products?${queryString}` : '/products';
 
     return apiClient.get<Product[]>(endpoint);
   },
+
 
   async getProductById(id: string): Promise<ApiResponse<Product>> {
     return apiClient.get<Product>(`/products/${id}`);

@@ -1,15 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { MyAdItem } from '@/types';
 import { productsApi } from '@/services/productsApi';
 import { createProductThunk } from '@/redux/slices/productsSlice';
-
-export interface MyAdItem {
-  id: string;
-  title: string;
-  price: string;
-  postedDate: string;
-  image: string;
-  status: 'Active' | 'Sold' | 'Inactive';
-}
 
 interface MyAdsState {
   ads: MyAdItem[];
@@ -49,48 +41,58 @@ function mapStatus(s: string): 'Active' | 'Sold' | 'Inactive' {
   return 'Inactive';
 }
 
+function loadLocalAds(): MyAdItem[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const saved = localStorage.getItem('loopo_my_ads');
+    return saved ? JSON.parse(saved) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalAds(ads: MyAdItem[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem('loopo_my_ads', JSON.stringify(ads));
+  } catch {
+    // ignore quota error
+  }
+}
+
 function normaliseDbItem(p: any): MyAdItem {
-  const images: string[] = Array.isArray(p.images)
-    ? p.images.map((img: any) => (typeof img === 'string' ? img : img?.originalUrl || img?.url || ''))
-    : [];
+  let mainImage = p.image || p.imageUrl || '';
+  if (!mainImage && Array.isArray(p.images) && p.images.length > 0) {
+    const first = p.images[0];
+    mainImage = typeof first === 'string' ? first : first?.originalUrl || first?.url || '';
+  }
+  if (!mainImage) {
+    mainImage = 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?q=80&w=800&auto=format&fit=crop';
+  }
+
+  const priceVal = typeof p.price === 'number'
+    ? `₹${p.price.toLocaleString('en-IN')}`
+    : typeof p.price === 'string' && p.price.startsWith('₹')
+    ? p.price
+    : `₹${p.price || '0'}`;
 
   return {
     id: p.id || p._id || `my-${Date.now()}`,
     title: p.title || 'Untitled Listing',
-    price: typeof p.price === 'number' ? `₹${p.price.toLocaleString('en-IN')}` : `${p.price || '0'}`,
+    price: priceVal,
     postedDate: formatDate(p.createdAt || p.postedDate),
-    image:
-      images[0] ||
-      'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?q=80&w=400&auto=format&fit=crop',
-    status: mapStatus(p.status),
+    image: mainImage,
+    status: mapStatus(p.status || 'Active'),
   };
 }
 
 const initialState: MyAdsState = {
-  ads: [
-    {
-      id: 'my-1',
-      title: 'iPhone 15 Pro Max 256GB Natural Titanium',
-      price: '₹78,000',
-      postedDate: 'Posted on 20 Aug 2026',
-      image: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?q=80&w=400&auto=format&fit=crop',
-      status: 'Active',
-    },
-    {
-      id: 'my-2',
-      title: 'Sony WH-1000XM5 Wireless Headphones',
-      price: '₹22,000',
-      postedDate: 'Posted on 15 Aug 2026',
-      image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=400&auto=format&fit=crop',
-      status: 'Sold',
-    },
-  ],
+  ads: loadLocalAds(),
   activeFilter: 'Active',
   loading: false,
 };
 
 export const fetchMyAdsThunk = createAsyncThunk('myAds/fetchMyAds', async () => {
-  // First attempt user's own listings endpoint
   const res = await productsApi.getMyAds();
   if (res.success) {
     const data = res.data as any;
@@ -100,42 +102,9 @@ export const fetchMyAdsThunk = createAsyncThunk('myAds/fetchMyAds', async () => 
       ? data.items
       : [];
 
-    if (raw.length > 0) {
-      return raw.map(normaliseDbItem);
-    }
-  }
-
-  // Fallback to public products from DB if unauthenticated or no private ads
-  const publicRes = await productsApi.getProducts();
-  if (publicRes.success) {
-    const data = publicRes.data as any;
-    const raw: any[] = Array.isArray(data)
-      ? data
-      : Array.isArray(data?.items)
-      ? data.items
-      : [];
-
     return raw.map(normaliseDbItem);
   }
-
-  return [
-    {
-      id: 'my-1',
-      title: 'iPhone 15 Pro Max 256GB Natural Titanium',
-      price: '₹78,000',
-      postedDate: 'Posted on 20 Aug 2026',
-      image: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?q=80&w=400&auto=format&fit=crop',
-      status: 'Active' as const,
-    },
-    {
-      id: 'my-2',
-      title: 'Sony WH-1000XM5 Wireless Headphones',
-      price: '₹22,000',
-      postedDate: 'Posted on 15 Aug 2026',
-      image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=400&auto=format&fit=crop',
-      status: 'Sold' as const,
-    },
-  ];
+  return [];
 });
 
 export const myAdsSlice = createSlice({
@@ -148,6 +117,7 @@ export const myAdsSlice = createSlice({
     addMyAd: (state, action: PayloadAction<MyAdItem>) => {
       state.ads.unshift(action.payload);
       state.activeFilter = 'Active';
+      saveLocalAds(state.ads);
     },
     updateAdStatus: (
       state,
@@ -157,9 +127,11 @@ export const myAdsSlice = createSlice({
       if (ad) {
         ad.status = action.payload.status;
       }
+      saveLocalAds(state.ads);
     },
     deleteAd: (state, action: PayloadAction<string>) => {
       state.ads = state.ads.filter((a) => a.id !== action.payload);
+      saveLocalAds(state.ads);
     },
   },
   extraReducers: (builder) => {
@@ -169,7 +141,15 @@ export const myAdsSlice = createSlice({
       })
       .addCase(fetchMyAdsThunk.fulfilled, (state, action) => {
         state.loading = false;
-        state.ads = action.payload;
+        if (action.payload && action.payload.length > 0) {
+          const map = new Map<string, MyAdItem>();
+          // Put existing state ads first (so newly published ads stay)
+          state.ads.forEach((ad) => map.set(ad.id, ad));
+          // Overlay fetched ads from API
+          action.payload.forEach((ad) => map.set(ad.id, ad));
+          state.ads = Array.from(map.values());
+        }
+        saveLocalAds(state.ads);
       })
       .addCase(fetchMyAdsThunk.rejected, (state) => {
         state.loading = false;
@@ -177,13 +157,18 @@ export const myAdsSlice = createSlice({
       .addCase(createProductThunk.fulfilled, (state, action) => {
         const p = action.payload as any;
         const newAd = normaliseDbItem(p);
-        if (!state.ads.some((a) => a.id === newAd.id)) {
+        const existingIdx = state.ads.findIndex((a) => a.id === newAd.id);
+        if (existingIdx >= 0) {
+          state.ads[existingIdx] = newAd;
+        } else {
           state.ads.unshift(newAd);
         }
         state.activeFilter = 'Active';
+        saveLocalAds(state.ads);
       });
   },
 });
+
 
 export const { setAdsFilter, addMyAd, updateAdStatus, deleteAd } = myAdsSlice.actions;
 export default myAdsSlice.reducer;

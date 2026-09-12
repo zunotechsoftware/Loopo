@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { FolderTree, Edit3, Plus } from 'lucide-react';
-import { MOCK_CATEGORIES } from '@/mockData/categories';
+import { CATEGORIES } from '@/types';
 import { ROUTES } from '@/routes/routes';
 
 export default function AdminCategoriesPage() {
@@ -22,7 +22,8 @@ export default function AdminCategoriesPage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {MOCK_CATEGORIES.map((cat) => (
+        {CATEGORIES.map((cat) => (
+
           <div key={cat.id} className="bg-slate-950 p-5 rounded-3xl border border-slate-800 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-extrabold text-white text-base">{cat.name}</h3>
