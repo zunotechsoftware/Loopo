@@ -20,8 +20,18 @@ class _ReviewListingScreenState extends State<ReviewListingScreen> {
   bool _isPublishing = false;
 
   Future<void> _publish() async {
-    setState(() => _isPublishing = true);
     final d = widget.controller.data;
+    if (d.selectedCategoryId == null || d.selectedCategoryId!.isEmpty) {
+      // No hardcoded fallback here: 'a5cbe71e-01fc-4043-9828-98f5a653ccfe'
+      // (this file's old fallback) was literally the Swagger example value
+      // for categoryId in the backend's API docs, not a real category - it
+      // always failed with 404 "Category not found". Fail visibly instead.
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please go back and choose a category.')),
+      );
+      return;
+    }
+    setState(() => _isPublishing = true);
     try {
       final productService = ProductService();
 
@@ -49,7 +59,7 @@ class _ReviewListingScreenState extends State<ReviewListingScreen> {
       final payload = {
         'title': d.title.isNotEmpty ? d.title : 'Marketplace Listing',
         'description': d.description.isNotEmpty ? d.description : 'Item listed via Loopo app.',
-        'categoryId': d.selectedCategoryId ?? 'a5cbe71e-01fc-4043-9828-98f5a653ccfe',
+        'categoryId': d.selectedCategoryId,
         if (d.selectedSubcategoryId != null && d.selectedSubcategoryId!.isNotEmpty)
           'subcategoryId': d.selectedSubcategoryId,
         'condition': conditionEnum,

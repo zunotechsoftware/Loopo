@@ -1,11 +1,27 @@
 // ─── Step 1 – Sell Home ───────────────────────────────────────────────────────
+//
+// Previously showed 8 fully hardcoded "popular categories" (Mobiles,
+// Electronics, Vehicles, Property, Fashion, Furniture, Books, Services) with
+// fake string ids ('mobiles', 'property', ...). Property and Services don't
+// exist in the real category taxonomy at all - a user picking either here
+// would then find step 2 (real category tree) doesn't have their choice.
+// Step 2 always overwrites selectedCategoryId with a real one before
+// submission, so this never broke listing creation the way step 2's own bug
+// did, but it was still a real, confusing dead end. Now fetches the same
+// real category tree step 2 uses, via CategoryService.
+//
+// The old "Recent Categories" section was decorative filler with no backing
+// data (a hardcoded 3-item list, "Clear" button was a no-op) - removed
+// rather than faked, since there's no real recently-used-category tracking
+// to show yet.
 
 import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
+import '../../services/category_service.dart';
 import 'sell_widgets.dart';
 import 'sell_flow_controller.dart';
 
-// ── Static category data ──────────────────────────────────────────────────────
+// ── Category data ──────────────────────────────────────────────────────────
 
 class _SellCategory {
   final String id;
@@ -23,88 +39,33 @@ class _SellCategory {
   });
 }
 
-const _popularCategories = [
-  _SellCategory(
-    id: 'mobiles',
-    label: 'Mobiles',
-    icon: Icons.phone_android_rounded,
-    iconColor: Color(0xFF7C3AED),
-    bgColor: Color(0xFFF3F0FF),
-  ),
-  _SellCategory(
-    id: 'electronics',
-    label: 'Electronics',
-    icon: Icons.devices_rounded,
-    iconColor: Color(0xFF1E88E5),
-    bgColor: Color(0xFFEFF6FF),
-  ),
-  _SellCategory(
-    id: 'vehicles',
-    label: 'Vehicles',
-    icon: Icons.directions_car_rounded,
-    iconColor: Color(0xFFF59E0B),
-    bgColor: Color(0xFFFFFBEB),
-  ),
-  _SellCategory(
-    id: 'property',
-    label: 'Property',
-    icon: Icons.apartment_rounded,
-    iconColor: Color(0xFF059669),
-    bgColor: Color(0xFFECFDF5),
-  ),
-  _SellCategory(
-    id: 'fashion',
-    label: 'Fashion',
-    icon: Icons.checkroom_rounded,
-    iconColor: Color(0xFFEC4899),
-    bgColor: Color(0xFFFDF2F8),
-  ),
-  _SellCategory(
-    id: 'furniture',
-    label: 'Furniture',
-    icon: Icons.chair_rounded,
-    iconColor: Color(0xFF92400E),
-    bgColor: Color(0xFFFEF3C7),
-  ),
-  _SellCategory(
-    id: 'books',
-    label: 'Books',
-    icon: Icons.menu_book_rounded,
-    iconColor: Color(0xFF0284C7),
-    bgColor: Color(0xFFE0F2FE),
-  ),
-  _SellCategory(
-    id: 'services',
-    label: 'Services',
-    icon: Icons.home_repair_service_rounded,
-    iconColor: Color(0xFF16A34A),
-    bgColor: Color(0xFFF0FDF4),
-  ),
-];
-
-const _recentCategories = [
-  _SellCategory(
-    id: 'mobiles',
-    label: 'Mobiles',
-    icon: Icons.phone_android_rounded,
-    iconColor: Color(0xFF7C3AED),
-    bgColor: Color(0xFFF3F0FF),
-  ),
-  _SellCategory(
-    id: 'fashion',
-    label: 'Fashion',
-    icon: Icons.checkroom_rounded,
-    iconColor: Color(0xFFEC4899),
-    bgColor: Color(0xFFFDF2F8),
-  ),
-  _SellCategory(
-    id: 'electronics',
-    label: 'Electronics',
-    icon: Icons.devices_rounded,
-    iconColor: Color(0xFF1E88E5),
-    bgColor: Color(0xFFEFF6FF),
-  ),
-];
+// Real categories don't carry an icon/color from the backend, so both are
+// picked by matching on the category's real name, with a generic fallback.
+_SellCategory _toSellCategory(Map<String, dynamic> c) {
+  final name = (c['name'] ?? '').toString();
+  final key = name.toLowerCase();
+  IconData icon = Icons.category_rounded;
+  Color iconColor = const Color(0xFF64748B);
+  Color bgColor = const Color(0xFFF1F5F9);
+  if (key.contains('mobile') || key.contains('phone')) {
+    icon = Icons.phone_android_rounded; iconColor = const Color(0xFF7C3AED); bgColor = const Color(0xFFF3F0FF);
+  } else if (key.contains('electronic') || key.contains('tv')) {
+    icon = Icons.devices_rounded; iconColor = const Color(0xFF1E88E5); bgColor = const Color(0xFFEFF6FF);
+  } else if (key.contains('vehicle') || key.contains('car') || key.contains('bike')) {
+    icon = Icons.directions_car_rounded; iconColor = const Color(0xFFF59E0B); bgColor = const Color(0xFFFFFBEB);
+  } else if (key.contains('propert') || key.contains('home') || key.contains('living')) {
+    icon = Icons.apartment_rounded; iconColor = const Color(0xFF059669); bgColor = const Color(0xFFECFDF5);
+  } else if (key.contains('fashion') || key.contains('cloth')) {
+    icon = Icons.checkroom_rounded; iconColor = const Color(0xFFEC4899); bgColor = const Color(0xFFFDF2F8);
+  } else if (key.contains('furniture')) {
+    icon = Icons.chair_rounded; iconColor = const Color(0xFF92400E); bgColor = const Color(0xFFFEF3C7);
+  } else if (key.contains('book')) {
+    icon = Icons.menu_book_rounded; iconColor = const Color(0xFF0284C7); bgColor = const Color(0xFFE0F2FE);
+  } else if (key.contains('service')) {
+    icon = Icons.home_repair_service_rounded; iconColor = const Color(0xFF16A34A); bgColor = const Color(0xFFF0FDF4);
+  }
+  return _SellCategory(id: (c['id'] ?? '').toString(), label: name, icon: icon, iconColor: iconColor, bgColor: bgColor);
+}
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 
@@ -118,13 +79,32 @@ class SellHomeScreen extends StatefulWidget {
 }
 
 class _SellHomeScreenState extends State<SellHomeScreen> {
+  final _categoryService = CategoryService();
   final _searchCtrl = TextEditingController();
   String _search = '';
   String? _selectedId;
+  List<_SellCategory> _categories = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCategories();
+  }
+
+  Future<void> _loadCategories() async {
+    setState(() => _isLoading = true);
+    final tree = await _categoryService.getCategoryTree();
+    if (!mounted) return;
+    setState(() {
+      _categories = tree.map((c) => _toSellCategory(c as Map<String, dynamic>)).toList();
+      _isLoading = false;
+    });
+  }
 
   List<_SellCategory> get _filteredCategories {
-    if (_search.isEmpty) return _popularCategories;
-    return _popularCategories
+    if (_search.isEmpty) return _categories;
+    return _categories
         .where((c) => c.label.toLowerCase().contains(_search.toLowerCase()))
         .toList();
   }
@@ -191,27 +171,17 @@ class _SellHomeScreenState extends State<SellHomeScreen> {
 
                   // Popular categories
                   SellSectionHeader(title: 'Popular Categories'),
-                  _PopularCategoryGrid(
-                    categories: _filteredCategories,
-                    selectedId: _selectedId,
-                    onSelect: _selectCategory,
-                  ),
+                  _isLoading
+                      ? const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 24),
+                          child: Center(child: CircularProgressIndicator()),
+                        )
+                      : _PopularCategoryGrid(
+                          categories: _filteredCategories,
+                          selectedId: _selectedId,
+                          onSelect: _selectCategory,
+                        ),
                   const SizedBox(height: 24),
-
-                  // Recent categories
-                  if (_search.isEmpty) ...[
-                    SellSectionHeader(
-                      title: 'Recent Categories',
-                      action: 'Clear',
-                      onAction: () {},
-                    ),
-                    _RecentCategoryRow(
-                      categories: _recentCategories,
-                      selectedId: _selectedId,
-                      onSelect: _selectCategory,
-                    ),
-                    const SizedBox(height: 20),
-                  ],
 
                   // Browse all
                   OutlinedButton.icon(
@@ -330,70 +300,6 @@ class _PopularCategoryGrid extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-}
-
-// ── Recent Categories Row ─────────────────────────────────────────────────────
-
-class _RecentCategoryRow extends StatelessWidget {
-  final List<_SellCategory> categories;
-  final String? selectedId;
-  final ValueChanged<_SellCategory> onSelect;
-
-  const _RecentCategoryRow({
-    required this.categories,
-    required this.selectedId,
-    required this.onSelect,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: categories.map((cat) {
-        final isSelected = cat.id == selectedId;
-        return Padding(
-          padding: const EdgeInsets.only(right: 10),
-          child: GestureDetector(
-            onTap: () => onSelect(cat),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: isSelected ? AppColors.appGreen : Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: isSelected ? AppColors.appGreen : const Color(0xFFE5E7EB),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Icon(cat.icon,
-                      size: 14,
-                      color: isSelected ? Colors.white : cat.iconColor),
-                  const SizedBox(width: 6),
-                  Text(
-                    cat.label,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      fontFamily: 'Poppins',
-                      color: isSelected ? Colors.white : AppColors.appDark,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      }).toList(),
     );
   }
 }
