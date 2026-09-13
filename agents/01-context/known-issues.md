@@ -17,6 +17,57 @@ Revisit: if this repo is or becomes public, or if compliance requires it, this n
 unilaterally — it rewrites shared history every collaborator must re-sync from.
 See [decisions.md](decisions.md).
 
+### P0 — Production Dockerfile used `db push --accept-data-loss`; fixed locally, remote DB needs a one-time baseline before deploying
+Found via git history: commit `497f85b` (pre-dates this session) switched
+`loopo-backend/Dockerfile`'s CMD from `prisma migrate deploy` to
+`prisma db push --accept-data-loss` specifically to fix a 502 crash loop. That
+crash loop is the exact same root cause found and fixed locally this session:
+`migrate deploy` refuses to run (`P3005`) against a database with no
+`_prisma_migrations` history (i.e. one provisioned via `db push`, not tracked
+migrations) — it's a real production incident, not hypothetical, and it directly
+matches the local repro.
+
+`db push --accept-data-loss` "fixed" the crash loop but is genuinely dangerous
+long-term: it runs on **every** container start/restart and will silently apply
+destructive schema changes to production data with zero review, the moment any
+future `schema.prisma` change removes/renames a column.
+
+**Fixed the Dockerfile** to use `prisma migrate deploy` again (this session). But
+this alone will crash-loop again on the next deploy unless the **real
+staging/production database** gets the same one-time baseline treatment done
+locally (see decisions.md). This session deliberately did not touch any
+remote/staging DB (explicit user instruction: "keep it local") — someone with
+access to the actual Lightsail server / production `DATABASE_URL` needs to run,
+**before or during** the next deploy with the updated image:
+
+```sh
+# 1. Confirm zero drift first - do NOT baseline if this prints anything
+#    other than "-- This is an empty migration."
+npx prisma migrate diff --from-schema-datamodel prisma/schema.prisma \
+  --to-url "$DATABASE_URL" --script
+
+# 2. Only if step 1 was empty: mark existing migrations as already applied
+#    (does not run any SQL, purely bookkeeping)
+npx prisma migrate resolve --applied 20260718181804_init
+npx prisma migrate resolve --applied 20260823183500_update_schema
+
+# 3. Confirm:
+npx prisma migrate status   # should say "Database schema is up to date!"
+```
+
+If step 1 is **not** empty (production schema has drifted from what's in
+`prisma/migrations` + current `schema.prisma`), stop and investigate rather than
+baselining blindly — that would silently paper over real, uncaptured schema
+changes.
+
+Also noticed in passing: `loopo-backend/docker-compose.prod.yml` (committed) has
+placeholder secrets (`prodpassword123`, `your_jwt_access_secret_change_me`) and an
+unfilled `<your-dockerhub-username>` image tag — it's clearly a template, not
+something that runs as-is, so the real Lightsail server almost certainly has its
+own filled-in version outside this repo. Not verified either way (no server
+access) — worth the user double-checking the actual deployed secrets are strong,
+independent of this repo's template file.
+
 ### P2 — loopo-client has no ESLint config
 `npx eslint .` in `loopo-client` fails immediately with "couldn't find an
 eslint.config.*" (ESLint v9+ flat-config required, none present). `package.json` has
