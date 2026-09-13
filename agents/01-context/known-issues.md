@@ -145,20 +145,37 @@ fixes below. Local dev DB state: freshly truncated `users`/`categories`/`product
 full seeded dataset (150 support tickets/complaints, categories, brands, sellers,
 products, KYC docs, etc.) rather than an empty table.
 
-### P1/P2 — Admin analytics frontend calls backend routes that don't exist at all
-`loopo-admin/src/services/admin.service.ts`'s `analyticsService` calls
-`/admin/analytics/summary`, `/users`, `/products`, `/revenue`, `/categories`,
-`/search`, `/moderation` — **none of these match any real backend route**. The
-only real analytics routes are `AdminAnalyticsController`'s `dashboard`, `search`,
-`categories`, `payments` (fixed this session to no longer double-prefix, see
-RESOLVED) plus a per-product-ID `products/:id/analytics`. Nothing in
-`loopo-client`/`loopo-flutter` references any of `analytics.controller.ts`'s routes
-either. This means **the admin analytics page has no working backend behind it at
-all** right now, regardless of the double-prefix bug. Not fixed this session —
-deciding the real contract (rename backend routes to match the frontend's
-expectations, or vice versa, plus building whatever handlers/response shapes
-`summary`/`users`/`revenue`/`moderation` actually need) is a scoped feature task on
-its own, not a quick bug fix.
+### PARTIALLY RESOLVED — Admin analytics page: Summary cards + Users tab now real, Revenue/Products/Moderation still demo data
+Was: `analyticsService` called `/admin/analytics/summary`, `/users`, `/products`,
+`/revenue`, `/moderation` — none of which matched any real backend route — while
+the page component itself was 100% hardcoded arrays with no fetch call at all.
+
+Fixed this session: added `GET /admin/analytics/summary` (live totals: user
+count, approved-listing count, this-period revenue/avg-order-value from real
+`Payment` rows, search log count, moderation approval rate from real
+`Product.status` counts) and `GET /admin/analytics/users` (real per-day signups +
+running total from `User.createdAt`) to the existing `AdminAnalyticsController`/
+`AnalyticsQueryService`. Wired the Summary cards and the "Users" tab chart to
+them, with loading/error states. Verified live in a browser against the actual
+seeded DB: cards show 15 users / 4 listings / $0 revenue / 100% moderation,
+matching `SELECT count(*)` exactly.
+
+**Still open:** the Revenue, Products, and Moderation tabs are still the
+original hardcoded demo arrays (now visibly labeled "Demo data — not yet
+connected to live data" instead of silently looking real). `getProductMetrics`/
+`getRevenueMetrics`/`getModerationMetrics` in `admin.service.ts` still call
+routes that don't exist (`/admin/analytics/products`, `/revenue`, `/moderation`).
+The closest real backend equivalent for revenue/payments is
+`AdminAnalyticsController.getPaymentAnalytics` (`/admin/analytics/payments`),
+which itself depends on the still-empty `DailyPaymentMetric` rollup table (see
+the Dockerfile/migration entry above) — wiring those three tabs properly is a
+separate follow-up, not a quick fix.
+
+Also note: `getAdminSummary`/`getUserGrowth` compute live from raw tables
+specifically to avoid depending on the empty rollup tables (see above) — if a
+real scheduled aggregation job starts populating `DailyUserMetric`/etc. later,
+these two methods should probably be revisited to use the cheaper pre-aggregated
+data instead, at least for large date ranges.
 
 ### Not yet audited
 Most of the ~30 backend modules haven't been read at all yet (this session's code
