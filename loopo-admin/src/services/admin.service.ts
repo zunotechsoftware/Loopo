@@ -93,6 +93,7 @@ export const analyticsService = {
   getUserMetrics: (params?: Record<string, unknown>) => api.get('/admin/analytics/users', { params }),
   getProductMetrics: (params?: Record<string, unknown>) => api.get('/admin/analytics/products', { params }),
   getRevenueMetrics: (params?: Record<string, unknown>) => api.get('/admin/analytics/revenue', { params }),
+  getRevenueByCategory: (params?: Record<string, unknown>) => api.get('/admin/analytics/revenue/by-category', { params }),
   getCategoryMetrics: (params?: Record<string, unknown>) => api.get('/admin/analytics/categories', { params }),
   getSearchMetrics: (params?: Record<string, unknown>) => api.get('/admin/analytics/search', { params }),
   getModerationMetrics: (params?: Record<string, unknown>) => api.get('/admin/analytics/moderation', { params }),

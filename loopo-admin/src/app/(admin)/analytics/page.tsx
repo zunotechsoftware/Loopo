@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box, Typography, Card, CardContent, Grid2 as Grid, Tabs, Tab, FormControl,
-  InputLabel, Select, MenuItem, Chip, Skeleton, Alert, Button
+  InputLabel, Select, MenuItem, Skeleton, Alert, Button
 } from '@mui/material';
 import {
   PeopleAlt, Inventory2, MonetizationOn, Category, ManageSearch,
@@ -30,36 +30,34 @@ interface UserGrowthPoint {
   totalUsers: number;
 }
 
-const REVENUE_DATA = [
-  { month: 'Jan', revenue: 12000, commission: 1800, subscriptions: 2400 },
-  { month: 'Feb', revenue: 14500, commission: 2175, subscriptions: 2600 },
-  { month: 'Mar', revenue: 13200, commission: 1980, subscriptions: 2800 },
-  { month: 'Apr', revenue: 17800, commission: 2670, subscriptions: 3000 },
-  { month: 'May', revenue: 16400, commission: 2460, subscriptions: 3200 },
-  { month: 'Jun', revenue: 19200, commission: 2880, subscriptions: 3400 },
-  { month: 'Jul', revenue: 22500, commission: 3375, subscriptions: 3600 },
-];
+interface RevenuePoint {
+  month: string;
+  revenue: number;
+  subscriptions: number;
+  other: number;
+}
 
-const CATEGORY_DIST = [
-  { name: 'Electronics', value: 38 },
-  { name: 'Clothing', value: 22 },
-  { name: 'Home & Garden', value: 15 },
-  { name: 'Sports', value: 12 },
-  { name: 'Books', value: 8 },
-  { name: 'Others', value: 5 },
-];
+interface NameValue {
+  name: string;
+  value: number;
+}
+
+interface ModerationPoint {
+  month: string;
+  reports: number;
+  resolved: number;
+  escalated: number;
+}
 
 const PIE_COLORS = ['#2563eb', '#7c3aed', '#10b981', '#f59e0b', '#ef4444', '#64748b'];
 
-const MODERATION_DATA = [
-  { month: 'Jan', reports: 45, resolved: 38, escalated: 7 },
-  { month: 'Feb', reports: 52, resolved: 48, escalated: 4 },
-  { month: 'Mar', reports: 61, resolved: 55, escalated: 6 },
-  { month: 'Apr', reports: 38, resolved: 35, escalated: 3 },
-  { month: 'May', reports: 70, resolved: 60, escalated: 10 },
-  { month: 'Jun', reports: 43, resolved: 40, escalated: 3 },
-  { month: 'Jul', reports: 58, resolved: 52, escalated: 6 },
-];
+function EmptyChartState({ message }: { message: string }) {
+  return (
+    <Box sx={{ height: 320, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <Typography color="text.secondary">{message}</Typography>
+    </Box>
+  );
+}
 
 function buildSummaryCards(s: SummaryData) {
   return [
@@ -74,18 +72,15 @@ function buildSummaryCards(s: SummaryData) {
 
 const ANALYTICS_TABS = ['Users', 'Revenue', 'Products', 'Moderation'];
 
-/** Small honesty label: Revenue/Products/Moderation tabs aren't wired to real
- * data yet (see agents/01-context/known-issues.md) - showing this instead of
- * quietly rendering fake numbers as if they were live. */
-function DemoDataChip() {
-  return <Chip label="Demo data — not yet connected to live data" size="small" color="warning" variant="outlined" sx={{ mb: 2 }} />;
-}
-
 export default function AnalyticsPage() {
   const [tabValue, setTabValue] = useState(0);
   const [period, setPeriod] = useState('7months');
   const [summary, setSummary] = useState<SummaryData | null>(null);
   const [growth, setGrowth] = useState<UserGrowthPoint[]>([]);
+  const [revenueSeries, setRevenueSeries] = useState<RevenuePoint[]>([]);
+  const [revenueByCategory, setRevenueByCategory] = useState<NameValue[]>([]);
+  const [listingsByCategory, setListingsByCategory] = useState<NameValue[]>([]);
+  const [moderationSeries, setModerationSeries] = useState<ModerationPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -103,12 +98,20 @@ export default function AnalyticsPage() {
     setError(null);
     try {
       const timeframe = timeframeForPeriod(period);
-      const [summaryRes, growthRes] = await Promise.all([
+      const [summaryRes, growthRes, revenueRes, revenueByCatRes, listingsRes, moderationRes] = await Promise.all([
         analyticsService.getSummary({ timeframe }),
         analyticsService.getUserMetrics({ timeframe }),
+        analyticsService.getRevenueMetrics({ timeframe }),
+        analyticsService.getRevenueByCategory({ timeframe }),
+        analyticsService.getProductMetrics(),
+        analyticsService.getModerationMetrics({ timeframe }),
       ]);
       setSummary(summaryRes.data?.data ?? null);
       setGrowth(growthRes.data?.data?.series ?? []);
+      setRevenueSeries(revenueRes.data?.data?.series ?? []);
+      setRevenueByCategory(revenueByCatRes.data?.data ?? []);
+      setListingsByCategory(listingsRes.data?.data ?? []);
+      setModerationSeries(moderationRes.data?.data?.series ?? []);
     } catch (err) {
       console.error('Failed to load analytics', err);
       setError('Could not load analytics data. Is the backend reachable?');
@@ -205,77 +208,101 @@ export default function AnalyticsPage() {
 
         {tabValue === 1 && (
           <Grid container spacing={3}>
-            <Grid size={{ xs: 12 }}><DemoDataChip /></Grid>
             <Grid size={{ xs: 12, md: 8 }} >
               <Typography variant="h6" sx={{ fontWeight: 'bold' }} gutterBottom>Revenue Breakdown</Typography>
-              <Box sx={{ height: 320, width: '100%', mt: 2 }}>
-                <ResponsiveContainer>
-                  <BarChart data={REVENUE_DATA}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                    <XAxis dataKey="month" axisLine={false} tickLine={false} />
-                    <YAxis axisLine={false} tickLine={false} />
-                    <Tooltip contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} formatter={(v: any) => [`$${v.toLocaleString()}`, 'Revenue']} />
-                    <Legend />
-                    <Bar dataKey="revenue" fill="#2563eb" name="Total Revenue" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="commission" fill="#7c3aed" name="Commission" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="subscriptions" fill="#10b981" name="Subscriptions" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </Box>
+              {loading ? (
+                <Skeleton variant="rectangular" height={320} sx={{ mt: 2 }} />
+              ) : revenueSeries.length === 0 ? (
+                <EmptyChartState message="No successful payments in this period yet." />
+              ) : (
+                <Box sx={{ height: 320, width: '100%', mt: 2 }}>
+                  <ResponsiveContainer>
+                    <BarChart data={revenueSeries}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <XAxis dataKey="month" axisLine={false} tickLine={false} />
+                      <YAxis axisLine={false} tickLine={false} />
+                      <Tooltip contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} formatter={(v: any) => [`$${v.toLocaleString()}`, 'Revenue']} />
+                      <Legend />
+                      <Bar dataKey="revenue" fill="#2563eb" name="Total Revenue" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="subscriptions" fill="#10b981" name="Subscriptions" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="other" fill="#7c3aed" name="Listings/Boosts" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </Box>
+              )}
             </Grid>
             <Grid size={{ xs: 12, md: 4 }} >
               <Typography variant="h6" sx={{ fontWeight: 'bold' }} gutterBottom>Revenue by Category</Typography>
-              <Box sx={{ height: 320, mt: 2 }}>
-                <ResponsiveContainer>
-                  <PieChart>
-                    <Pie data={CATEGORY_DIST} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={2} dataKey="value">
-                      {CATEGORY_DIST.map((_, idx) => <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} />)}
-                    </Pie>
-                    <Legend />
-                    <Tooltip formatter={(v) => [`${v}%`, 'Share']} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </Box>
+              {loading ? (
+                <Skeleton variant="circular" width={200} height={200} sx={{ mt: 2, mx: 'auto' }} />
+              ) : revenueByCategory.length === 0 ? (
+                <EmptyChartState message="No product sales in this period yet." />
+              ) : (
+                <Box sx={{ height: 320, mt: 2 }}>
+                  <ResponsiveContainer>
+                    <PieChart>
+                      <Pie data={revenueByCategory} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={2} dataKey="value">
+                        {revenueByCategory.map((_, idx) => <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} />)}
+                      </Pie>
+                      <Legend />
+                      <Tooltip formatter={(v: any) => [`$${Number(v).toLocaleString()}`, 'Revenue']} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </Box>
+              )}
             </Grid>
           </Grid>
         )}
 
         {tabValue === 2 && (
           <Box>
-            <DemoDataChip />
             <Typography variant="h6" sx={{ fontWeight: 'bold' }} gutterBottom>Listings by Category</Typography>
-            <Box sx={{ height: 320, width: '100%', mt: 2, mb: 3 }}>
-              <ResponsiveContainer>
-                <BarChart data={CATEGORY_DIST} layout="vertical" margin={{ left: 40 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
-                  <XAxis type="number" axisLine={false} tickLine={false} />
-                  <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                  <Bar dataKey="value" fill="#7c3aed" radius={[0, 4, 4, 0]} barSize={20} />
-                </BarChart>
-              </ResponsiveContainer>
-            </Box>
+            {loading ? (
+              <Skeleton variant="rectangular" height={320} sx={{ mt: 2, mb: 3 }} />
+            ) : listingsByCategory.length === 0 ? (
+              <EmptyChartState message="No listings yet." />
+            ) : (
+              <Box sx={{ height: 320, width: '100%', mt: 2, mb: 3 }}>
+                <ResponsiveContainer>
+                  <BarChart data={listingsByCategory} layout="vertical" margin={{ left: 40 }}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
+                    <XAxis type="number" axisLine={false} tickLine={false} allowDecimals={false} />
+                    <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} />
+                    <Tooltip contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                    <Bar dataKey="value" fill="#7c3aed" radius={[0, 4, 4, 0]} barSize={20} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </Box>
+            )}
           </Box>
         )}
 
         {tabValue === 3 && (
           <Box>
-            <DemoDataChip />
             <Typography variant="h6" sx={{ fontWeight: 'bold' }} gutterBottom>Moderation Overview</Typography>
-            <Box sx={{ height: 320, width: '100%', mt: 2, mb: 3 }}>
-              <ResponsiveContainer>
-                <LineChart data={MODERATION_DATA}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="month" axisLine={false} tickLine={false} />
-                  <YAxis axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                  <Legend />
-                  <Line type="monotone" dataKey="reports" stroke="#f59e0b" strokeWidth={3} name="Total Reports" dot={{ r: 4 }} />
-                  <Line type="monotone" dataKey="resolved" stroke="#10b981" strokeWidth={3} name="Resolved" dot={{ r: 4 }} />
-                  <Line type="monotone" dataKey="escalated" stroke="#ef4444" strokeWidth={3} name="Escalated" dot={{ r: 4 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </Box>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+              Based on complaint volume — &quot;Escalated&quot; approximates HIGH/URGENT-priority complaints (there&apos;s no distinct escalation status).
+            </Typography>
+            {loading ? (
+              <Skeleton variant="rectangular" height={320} sx={{ mt: 2, mb: 3 }} />
+            ) : moderationSeries.length === 0 ? (
+              <EmptyChartState message="No complaints in this period yet." />
+            ) : (
+              <Box sx={{ height: 320, width: '100%', mt: 2, mb: 3 }}>
+                <ResponsiveContainer>
+                  <LineChart data={moderationSeries}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="month" axisLine={false} tickLine={false} />
+                    <YAxis axisLine={false} tickLine={false} allowDecimals={false} />
+                    <Tooltip contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                    <Legend />
+                    <Line type="monotone" dataKey="reports" stroke="#f59e0b" strokeWidth={3} name="Total Reports" dot={{ r: 4 }} />
+                    <Line type="monotone" dataKey="resolved" stroke="#10b981" strokeWidth={3} name="Resolved" dot={{ r: 4 }} />
+                    <Line type="monotone" dataKey="escalated" stroke="#ef4444" strokeWidth={3} name="Escalated" dot={{ r: 4 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </Box>
+            )}
           </Box>
         )}
       </Card>

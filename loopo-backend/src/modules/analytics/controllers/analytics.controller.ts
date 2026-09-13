@@ -49,6 +49,34 @@ export class AdminAnalyticsController {
     return this.queryService.getCategoryAnalytics(query);
   }
 
+  @Get('products')
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @ApiOperation({ summary: 'Get live listing counts by category' })
+  async getListingsByCategory() {
+    return this.queryService.getListingsByCategory();
+  }
+
+  @Get('revenue')
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @ApiOperation({ summary: 'Get live monthly revenue breakdown' })
+  async getRevenueBreakdown(@Query() query: AnalyticsQueryDto) {
+    return this.queryService.getRevenueBreakdown(query);
+  }
+
+  @Get('revenue/by-category')
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @ApiOperation({ summary: 'Get live revenue by product category' })
+  async getRevenueByCategory(@Query() query: AnalyticsQueryDto) {
+    return this.queryService.getRevenueByCategory(query);
+  }
+
+  @Get('moderation')
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @ApiOperation({ summary: 'Get live moderation activity over time' })
+  async getModerationOverview(@Query() query: AnalyticsQueryDto) {
+    return this.queryService.getModerationOverview(query);
+  }
+
   @Get('payments')
   @Roles('ADMIN', 'SUPER_ADMIN')
   @ApiOperation({ summary: 'Get payment analytics' })
