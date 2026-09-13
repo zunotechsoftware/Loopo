@@ -21,6 +21,20 @@ export class AdminAnalyticsController {
     return this.queryService.getAdminDashboard(query);
   }
 
+  @Get('summary')
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @ApiOperation({ summary: 'Get live summary metrics for the admin analytics overview cards' })
+  async getSummary(@Query() query: AnalyticsQueryDto) {
+    return this.queryService.getAdminSummary(query);
+  }
+
+  @Get('users')
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @ApiOperation({ summary: 'Get user growth over time' })
+  async getUserGrowth(@Query() query: AnalyticsQueryDto) {
+    return this.queryService.getUserGrowth(query);
+  }
+
   @Get('search')
   @Roles('ADMIN', 'SUPER_ADMIN')
   @ApiOperation({ summary: 'Get search analytics' })

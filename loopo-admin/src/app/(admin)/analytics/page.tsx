@@ -1,28 +1,34 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box, Typography, Card, CardContent, Grid2 as Grid, Tabs, Tab, FormControl,
-  InputLabel, Select, MenuItem
+  InputLabel, Select, MenuItem, Chip, Skeleton, Alert, Button
 } from '@mui/material';
 import {
   PeopleAlt, Inventory2, MonetizationOn, Category, ManageSearch,
-  Gavel, TrendingUp, TrendingDown
+  Gavel, Refresh
 } from '@mui/icons-material';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, PieChart, Pie, Cell, Legend, AreaChart, Area
 } from 'recharts';
+import { analyticsService } from '@/services/admin.service';
 
-const USER_GROWTH = [
-  { month: 'Jan', total: 4200, new: 320, vendors: 45 },
-  { month: 'Feb', total: 4800, new: 280, vendors: 38 },
-  { month: 'Mar', total: 5400, new: 450, vendors: 62 },
-  { month: 'Apr', total: 6100, new: 510, vendors: 71 },
-  { month: 'May', total: 6800, new: 380, vendors: 55 },
-  { month: 'Jun', total: 7600, new: 490, vendors: 68 },
-  { month: 'Jul', total: 8200, new: 520, vendors: 74 },
-];
+interface SummaryData {
+  totalUsers: number;
+  activeListings: number;
+  monthlyRevenue: number;
+  avgOrderValue: number;
+  searchQueries: number;
+  moderationRate: number;
+}
+
+interface UserGrowthPoint {
+  date: string;
+  newUsers: number;
+  totalUsers: number;
+}
 
 const REVENUE_DATA = [
   { month: 'Jan', revenue: 12000, commission: 1800, subscriptions: 2400 },
@@ -55,50 +61,106 @@ const MODERATION_DATA = [
   { month: 'Jul', reports: 58, resolved: 52, escalated: 6 },
 ];
 
-const SUMMARY_METRICS = [
-  { label: 'Total Users', value: '8,247', trend: '+6.2%', up: true, icon: <PeopleAlt color="primary" /> },
-  { label: 'Active Listings', value: '14,320', trend: '+4.1%', up: true, icon: <Inventory2 color="success" /> },
-  { label: 'Monthly Revenue', value: '$22,500', trend: '+17.2%', up: true, icon: <MonetizationOn color="warning" /> },
-  { label: 'Avg. Order Value', value: '$67.40', trend: '-2.1%', up: false, icon: <Category color="secondary" /> },
-  { label: 'Search Queries', value: '95,430', trend: '+11.5%', up: true, icon: <ManageSearch color="info" /> },
-  { label: 'Moderation Rate', value: '94.8%', trend: '+1.3%', up: true, icon: <Gavel color="error" /> },
-];
+function buildSummaryCards(s: SummaryData) {
+  return [
+    { label: 'Total Users', value: s.totalUsers.toLocaleString(), icon: <PeopleAlt color="primary" /> },
+    { label: 'Active Listings', value: s.activeListings.toLocaleString(), icon: <Inventory2 color="success" /> },
+    { label: 'Monthly Revenue', value: `$${s.monthlyRevenue.toLocaleString(undefined, { maximumFractionDigits: 2 })}`, icon: <MonetizationOn color="warning" /> },
+    { label: 'Avg. Order Value', value: `$${s.avgOrderValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}`, icon: <Category color="secondary" /> },
+    { label: 'Search Queries', value: s.searchQueries.toLocaleString(), icon: <ManageSearch color="info" /> },
+    { label: 'Moderation Rate', value: `${s.moderationRate.toFixed(1)}%`, icon: <Gavel color="error" /> },
+  ];
+}
 
 const ANALYTICS_TABS = ['Users', 'Revenue', 'Products', 'Moderation'];
+
+/** Small honesty label: Revenue/Products/Moderation tabs aren't wired to real
+ * data yet (see agents/01-context/known-issues.md) - showing this instead of
+ * quietly rendering fake numbers as if they were live. */
+function DemoDataChip() {
+  return <Chip label="Demo data — not yet connected to live data" size="small" color="warning" variant="outlined" sx={{ mb: 2 }} />;
+}
 
 export default function AnalyticsPage() {
   const [tabValue, setTabValue] = useState(0);
   const [period, setPeriod] = useState('7months');
+  const [summary, setSummary] = useState<SummaryData | null>(null);
+  const [growth, setGrowth] = useState<UserGrowthPoint[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const timeframeForPeriod = (p: string) => {
+    switch (p) {
+      case '7days': return 'WEEK';
+      case '30days': return 'MONTH';
+      case '12months': return 'YEAR';
+      default: return 'ALL';
+    }
+  };
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const timeframe = timeframeForPeriod(period);
+      const [summaryRes, growthRes] = await Promise.all([
+        analyticsService.getSummary({ timeframe }),
+        analyticsService.getUserMetrics({ timeframe }),
+      ]);
+      setSummary(summaryRes.data?.data ?? null);
+      setGrowth(growthRes.data?.data?.series ?? []);
+    } catch (err) {
+      console.error('Failed to load analytics', err);
+      setError('Could not load analytics data. Is the backend reachable?');
+    } finally {
+      setLoading(false);
+    }
+  }, [period]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Typography variant="h4" sx={{ fontWeight: 'bold' }}>Analytics</Typography>
-        <FormControl size="small" sx={{ width: 180 }}>
-          <InputLabel>Period</InputLabel>
-          <Select value={period} label="Period" onChange={(e) => setPeriod(e.target.value)}>
-            <MenuItem value="7days">Last 7 Days</MenuItem>
-            <MenuItem value="30days">Last 30 Days</MenuItem>
-            <MenuItem value="7months">Last 7 Months</MenuItem>
-            <MenuItem value="12months">Last 12 Months</MenuItem>
-          </Select>
-        </FormControl>
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+          <FormControl size="small" sx={{ width: 180 }}>
+            <InputLabel>Period</InputLabel>
+            <Select value={period} label="Period" onChange={(e) => setPeriod(e.target.value)}>
+              <MenuItem value="7days">Last 7 Days</MenuItem>
+              <MenuItem value="30days">Last 30 Days</MenuItem>
+              <MenuItem value="7months">Last 7 Months</MenuItem>
+              <MenuItem value="12months">Last 12 Months</MenuItem>
+            </Select>
+          </FormControl>
+          <Button size="small" startIcon={<Refresh />} onClick={loadData} disabled={loading}>
+            Refresh
+          </Button>
+        </Box>
       </Box>
+
+      {error && (
+        <Alert severity="error" action={<Button color="inherit" size="small" onClick={loadData}>Retry</Button>}>
+          {error}
+        </Alert>
+      )}
 
       {/* Summary Cards */}
       <Grid container spacing={2}>
-        {SUMMARY_METRICS.map((metric, idx) => (
+        {loading && !summary
+          ? Array.from({ length: 6 }).map((_, idx) => (
+              <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2 }} key={idx}>
+                <Card sx={{ height: '100%' }}><CardContent sx={{ p: 2 }}><Skeleton variant="rectangular" height={70} /></CardContent></Card>
+              </Grid>
+            ))
+          : summary && buildSummaryCards(summary).map((metric, idx) => (
           <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2 }} key={idx}>
             <Card sx={{ height: '100%' }}>
               <CardContent sx={{ p: 2 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   {metric.icon}
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
-                    {metric.up ? <TrendingUp sx={{ fontSize: 16, color: 'success.main' }} /> : <TrendingDown sx={{ fontSize: 16, color: 'error.main' }} />}
-                    <Typography variant="caption" color={metric.up ? 'success.main' : 'error.main'} sx={{ fontWeight: 'bold' }}>
-                      {metric.trend}
-                    </Typography>
-                  </Box>
                 </Box>
                 <Typography variant="h6" sx={{ fontWeight: 'bold', mt: 1 }}>{metric.value}</Typography>
                 <Typography variant="caption" color="text.secondary">{metric.label}</Typography>
@@ -117,25 +179,33 @@ export default function AnalyticsPage() {
         {tabValue === 0 && (
           <Box>
             <Typography variant="h6" sx={{ fontWeight: 'bold' }} gutterBottom>User Growth Over Time</Typography>
-            <Box sx={{ height: 320, width: '100%', mt: 2, mb: 3 }}>
-              <ResponsiveContainer>
-                <AreaChart data={USER_GROWTH}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="month" axisLine={false} tickLine={false} />
-                  <YAxis axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                  <Legend />
-                  <Area type="monotone" dataKey="total" stroke="#2563eb" fill="#dbeafe" strokeWidth={2} name="Total Users" />
-                  <Area type="monotone" dataKey="new" stroke="#10b981" fill="#d1fae5" strokeWidth={2} name="New Users" />
-                  <Area type="monotone" dataKey="vendors" stroke="#7c3aed" fill="#ede9fe" strokeWidth={2} name="New Vendors" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </Box>
+            {loading ? (
+              <Skeleton variant="rectangular" height={320} sx={{ mt: 2, mb: 3 }} />
+            ) : growth.length === 0 ? (
+              <Box sx={{ height: 320, display: 'flex', alignItems: 'center', justifyContent: 'center', mt: 2, mb: 3 }}>
+                <Typography color="text.secondary">No signups in this period yet.</Typography>
+              </Box>
+            ) : (
+              <Box sx={{ height: 320, width: '100%', mt: 2, mb: 3 }}>
+                <ResponsiveContainer>
+                  <AreaChart data={growth}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="date" axisLine={false} tickLine={false} />
+                    <YAxis axisLine={false} tickLine={false} allowDecimals={false} />
+                    <Tooltip contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                    <Legend />
+                    <Area type="monotone" dataKey="totalUsers" stroke="#2563eb" fill="#dbeafe" strokeWidth={2} name="Total Users" />
+                    <Area type="monotone" dataKey="newUsers" stroke="#10b981" fill="#d1fae5" strokeWidth={2} name="New Signups" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </Box>
+            )}
           </Box>
         )}
 
         {tabValue === 1 && (
           <Grid container spacing={3}>
+            <Grid size={{ xs: 12 }}><DemoDataChip /></Grid>
             <Grid size={{ xs: 12, md: 8 }} >
               <Typography variant="h6" sx={{ fontWeight: 'bold' }} gutterBottom>Revenue Breakdown</Typography>
               <Box sx={{ height: 320, width: '100%', mt: 2 }}>
@@ -172,6 +242,7 @@ export default function AnalyticsPage() {
 
         {tabValue === 2 && (
           <Box>
+            <DemoDataChip />
             <Typography variant="h6" sx={{ fontWeight: 'bold' }} gutterBottom>Listings by Category</Typography>
             <Box sx={{ height: 320, width: '100%', mt: 2, mb: 3 }}>
               <ResponsiveContainer>
@@ -189,6 +260,7 @@ export default function AnalyticsPage() {
 
         {tabValue === 3 && (
           <Box>
+            <DemoDataChip />
             <Typography variant="h6" sx={{ fontWeight: 'bold' }} gutterBottom>Moderation Overview</Typography>
             <Box sx={{ height: 320, width: '100%', mt: 2, mb: 3 }}>
               <ResponsiveContainer>

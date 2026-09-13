@@ -89,7 +89,7 @@ export const paymentsService = {
 
 // --- Analytics Service ---
 export const analyticsService = {
-  getSummary: () => api.get('/admin/analytics/summary'),
+  getSummary: (params?: Record<string, unknown>) => api.get('/admin/analytics/summary', { params }),
   getUserMetrics: (params?: Record<string, unknown>) => api.get('/admin/analytics/users', { params }),
   getProductMetrics: (params?: Record<string, unknown>) => api.get('/admin/analytics/products', { params }),
   getRevenueMetrics: (params?: Record<string, unknown>) => api.get('/admin/analytics/revenue', { params }),
