@@ -36,8 +36,11 @@ export class AuditLogInterceptor implements NestInterceptor {
         let newValues: any = null;
 
         if (method === 'POST' || method === 'PUT' || method === 'PATCH') {
-          // Extract sensitive password inputs out of audit logs
-          const { password, passwordConfirm, ...cleanBody } = body;
+          // Extract sensitive password inputs out of audit logs. body is
+          // undefined for bodyless mutating requests (e.g. PATCH .../approve
+          // with no payload) - destructuring it directly threw and silently
+          // dropped the audit log entry for every such action.
+          const { password, passwordConfirm, ...cleanBody } = body || {};
           newValues = cleanBody;
         }
 
