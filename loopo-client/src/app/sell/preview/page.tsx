@@ -17,6 +17,11 @@ export default function SellPreviewPage() {
   const primaryImage = formData.images[formData.primaryImageIndex] || formData.images[0] || 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?q=80&w=800&auto=format&fit=crop';
 
   const handlePublish = async () => {
+    if (!formData.categoryId) {
+      dispatch(showToast('Please choose a category before publishing.'));
+      router.push(ROUTES.SELL_CATEGORY);
+      return;
+    }
     dispatch(setSubmitting(true));
     try {
       const priceNum = Number(formData.price) || 5000;
@@ -25,7 +30,7 @@ export default function SellPreviewPage() {
           title: formData.title || 'Pre-loved Item',
           description: formData.description || 'Great condition item for sale.',
           price: priceNum,
-          category: formData.category || 'Mobiles',
+          categoryId: formData.categoryId,
           condition: formData.condition || 'Like New',
           location: `${formData.area || 'Indiranagar'}, ${formData.city || 'Bangalore'}`,
           images: formData.images.length > 0 ? formData.images : [primaryImage],

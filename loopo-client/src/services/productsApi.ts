@@ -4,7 +4,8 @@ import { Product } from '@/types';
 
 export interface CreateProductPayload {
   title: string;
-  category: string;
+  /** Real backend category UUID (see useCategories()) - NOT a display name. */
+  categoryId: string;
   description: string;
   price: number;
   condition: string;
@@ -12,18 +13,6 @@ export interface CreateProductPayload {
   images: string[];
   specs?: Record<string, string>;
 }
-
-const CATEGORY_UUID_MAP: Record<string, string> = {
-  Mobiles: '4fb6bfe2-6962-4fca-8667-841f184a9c93',
-  Vehicles: '2d1d3b26-a3b1-4cd7-b223-309af3264425',
-  Cars: '2d1d3b26-a3b1-4cd7-b223-309af3264425',
-  Bikes: '6af6cee3-9b4a-4595-b800-74c72e805bf8',
-  Electronics: '5b988561-9148-4308-824d-a1ffc13ba8d6',
-  Furniture: '806a9037-db1d-4414-a6f8-4449a013c694',
-  Fashion: '04c988cc-50d5-4193-b174-cec7455e6374',
-  Books: '963a9ff0-0c67-43a8-ab9a-bdf71080a0ab',
-  'Home & Living': '55a3350d-5503-4906-93d3-f57c60326cbd',
-};
 
 function mapConditionToEnum(cond: string): 'NEW' | 'LIKE_NEW' | 'GOOD' | 'FAIR' {
   const normalized = (cond || '').toUpperCase().replace(/\s+/g, '_');
@@ -46,10 +35,11 @@ function parseLocationString(locStr: string) {
 
 
 export const productsApi = {
-  async getProducts(category?: string, query?: string, city?: string): Promise<ApiResponse<Product[]>> {
+  /** @param categoryId - real backend category UUID, not a display name (see useCategories()) */
+  async getProducts(categoryId?: string, keyword?: string, city?: string): Promise<ApiResponse<Product[]>> {
     const params = new URLSearchParams();
-    if (category && category !== 'All Categories') params.append('category', category);
-    if (query) params.append('search', query);
+    if (categoryId) params.append('categoryId', categoryId);
+    if (keyword) params.append('keyword', keyword);
     if (city) params.append('city', city);
 
     const queryString = params.toString();
@@ -64,14 +54,10 @@ export const productsApi = {
   },
 
   async createProduct(payload: CreateProductPayload): Promise<ApiResponse<Product>> {
-    const categoryId =
-      CATEGORY_UUID_MAP[payload.category] ||
-      (payload.category.length > 20 ? payload.category : '4fb6bfe2-6962-4fca-8667-841f184a9c93');
-
     const dto = {
       title: payload.title,
       description: payload.description,
-      categoryId,
+      categoryId: payload.categoryId,
       condition: mapConditionToEnum(payload.condition),
       price: Number(payload.price) || 0,
       location: parseLocationString(payload.location),

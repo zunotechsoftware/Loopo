@@ -3,22 +3,16 @@
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Smartphone,
-  Car,
-  Bike,
-  Tv,
-  Sofa,
-  Shirt,
-  BookOpen,
-  Home,
   ShieldCheck,
   Users,
   Zap,
   Leaf,
   ArrowRight,
   Sparkles,
+  Loader2,
 } from 'lucide-react';
-import { CATEGORIES } from '@/types';
+import { useCategories } from '@/hooks/useCategories';
+import { getCategoryIcon } from '@/utils/categoryIcon';
 
 import ProductCard from '../ui/ProductCard';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
@@ -32,6 +26,7 @@ export default function HomeView() {
   const products = useAppSelector((state) => state.products.items);
   const filters = useAppSelector((state) => state.products.filters);
   const isLoading = useAppSelector((state) => state.products.loading);
+  const { categories, loading: categoriesLoading } = useCategories();
 
   // Fetch real products from API on mount
   useEffect(() => {
@@ -56,27 +51,6 @@ export default function HomeView() {
 
     return matchesSearch && matchesCategory;
   });
-
-  const getCategoryIcon = (iconName: string) => {
-    switch (iconName) {
-      case 'Smartphone':
-        return Smartphone;
-      case 'Car':
-        return Car;
-      case 'Bike':
-        return Bike;
-      case 'Tv':
-        return Tv;
-      case 'Sofa':
-        return Sofa;
-      case 'Shirt':
-        return Shirt;
-      case 'BookOpen':
-        return BookOpen;
-      default:
-        return Home;
-    }
-  };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
@@ -143,32 +117,34 @@ export default function HomeView() {
           </button>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
-          {CATEGORIES.map((cat) => {
-
-            const IconComponent = getCategoryIcon(cat.iconName);
-            const slug = (cat as any).slug || cat.name.toLowerCase().replace(/\s+/g, '-');
-            return (
-              <div
-                key={cat.id}
-                onClick={() => {
-                  dispatch(setCategoryFilter(cat.name));
-                  dispatch(setActiveTab('categories'));
-                  router.push(`/categories/${encodeURIComponent(slug)}`);
-                }}
-                className="group bg-white p-3.5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:border-emerald-200 transition-all duration-200 text-center cursor-pointer flex flex-col items-center justify-center space-y-2"
-              >
+        {categoriesLoading ? (
+          <div className="flex items-center gap-2 text-xs text-slate-500 py-4">
+            <Loader2 className="w-4 h-4 animate-spin" /> Loading categories…
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+            {categories.map((cat) => {
+              const IconComponent = getCategoryIcon(cat.name);
+              return (
                 <div
-                  className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 ${cat.color}`}
+                  key={cat.id}
+                  onClick={() => {
+                    dispatch(setCategoryFilter(cat.name));
+                    dispatch(setActiveTab('categories'));
+                    router.push(`/categories/${encodeURIComponent(cat.slug)}`);
+                  }}
+                  className="group bg-white p-3.5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:border-emerald-200 transition-all duration-200 text-center cursor-pointer flex flex-col items-center justify-center space-y-2"
                 >
-                  <IconComponent className="w-6 h-6 stroke-[2]" />
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 bg-emerald-50 text-emerald-600">
+                    <IconComponent className="w-6 h-6 stroke-[2]" />
+                  </div>
+                  <div className="font-bold text-xs text-slate-900 line-clamp-1">{cat.name}</div>
+                  <div className="text-[10px] font-medium text-slate-400">{cat.itemCount} ads</div>
                 </div>
-                <div className="font-bold text-xs text-slate-900 line-clamp-1">{cat.name}</div>
-                <div className="text-[10px] font-medium text-slate-400">{cat.count}</div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Recommended for You Grid */}

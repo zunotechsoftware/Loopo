@@ -3,31 +3,13 @@
 import React from 'react';
 import Link from 'next/link';
 import MainLayout from '@/components/layout/MainLayout';
-import { CATEGORIES } from '@/types';
-import { Smartphone, Car, Bike, Tv, Sofa, Shirt, BookOpen, Home, ChevronRight, Grid } from 'lucide-react';
+import { useCategories } from '@/hooks/useCategories';
+import { getCategoryIcon } from '@/utils/categoryIcon';
+import { ChevronRight, Grid, Loader2 } from 'lucide-react';
 import { ROUTES } from '@/routes/routes';
 
 export default function CategoriesPage() {
-  const getCategoryIcon = (iconName: string) => {
-    switch (iconName) {
-      case 'Smartphone':
-        return Smartphone;
-      case 'Car':
-        return Car;
-      case 'Bike':
-        return Bike;
-      case 'Tv':
-        return Tv;
-      case 'Sofa':
-        return Sofa;
-      case 'Shirt':
-        return Shirt;
-      case 'BookOpen':
-        return BookOpen;
-      default:
-        return Home;
-    }
-  };
+  const { categories, loading, error } = useCategories();
 
   return (
     <MainLayout>
@@ -46,47 +28,51 @@ export default function CategoriesPage() {
         </div>
 
         {/* Categories Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {CATEGORIES.map((cat) => {
+        {loading ? (
+          <div className="flex items-center gap-2 text-sm text-slate-500 py-12 justify-center">
+            <Loader2 className="w-5 h-5 animate-spin" /> Loading categories…
+          </div>
+        ) : error ? (
+          <p className="text-sm text-red-600 text-center py-12">{error}</p>
+        ) : categories.length === 0 ? (
+          <p className="text-sm text-slate-500 text-center py-12">No categories yet.</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {categories.map((cat) => {
+              const Icon = getCategoryIcon(cat.name);
 
-            const Icon = getCategoryIcon(cat.icon);
-            const slug = cat.name.toLowerCase().replace(/\s+/g, '-');
-
-            return (
-              <div
-                key={cat.id}
-                className="bg-white p-5 rounded-3xl border border-slate-100 hover:border-emerald-500/30 hover:shadow-lg transition-all duration-300 flex flex-col justify-between group"
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition-all">
-                      <Icon className="w-6 h-6" />
+              return (
+                <div
+                  key={cat.id}
+                  className="bg-white p-5 rounded-3xl border border-slate-100 hover:border-emerald-500/30 hover:shadow-lg transition-all duration-300 flex flex-col justify-between group"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition-all">
+                        <Icon className="w-6 h-6" />
+                      </div>
+                      <span className="text-xs font-bold text-slate-400 bg-slate-50 px-2.5 py-1 rounded-full">
+                        {cat.itemCount} items
+                      </span>
                     </div>
-                    <span className="text-xs font-bold text-slate-400 bg-slate-50 px-2.5 py-1 rounded-full">
-                      {cat.itemCount} items
-                    </span>
+
+                    <h3 className="font-extrabold text-slate-900 text-base mb-1 group-hover:text-emerald-600 transition-colors">
+                      {cat.name}
+                    </h3>
                   </div>
 
-                  <h3 className="font-extrabold text-slate-900 text-base mb-1 group-hover:text-emerald-600 transition-colors">
-                    {cat.name}
-                  </h3>
-
-                  <p className="text-xs text-slate-500 line-clamp-2 mb-4 font-medium">
-                    {cat.subcategories.join(' • ')}
-                  </p>
+                  <Link
+                    href={ROUTES.CATEGORY_DETAIL(cat.slug)}
+                    className="w-full py-2.5 bg-slate-50 group-hover:bg-emerald-50 text-slate-700 group-hover:text-emerald-700 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all"
+                  >
+                    <span>Browse {cat.name}</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </Link>
                 </div>
-
-                <Link
-                  href={ROUTES.CATEGORY_DETAIL(slug)}
-                  className="w-full py-2.5 bg-slate-50 group-hover:bg-emerald-50 text-slate-700 group-hover:text-emerald-700 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all"
-                >
-                  <span>Browse {cat.name}</span>
-                  <ChevronRight className="w-3.5 h-3.5" />
-                </Link>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </MainLayout>
   );

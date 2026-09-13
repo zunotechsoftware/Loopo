@@ -9,11 +9,13 @@ import { createProductThunk, fetchProductsThunk } from '@/redux/slices/productsS
 import { fetchMyAdsThunk } from '@/redux/slices/myAdsSlice';
 import { getAuthToken } from '@/services/apiClient';
 import CustomSelect from '@/components/ui/CustomSelect';
+import { useCategories } from '@/hooks/useCategories';
 
 export default function SellFlowView() {
   const dispatch = useAppDispatch();
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { categories } = useCategories();
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -21,7 +23,8 @@ export default function SellFlowView() {
   // Form State
   const [images, setImages] = useState<string[]>([]);
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState('Mobiles');
+  const [category, setCategory] = useState('');
+  const [categoryId, setCategoryId] = useState('');
   const [condition, setCondition] = useState<'Brand New' | 'Like New' | 'Good' | 'Fair'>('Like New');
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
@@ -95,6 +98,19 @@ export default function SellFlowView() {
     setImages((prev) => prev.filter((_, idx) => idx !== index));
   };
 
+  // Default to the first real category once loaded, if nothing picked yet.
+  React.useEffect(() => {
+    if (!categoryId && categories.length > 0) {
+      setCategory(categories[0].name);
+      setCategoryId(categories[0].id);
+    }
+  }, [categories, categoryId]);
+
+  const handleSelectCategory = (name: string) => {
+    setCategory(name);
+    setCategoryId(categories.find((c) => c.name === name)?.id || '');
+  };
+
   const resetForm = () => {
     setTitle('');
     setDescription('');
@@ -102,7 +118,8 @@ export default function SellFlowView() {
     setLocation('');
     setImages([]);
     setStep(1);
-    setCategory('Mobiles');
+    setCategory(categories[0]?.name || '');
+    setCategoryId(categories[0]?.id || '');
     setCondition('Like New');
   };
 
@@ -154,7 +171,7 @@ export default function SellFlowView() {
       dispatch(
         createProductThunk({
           title,
-          category,
+          categoryId,
           description,
           price: parsedPrice,
           location,
@@ -284,9 +301,9 @@ export default function SellFlowView() {
 
           <CustomSelect
             label="Category"
-            options={['Mobiles', 'Vehicles', 'Electronics', 'Home & Living', 'Property', 'Fashion', 'Jobs', 'Services']}
+            options={categories.map((c) => c.name)}
             value={category}
-            onChange={setCategory}
+            onChange={handleSelectCategory}
           />
 
           <div>

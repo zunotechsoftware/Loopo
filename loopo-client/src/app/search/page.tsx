@@ -7,7 +7,7 @@ import ProductCard from '@/components/ui/ProductCard';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { fetchProductsThunk } from '@/redux/slices/productsSlice';
 import { Search, SlidersHorizontal, MapPin, ArrowUpDown, Filter, X, Check, Loader2 } from 'lucide-react';
-import { CATEGORIES } from '@/types';
+import { useCategories } from '@/hooks/useCategories';
 
 function SearchContent() {
 
@@ -25,6 +25,7 @@ function SearchContent() {
   const dispatch = useAppDispatch();
   const products = useAppSelector((state) => state.products.items);
   const isLoading = useAppSelector((state) => state.products.loading);
+  const { categories } = useCategories();
 
   const [searchQuery, setSearchQueryState] = useState(q);
   const [selectedCategory, setSelectedCategory] = useState(categoryParam);
@@ -34,9 +35,16 @@ function SearchContent() {
   const [sortOption, setSortOption] = useState(sortParam);
   const [showMobileFilterDrawer, setShowMobileFilterDrawer] = useState(false);
 
+  // The URL keeps a human-readable category *name* (?category=Mobiles) for
+  // shareable/bookmarkable links, resolved to the real categoryId the
+  // backend actually filters on before fetching.
+  const categoryId = categories.find(
+    (c) => c.name.toLowerCase() === categoryParam.toLowerCase()
+  )?.id;
+
   useEffect(() => {
-    dispatch(fetchProductsThunk({ query: q, category: categoryParam }));
-  }, [q, categoryParam, dispatch]);
+    dispatch(fetchProductsThunk({ query: q, categoryId }));
+  }, [q, categoryId, dispatch]);
 
   const applyFilters = () => {
     const params = new URLSearchParams();
@@ -166,7 +174,7 @@ function SearchContent() {
                 className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none"
               >
                 <option value="">All Categories</option>
-                {CATEGORIES.map((c) => (
+                {categories.map((c) => (
                   <option key={c.id} value={c.name}>{c.name}</option>
                 ))}
 
