@@ -143,3 +143,34 @@ instead).
 remains non-functional, same as before this session, just no longer via a category
 crash — via a form that ignores the listing being edited entirely.
 **Date:** 2026-09-13
+
+---
+
+**Decision:** Did the full edit-listing fix deferred above, per explicit user
+priority ("storage fix, the edit-listing flow in this order"): `SellFlowView`
+now takes `listingId`/`initialProduct` props, prefills from the real listing,
+and calls a new `updateProductThunk` (`PUT /products/:id`) instead of
+`createProductThunk` when editing; the edit page fetches the listing by id
+when it isn't already in the store.
+**Reason:** This was next in the user's stated priority order, right after the
+storage/signed-URL fix (see known-issues.md's RESOLVED entries for both, with
+full live-verification detail). Verifying the round trip surfaced two more
+real bugs on the page an edit-save redirects to (`ProductDetailView.tsx`
+calling `useRouter()` after an early return — a Rules-of-Hooks violation; and
+`navigationSlice.ts`'s `selectedProductId: 'p1'` placeholder default firing a
+guaranteed-failing request on every fresh listing view) — both fixed in the
+same pass since they were direct, contained blockers to confirming the edit
+flow actually works end to end, not scope creep.
+**Alternatives considered:** Route the edit flow through the existing
+multi-page `/sell/*` create flow (which already uses `sellSlice` correctly)
+instead of fixing the standalone `SellFlowView` component — rejected as a
+larger, riskier refactor (that flow's `sell/preview` page is hardwired to
+`createProductThunk` and its own navigation/success page) for no clear benefit
+over fixing the component actually used at this route.
+**Impact:** Editing a listing now genuinely prefills and updates the existing
+record (verified live: real PUT, 200, persisted change, correct render after
+redirect) instead of silently no-opping or duplicating. Not done: listing
+images still aren't wired into create/update at all (pre-existing, separate
+gap); a hydration-mismatch warning on the listing detail page self-heals via
+Next's client re-render and wasn't root-caused.
+**Date:** 2026-09-13
