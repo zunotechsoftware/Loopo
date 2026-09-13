@@ -14,6 +14,7 @@ describe('Analytics & Dashboard (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    app.setGlobalPrefix('api/v1');
     await app.init();
 
     // Mock authentications for E2E tests
@@ -29,31 +30,31 @@ describe('Analytics & Dashboard (e2e)', () => {
   });
 
   describe('Admin Analytics', () => {
-    it('/v1/admin/analytics/dashboard (GET) - unauthorized', () => {
+    it('/api/v1/admin/analytics/dashboard (GET) - unauthorized', () => {
       return request(app.getHttpServer())
-        .get('/v1/admin/analytics/dashboard')
+        .get('/api/v1/admin/analytics/dashboard')
         .expect(401);
     });
     
     // Test requires mock auth to pass 200 properly without hitting actual guards
-    it.skip('/v1/admin/analytics/dashboard (GET) - authorized', () => {
+    it.skip('/api/v1/admin/analytics/dashboard (GET) - authorized', () => {
       return request(app.getHttpServer())
-        .get('/v1/admin/analytics/dashboard')
+        .get('/api/v1/admin/analytics/dashboard')
         .set('Authorization', `Bearer ${adminToken}`)
         .expect(200);
     });
   });
 
   describe('User Dashboard', () => {
-    it('/v1/dashboard/summary (GET) - unauthorized', () => {
+    it('/api/v1/dashboard/summary (GET) - unauthorized', () => {
       return request(app.getHttpServer())
-        .get('/v1/dashboard/summary')
+        .get('/api/v1/dashboard/summary')
         .expect(401);
     });
     
-    it.skip('/v1/dashboard/summary (GET) - authorized', () => {
+    it.skip('/api/v1/dashboard/summary (GET) - authorized', () => {
       return request(app.getHttpServer())
-        .get('/v1/dashboard/summary')
+        .get('/api/v1/dashboard/summary')
         .set('Authorization', `Bearer ${sellerToken}`)
         .expect(200);
     });

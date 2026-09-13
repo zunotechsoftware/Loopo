@@ -9,7 +9,7 @@ import { Roles } from '../../../shared/common/decorators/roles.decorator';
 @ApiTags('Admin Analytics')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Controller('v1/admin/analytics')
+@Controller('admin/analytics')
 export class AdminAnalyticsController {
   constructor(private readonly queryService: AnalyticsQueryService) {}
 
@@ -46,7 +46,7 @@ export class AdminAnalyticsController {
 @ApiTags('Product Analytics')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('v1/products')
+@Controller('products')
 export class ProductAnalyticsController {
   constructor(private readonly queryService: AnalyticsQueryService) {}
 
@@ -63,7 +63,7 @@ export class ProductAnalyticsController {
 }
 
 @ApiTags('Search Analytics')
-@Controller('v1/search/analytics')
+@Controller('search/analytics')
 export class SearchAnalyticsController {
   constructor(private readonly queryService: AnalyticsQueryService) {}
 
@@ -75,7 +75,7 @@ export class SearchAnalyticsController {
 }
 
 @ApiTags('Category Analytics')
-@Controller('v1/categories/analytics')
+@Controller('categories/analytics')
 export class CategoryAnalyticsController {
   constructor(private readonly queryService: AnalyticsQueryService) {}
 
@@ -89,7 +89,7 @@ export class CategoryAnalyticsController {
 @ApiTags('Payment Analytics')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Controller('v1/payments/analytics')
+@Controller('payments/analytics')
 export class PaymentAnalyticsController {
   constructor(private readonly queryService: AnalyticsQueryService) {}
 
