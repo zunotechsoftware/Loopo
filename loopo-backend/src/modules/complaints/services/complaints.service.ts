@@ -73,24 +73,18 @@ export class ComplaintsService {
 
     const openCount = submitted + assigned;
     const inProgressCount = investigating + actionReq;
+    const pct = (n: number) => (total > 0 ? Math.round((n / total) * 10000) / 100 : 0);
 
     return {
-      total: 1248, // Or dynamic total
-      open: 342,
-      openPercentage: 27.40,
-      inProgress: 218,
-      inProgressPercentage: 17.47,
-      resolved: 638,
-      resolvedPercentage: 51.12,
-      closed: 50,
-      closedPercentage: 4.01,
-      dbCounts: {
-        total,
-        open: openCount,
-        inProgress: inProgressCount,
-        resolved,
-        closed
-      }
+      total,
+      open: openCount,
+      openPercentage: pct(openCount),
+      inProgress: inProgressCount,
+      inProgressPercentage: pct(inProgressCount),
+      resolved,
+      resolvedPercentage: pct(resolved),
+      closed,
+      closedPercentage: pct(closed),
     };
   }
 

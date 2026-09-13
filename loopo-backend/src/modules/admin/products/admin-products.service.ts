@@ -68,15 +68,16 @@ export class AdminProductsService {
   }
 
   async getProductsStats() {
-    const [total, active, pending, rejected, sold] = await Promise.all([
+    const [total, active, pending, rejected, sold, expired] = await Promise.all([
       this.prisma.product.count({ where: { deletedAt: null } }),
       this.prisma.product.count({ where: { deletedAt: null, status: 'APPROVED' } }),
       this.prisma.product.count({ where: { deletedAt: null, status: 'PENDING' } }),
       this.prisma.product.count({ where: { deletedAt: null, status: 'REJECTED' } }),
       this.prisma.product.count({ where: { deletedAt: null, status: 'SOLD' } }),
+      this.prisma.product.count({ where: { deletedAt: null, status: 'EXPIRED' } }),
     ]);
 
-    return { total, active, pending, rejected, sold };
+    return { total, active, pending, rejected, sold, expired };
   }
 
   async getDistinctLocations() {

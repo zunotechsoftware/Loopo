@@ -154,16 +154,24 @@ export default function ListingsPage() {
 
       const res = await productsService.getAll(params);
       if (res.data) {
+        // Backend wraps the real payload one level deeper than the other
+        // endpoints on this page ({ success, message, data: { data: [...],
+        // total } }, not { data: [...] }) - unwrap that shape first before
+        // falling back to the shallower shapes other endpoints use.
         const rawData = res.data;
+        const inner = rawData?.data;
         const items = Array.isArray(rawData)
           ? rawData
-          : Array.isArray(rawData.data)
-          ? rawData.data
+          : Array.isArray(inner)
+          ? inner
+          : Array.isArray(inner?.data)
+          ? inner.data
           : Array.isArray(rawData.items)
           ? rawData.items
           : [];
         setListings(items);
-        setTotal(rawData.total !== undefined ? rawData.total : items.length);
+        const totalCount = inner?.total ?? rawData.total;
+        setTotal(totalCount !== undefined ? totalCount : items.length);
       }
 
     } catch (err) {
