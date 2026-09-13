@@ -10,21 +10,29 @@ export class RazorpayProvider implements IPaymentProvider {
   private razorpay: Razorpay;
   private keySecret: string;
   private webhookSecret: string;
-  /** True when no real Razorpay credentials are configured — never true in production. */
+  /** True when no real Razorpay credentials are configured. */
   private readonly isMock: boolean;
+  private readonly isProduction: boolean;
 
   constructor(private readonly configService: ConfigService) {
     const keyId = this.configService.get<string>('RAZORPAY_KEY_ID');
     const keySecret = this.configService.get<string>('RAZORPAY_KEY_SECRET');
     this.isMock = !keyId || !keySecret;
+    this.isProduction = this.configService.get<string>('NODE_ENV') === 'production';
 
-    if (this.isMock && this.configService.get<string>('NODE_ENV') === 'production') {
-      // Never run with a placeholder/missing key+secret in production: keySecret
-      // doubles as the HMAC key for verifyPayment's signature check, so a
-      // guessable fallback would let anyone forge a "payment succeeded" signature.
-      throw new Error('RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET are not configured');
-    }
-    if (this.isMock) {
+    if (this.isMock && this.isProduction) {
+      // Don't throw here: Razorpay is one of several payment providers (see
+      // payment-provider.factory.ts) and this class is eagerly constructed
+      // by Nest's DI at app bootstrap regardless of whether any request ever
+      // uses it. Throwing would crash the entire backend over one optional,
+      // unconfigured payment gateway. Every method below fails closed
+      // instead (see the isMock checks) - keySecret also doubles as the HMAC
+      // key for verifyPayment's signature check, so simulating success here
+      // would let anyone forge a "payment succeeded" signature.
+      this.logger.error(
+        'RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET are not configured in production. Razorpay payments will fail closed until this is set.',
+      );
+    } else if (this.isMock) {
       this.logger.warn('Razorpay credentials not configured — RazorpayProvider running in simulated mode.');
     }
 
@@ -43,6 +51,10 @@ export class RazorpayProvider implements IPaymentProvider {
     metadata: Record<string, any>,
   ): Promise<PaymentProviderResponse> {
     if (this.isMock) {
+      if (this.isProduction) {
+        this.logger.error('Refusing to create a Razorpay order in production: credentials not configured.');
+        return { success: false, status: 'FAILED', rawResponse: { error: 'Razorpay is not configured' } };
+      }
       this.logger.warn('Razorpay credentials not configured. Returning simulated order.');
       return {
         success: true,
@@ -85,7 +97,16 @@ export class RazorpayProvider implements IPaymentProvider {
     providerOrderId: string,
     signature?: string,
   ): Promise<PaymentProviderResponse> {
-    if (this.isMock || providerOrderId.startsWith('order_mock_')) {
+    // Deliberately not keying off providerOrderId.startsWith('order_mock_'):
+    // providerOrderId is client-supplied (see payments.service.ts.verifyPayment,
+    // which forwards dto.providerOrderId from the request body), so trusting
+    // its prefix would let anyone bypass real signature verification just by
+    // sending a fake 'order_mock_...' id, even with real credentials configured.
+    if (this.isMock) {
+      if (this.isProduction) {
+        this.logger.error('Refusing to verify a Razorpay payment in production: credentials not configured.');
+        return { success: false, status: 'FAILED', rawResponse: { error: 'Razorpay is not configured' } };
+      }
       this.logger.warn('Razorpay credentials not configured. Returning simulated verification.');
       return {
         success: true,
@@ -165,7 +186,11 @@ export class RazorpayProvider implements IPaymentProvider {
     amount: number,
     reason?: string,
   ): Promise<RefundProviderResponse> {
-    if (this.isMock || providerPaymentId.startsWith('order_mock_')) {
+    if (this.isMock) {
+      if (this.isProduction) {
+        this.logger.error('Refusing to refund a Razorpay payment in production: credentials not configured.');
+        return { success: false, status: 'FAILED', rawResponse: { error: 'Razorpay is not configured' } };
+      }
       this.logger.warn('Razorpay credentials not configured. Returning simulated refund.');
       return {
         success: true,

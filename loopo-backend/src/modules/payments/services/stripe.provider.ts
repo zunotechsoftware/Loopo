@@ -9,12 +9,28 @@ export class StripeProvider implements IPaymentProvider {
   private stripe: Stripe;
   private apiKey: string;
   private webhookSecret: string;
+  private readonly isConfigured: boolean;
+  private readonly isProduction: boolean;
 
   constructor(private readonly configService: ConfigService) {
     this.apiKey = this.configService.get<string>('STRIPE_SECRET_KEY') || 'sk_test_placeholder';
-    if (this.apiKey === 'sk_test_placeholder' && this.configService.get<string>('NODE_ENV') === 'production') {
-      throw new Error('STRIPE_SECRET_KEY is not configured');
+    this.isConfigured = this.apiKey !== 'sk_test_placeholder';
+    this.isProduction = this.configService.get<string>('NODE_ENV') === 'production';
+
+    if (!this.isConfigured && this.isProduction) {
+      // Don't throw here: Stripe is one of several payment providers (see
+      // payment-provider.factory.ts) and this class is eagerly constructed
+      // by Nest's DI at app bootstrap regardless of whether any request ever
+      // uses it. Throwing would crash the entire backend - auth, listings,
+      // chat, everything - over one optional, unconfigured payment gateway.
+      // Instead: log loudly, and every method below refuses real work
+      // (returns a clean failure) rather than either crashing or - the
+      // actual security concern - silently simulating a fake success.
+      this.logger.error(
+        'STRIPE_SECRET_KEY is not configured in production. Stripe payments will fail closed until this is set.',
+      );
     }
+
     this.stripe = new Stripe(this.apiKey, {
       apiVersion: '2025-01-27.acacia' as any, // use current/compatible api version
     });
@@ -26,8 +42,12 @@ export class StripeProvider implements IPaymentProvider {
     currency: string,
     metadata: Record<string, any>,
   ): Promise<PaymentProviderResponse> {
-    const isMock = this.apiKey === 'sk_test_placeholder' || this.isBypassGatewayApi();
+    const isMock = !this.isConfigured || this.isBypassGatewayApi();
     if (isMock) {
+      if (!this.isConfigured && this.isProduction) {
+        this.logger.error('Refusing to create a Stripe payment in production: STRIPE_SECRET_KEY not configured.');
+        return { success: false, status: 'FAILED', rawResponse: { error: 'Stripe is not configured' } };
+      }
       this.logger.warn('Stripe API Key is placeholder. Returning simulated payment intent.');
       return {
         success: true,
@@ -74,8 +94,19 @@ export class StripeProvider implements IPaymentProvider {
     providerOrderId?: string,
     signature?: string,
   ): Promise<PaymentProviderResponse> {
-    const isMock = providerPaymentId.startsWith('pi_mock_') || this.apiKey === 'sk_test_placeholder' || this.isBypassGatewayApi();
+    // Deliberately NOT keying off providerPaymentId.startsWith('pi_mock_'):
+    // that value is client-supplied (see payments.service.ts.verifyPayment,
+    // which forwards dto.providerPaymentId from the request body), so
+    // trusting its prefix would let anyone bypass real verification just by
+    // sending a fake 'pi_mock_...' id, even with a real STRIPE_SECRET_KEY
+    // configured. Whether we're in mock mode is a provider-level fact, not
+    // something the caller gets to assert.
+    const isMock = !this.isConfigured || this.isBypassGatewayApi();
     if (isMock) {
+      if (!this.isConfigured && this.isProduction) {
+        this.logger.error('Refusing to verify a Stripe payment in production: STRIPE_SECRET_KEY not configured.');
+        return { success: false, status: 'FAILED', rawResponse: { error: 'Stripe is not configured' } };
+      }
       return {
         success: true,
         providerPaymentId,
@@ -109,8 +140,12 @@ export class StripeProvider implements IPaymentProvider {
     amount: number,
     reason?: string,
   ): Promise<RefundProviderResponse> {
-    const isMock = providerPaymentId.startsWith('pi_mock_') || this.apiKey === 'sk_test_placeholder' || this.isBypassGatewayApi();
+    const isMock = !this.isConfigured || this.isBypassGatewayApi();
     if (isMock) {
+      if (!this.isConfigured && this.isProduction) {
+        this.logger.error('Refusing to refund a Stripe payment in production: STRIPE_SECRET_KEY not configured.');
+        return { success: false, status: 'FAILED', rawResponse: { error: 'Stripe is not configured' } };
+      }
       return {
         success: true,
         providerRefundId: `re_mock_${Date.now()}`,
