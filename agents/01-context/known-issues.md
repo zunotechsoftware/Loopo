@@ -278,6 +278,48 @@ user add/remove photos on an existing listing - only the create flow
 (`sell/preview`) was wired. Video uploads use the same endpoint (category
 switches automatically by MIME type) but weren't separately exercised.
 
+### RESOLVED — loopo-flutter: KYC screen was entirely fake UI hitting a nonexistent endpoint
+`KycVerificationScreen`'s "Upload Front Photo"/"Take a Live Selfie" tiles never
+opened a camera or file picker at all - tapping either just flipped a boolean
+flag to show a green checkmark, with zero real image capture (`image_picker`
+is a pubspec dependency and used correctly elsewhere in this app, e.g. the
+sell flow's real photo step - just never wired in here). `KycService.verifyKyc`
+then posted `{docType, docNumber}` (no photos at all, despite the params for
+them existing but never being passed) to `POST /api/v1/kyc/verify`, which
+**does not exist anywhere on the real backend** (the real routes are
+`POST`/`PUT /kyc` and, as of this session, `POST /kyc/upload-url` - see the
+storage-fix RESOLVED entry above, which is what made a real fix possible here
+at all). This was a fully non-functional feature dressed up as a working one,
+not a subtle bug.
+
+**Fixed:** `KycService` rewritten against the real contract -
+`uploadDocumentImage()` requests a presigned URL from `/kyc/upload-url`,
+PUTs the file straight to S3/MinIO (bypassing the app's normal JSON request
+helper on purpose - a different origin, no Bearer token, no JSON content-type),
+and returns the resulting `mediaId`; `submitKyc()` then posts the real
+`CreateKycDto` shape (`documentType`, `documentNumber`, `frontImageId`,
+`selfieImageId`, `submit: true`) to `POST /kyc`. The screen now uses
+`ImagePicker` for both the document photo (rear camera) and selfie (front
+camera), shows the actual captured image as a preview, and the submit handler
+awaits both real uploads before submitting. Display document type strings map
+to the real `KycDocumentType` enum (`AADHAAR`/`PAN`/`PASSPORT`/
+`DRIVING_LICENSE`/`NATIONAL_ID` - "Voter ID Card" has no dedicated backend
+enum value, mapped to `NATIONAL_ID` as the closest fit).
+
+**Verified:** `flutter analyze` clean (one pre-existing-style info note, same
+class as the project's existing 4); `flutter build web` succeeds; the app
+loads and reaches the login screen with zero console/page errors in a real
+browser. The upload-url → PUT → submit contract itself was already proven
+live end-to-end against the real backend earlier this session (see the
+storage-fix entry's KYC round-trip) - this fix makes the Flutter client speak
+that same, now-confirmed-working contract. **Not verified**: driving the
+actual KYC screen through Playwright to a real 201 - Flutter web's
+canvas-rendered UI requires blind pixel-coordinate taps with no accessible
+DOM, and the specific tap sequence to reach this screen (behind a profile-tab
+navigation not yet mapped out) wasn't worth the time given the contract
+itself is already confirmed correct; same acceptance bar already used
+earlier this session for the Flutter sell-flow publish.
+
 ### P2 — loopo-client has its own separate ~13-page admin panel, duplicating loopo-admin
 `loopo-client/src/app/admin/` (categories, listings, reports, settings,
 users, verifications — linked from `Header.tsx`/`AdminLayout.tsx`) is a
