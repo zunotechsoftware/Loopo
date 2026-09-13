@@ -50,7 +50,12 @@ describe('AuthController (e2e)', () => {
   afterAll(async () => {
     try {
       await prismaService.$executeRawUnsafe(`TRUNCATE TABLE "users" CASCADE;`);
-      await prismaService.$executeRawUnsafe(`TRUNCATE TABLE "roles" CASCADE;`);
+      // Deliberately NOT truncating "roles": this suite never creates its own
+      // roles, it only registers users against the seeded USER/ADMIN/SUPER_ADMIN
+      // roles. Truncating "roles" CASCADE also wipes role_permissions, and since
+      // Jest runs spec files alphabetically, every suite after this one
+      // (categories, chat, moderation, payments, products, ...) would then run
+      // against a DB with zero roles/permissions and fail on unrelated 403s.
     } catch (e) {
       // Gracefully handle if DB connection is absent during E2E test setup
     }
