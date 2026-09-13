@@ -230,6 +230,22 @@ runtime testing was done — only builds/analyze.
 
 ## RESOLVED (this session, 2026-09-13)
 
+- **loopo-flutter, sell flow had the exact same 100%-broken category bug as web
+  (P0)**: found by auditing flutter for the same bug class immediately after fixing
+  it on web. Three independent hardcoded category sources (`step1_sell_home.dart`'s
+  "Popular Categories" — including "Property"/"Services", which don't exist in the
+  real taxonomy at all; `step2_category_selection.dart`'s subcategory picker; and
+  `step8_review_listing.dart`'s hardcoded fallback categoryId, which was literally
+  the Swagger example UUID from the backend's API docs). All now fetch the real
+  category tree via `CategoryService` (already used correctly by
+  `categories_screen.dart` — that screen was never actually broken, its "TODO:
+  Backend Integration" comments were just stale). Verified live: built
+  `flutter build web`, served it, drove it with Playwright against the real local
+  backend — real categories render at both steps, a real photo upload succeeded.
+  Did not get a full 201-confirmed publish through browser automation (canvas-based
+  file upload timing was flaky in headless Chromium — unrelated to the fix itself);
+  confidence rests on the live UI verification plus the code now matching the exact
+  pattern already proven end-to-end on web.
 - **loopo-client, sell flow completely broken (P0)**: creating a listing failed with
   404 "Category not found" for every category, every user, 100% of the time —
   `productsApi.ts` resolved a category name to id via a hardcoded map of UUIDs from
