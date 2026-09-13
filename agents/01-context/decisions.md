@@ -117,3 +117,29 @@ behavioral risk to either processor's internals).
 (2 `@InjectQueue` sites), `queues.module.ts`, and `products.service.spec.ts` (mock
 token names) all updated consistently. Chat's queues/processors untouched.
 **Date:** 2026-09-13
+
+---
+
+**Decision:** Fixed `SellFlowView.tsx` (the edit-listing flow) enough to compile
+and submit a real `categoryId` (fetches real categories, tracks a real id), but
+did not fix its deeper problem — it never reads the Redux state the edit page
+populates, so editing any listing shows a blank form regardless of which listing
+was opened.
+**Reason:** That's a materially bigger, separate task: the component would need
+either to actually consume `state.sell.formData` throughout instead of its own
+disconnected local state, or be refactored to receive the product as a prop, and
+the edit page itself needs to fetch the listing by id from the API when it isn't
+already in the Redux store (currently only works if the listing happens to already
+be loaded). Attempting a full fix in the same pass as the create-flow fix risked
+either scope creep or a rushed, undertested change to a second, differently-broken
+flow. The minimal fix keeps the create-flow contract change (categoryId, not a
+name) from breaking this component's compile/runtime, without pretending edit is
+now functional.
+**Alternatives considered:** Leave it fully broken (type error on build — rejected,
+worse than a partial fix); attempt the full edit-flow fix in this pass (rejected —
+see reason above; documented in known-issues.md as a properly scoped follow-up
+instead).
+**Impact:** `loopo-client` builds and type-checks clean. The edit-listing flow
+remains non-functional, same as before this session, just no longer via a category
+crash — via a form that ignores the listing being edited entirely.
+**Date:** 2026-09-13

@@ -6,6 +6,50 @@ last_verified: 2026-09-13
 
 ## OPEN
 
+### P1 — Edit-listing flow (loopo-client) is non-functional; separate from the create-flow fix
+`SellFlowView.tsx` (rendered at `/listing/[listingId]/edit`) never reads
+`state.sell.formData` at all — it has its own fully independent local
+`useState` for every field. The edit page's `useEffect` dispatches
+`updateSellForm({ title: product.title, category: product.category, ... })`
+to prefill the form, but since `SellFlowView` doesn't consume that state,
+**editing any listing always shows a blank "create new" form**, regardless
+of which listing you opened. Separately, the edit page only ever looks for
+the listing in already-loaded Redux state (`products.find(p => p.id ===
+listingId)`) — on a fresh page load / direct link with nothing preloaded,
+`product` is `undefined` and nothing gets dispatched at all. Not fixed this
+session (fixed just enough for it to compile and submit a real categoryId,
+see decisions.md) — properly fixing this needs the component to actually
+consume synced state (or be refactored to take the product as a prop) and
+to fetch the listing by id from the API when it's not already in the store.
+
+### P2 — loopo-client has its own separate ~13-page admin panel, duplicating loopo-admin
+`loopo-client/src/app/admin/` (categories, listings, reports, settings,
+users, verifications — linked from `Header.tsx`/`AdminLayout.tsx`) is a
+second, independent admin implementation alongside the real `loopo-admin`
+app. Only `admin/categories/page.tsx` was touched this session (same
+hardcoded-CATEGORIES fix as the rest of the client). Not clear whether this
+is intentional (a lighter seller-facing moderation view?) or an abandoned
+early admin implementation later superseded by `loopo-admin` — worth the
+team clarifying, since if it's dead, it's carrying its own likely-stale/
+hardcoded data throughout, and if it's live, it needs the same audit
+`loopo-admin` already got.
+
+### Local-only — loopo-client's `.env.local` points at production, not localhost
+On this machine, `NEXT_PUBLIC_API_BASE_URL` in `.env.local` (and
+`.env.development`) is set to `https://loopo-api.zunotechsoftware.com`, so
+running `next dev` normally talks to the live production API, not a local
+backend — confirmed by intercepting the actual network requests a plain
+`next dev` session made. None of these `.env*` files are tracked in git, so
+this doesn't affect other developers, only whoever set up this machine.
+Not changed (per not touching local config without being asked) — verification
+of this session's client fixes was done by overriding
+`NEXT_PUBLIC_API_BASE_URL` via a shell env var when starting `next dev`,
+not by editing the file. Worth the user confirming whether pointing local
+dev at prod is intentional — if not, `.env.local`/`.env.development` need
+fixing, and if listing-creation was ever tested locally before this
+session's fix, it may have written test data to the real production
+database.
+
 ### P0 — Aadhaar KYC image still in git history on origin/development
 `aadhaar_front_1788186479093.jpg` (a real Aadhaar ID card image) was committed at the
 repo root in `39f8427` and pushed to `origin/development`. Per user decision on
@@ -186,6 +230,29 @@ runtime testing was done — only builds/analyze.
 
 ## RESOLVED (this session, 2026-09-13)
 
+- **loopo-client, sell flow completely broken (P0)**: creating a listing failed with
+  404 "Category not found" for every category, every user, 100% of the time —
+  `productsApi.ts` resolved a category name to id via a hardcoded map of UUIDs from
+  an old seed run, guaranteed stale after any reseed. Fixed at the root: real
+  categories fetched via a new `useCategories()` hook, `categoryId` threaded through
+  `sellSlice` → `sell/category` → `sell/preview` → `productsApi.createProduct`.
+  Verified end-to-end in a live browser (real login, full multi-step flow including
+  actual file upload, real 201 response, real success screen) — not just code review.
+  Same investigation also found and fixed: `getProducts()` sending `?category=name`
+  and `?search=term` when the backend only accepts `categoryId` (UUID) and `keyword`
+  (400 "property should not exist" on every category-filtered or keyword search);
+  the category detail page relying on client-side name-matching against a `category`
+  field that was always the literal string `"General"` for real products (see next
+  item); and `categories`/`HomeView`/admin-categories all showing a hardcoded,
+  always-zero item count. See known-issues.md OPEN section for what's still broken
+  in this area (edit-listing flow, the duplicate client-side admin panel).
+- **loopo-backend, listing list responses missing category/seller (P1)**: `findAll`
+  (used by the public listings/search/category-browse endpoint) never joined
+  `category` or `seller`, unlike the single-listing endpoint which already did —
+  every list result's category client-side normalized to `"General"` and seller
+  info was blank. Added both joins, matching the existing single-listing query.
+- **loopo-backend, category item counts always zero**: `GET /categories` never
+  computed a product count; added a real, APPROVED-only count per category.
 - **Sensitive file exposure**: Aadhaar image removed from working tree (see OPEN item
   above — history purge still pending, not done).
 - **loopo-backend**: 4 TS2349 errors in `test/analytics.e2e-spec.ts` (wrong supertest
