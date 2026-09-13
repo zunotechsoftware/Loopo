@@ -1,19 +1,115 @@
 import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { KycRepository } from '../repositories/kyc.repository';
 import { CreateKycDto, UpdateKycDto } from '../dto/kyc.dto';
+import { KycUploadUrlDto, KycUploadSlot } from '../dto/kyc-upload-url.dto';
 import { KycStatus, KycDocumentType } from '@prisma/client';
 import { PrismaService } from '../../../shared/database/prisma.service';
+import { S3Service } from '../../../shared/services/s3.service';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
+
+const SLOT_TO_CATEGORY: Record<KycUploadSlot, string> = {
+  FRONT: 'KYC_FRONT',
+  BACK: 'KYC_BACK',
+  SELFIE: 'KYC_SELFIE',
+};
 
 @Injectable()
 export class KycService {
   constructor(
     private readonly kycRepository: KycRepository,
     private readonly prisma: PrismaService,
+    private readonly s3Service: S3Service,
     @InjectQueue('email') private readonly emailQueue: Queue,
     @InjectQueue('notification') private readonly notificationQueue: Queue,
   ) {}
+
+  /**
+   * Generates a signed S3 upload URL for a KYC document image and registers
+   * the resulting object as a PENDING MediaFile, mirroring
+   * UsersService.getUploadUrl. Without this, submitKyc/updateKyc's
+   * frontImageId/backImageId/selfieImageId can never be legitimately
+   * obtained by any real client.
+   */
+  async getUploadUrl(userId: string, dto: KycUploadUrlDto) {
+    const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+    if (dto.fileSize > MAX_SIZE) {
+      throw new BadRequestException('File size exceeds the 5MB limit');
+    }
+
+    const category = SLOT_TO_CATEGORY[dto.slot];
+    const { uploadUrl, fileKey, fileUrl } = await this.s3Service.generatePresignedUploadUrl(
+      userId,
+      dto.fileName,
+      category,
+      dto.fileType,
+    );
+
+    // fileName stores the S3 object key (fileKey), not the original
+    // filename — there is no separate fileKey column on MediaFile.
+    const media = await this.prisma.mediaFile.create({
+      data: {
+        userId,
+        fileName: fileKey,
+        fileUrl,
+        fileSize: dto.fileSize,
+        mimeType: dto.fileType,
+        category,
+        status: 'PENDING',
+        createdBy: userId,
+      },
+    });
+
+    return {
+      uploadUrl,
+      fileKey,
+      mediaId: media.id,
+    };
+  }
+
+  /**
+   * KYC images are a private category — never return the raw stored
+   * fileUrl to a client. Always regenerate a short-lived signed GET URL
+   * at read time from the MediaFile's fileName (which holds the S3 key).
+   */
+  private async signMediaTriplet<T extends { frontImage?: any; backImage?: any; selfieImage?: any }>(
+    entity: T | null | undefined,
+  ): Promise<T | null | undefined> {
+    if (!entity) return entity;
+    const sign = async (media: any) => {
+      if (!media) return media;
+      try {
+        return { ...media, fileUrl: await this.s3Service.getSignedReadUrl(media.fileName) };
+      } catch {
+        // Fail safe rather than crash the response; worst case the
+        // (still-private, bucket-policy-protected) stored URL is shown.
+        return media;
+      }
+    };
+    return {
+      ...entity,
+      frontImage: await sign(entity.frontImage),
+      backImage: await sign(entity.backImage),
+      selfieImage: await sign(entity.selfieImage),
+    };
+  }
+
+  private async signKyc(kyc: any): Promise<any> {
+    if (!kyc) return kyc;
+    let signed = await this.signMediaTriplet(kyc);
+    if (signed?.user?.kycDocuments?.length) {
+      signed = {
+        ...signed,
+        user: {
+          ...signed.user,
+          kycDocuments: await Promise.all(
+            signed.user.kycDocuments.map((doc: any) => this.signMediaTriplet(doc)),
+          ),
+        },
+      };
+    }
+    return signed;
+  }
 
   private async validateMedia(mediaId: string, userId: string, category: string) {
     const media = await this.prisma.mediaFile.findFirst({
@@ -70,7 +166,7 @@ export class KycService {
       });
     }
 
-    return kyc;
+    return this.signKyc(kyc);
   }
 
   async updateKyc(userId: string, dto: UpdateKycDto) {
@@ -121,7 +217,7 @@ export class KycService {
       });
     }
 
-    return updated;
+    return this.signKyc(updated);
   }
 
   async getMyKyc(userId: string) {
@@ -129,7 +225,7 @@ export class KycService {
     if (!kyc) {
       throw new NotFoundException('No KYC record found for this user');
     }
-    return kyc;
+    return this.signKyc(kyc);
   }
 
   async getKycById(id: string) {
@@ -137,11 +233,12 @@ export class KycService {
     if (!kyc) {
       throw new NotFoundException(`KYC record with ID ${id} not found`);
     }
-    return kyc;
+    return this.signKyc(kyc);
   }
 
   async listKycApplications(status?: KycStatus, skip?: number, take?: number) {
-    return this.kycRepository.findAll({ status, skip, take });
+    const results = await this.kycRepository.findAll({ status, skip, take });
+    return Promise.all(results.map((kyc) => this.signKyc(kyc)));
   }
 
   async approveKyc(id: string, adminId: string) {
@@ -184,7 +281,7 @@ export class KycService {
       body: 'Your identity verification was approved successfully!',
     });
 
-    return updated;
+    return this.signKyc(updated);
   }
 
   async rejectKyc(id: string, adminId: string, remarks: string) {
@@ -228,6 +325,6 @@ export class KycService {
       body: `Your identity verification was rejected. Reason: ${remarks}`,
     });
 
-    return updated;
+    return this.signKyc(updated);
   }
 }

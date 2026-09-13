@@ -2,6 +2,7 @@ import { Controller, Get, Post, Put, Body, UseGuards, Request } from '@nestjs/co
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { KycService } from '../services/kyc.service';
 import { CreateKycDto, UpdateKycDto } from '../dto/kyc.dto';
+import { KycUploadUrlDto } from '../dto/kyc-upload-url.dto';
 import { JwtAuthGuard } from '../../../shared/common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../shared/common/guards/roles.guard';
 import { PermissionsGuard } from '../../../shared/common/guards/permissions.guard';
@@ -22,6 +23,15 @@ export class KycController {
   async getMyKyc(@Request() req: any) {
     const kyc = await this.kycService.getMyKyc(req.user.id);
     return { message: 'KYC status retrieved successfully', data: kyc };
+  }
+
+  @Post('upload-url')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'USER')
+  @ApiOperation({ summary: 'Request a signed S3 upload URL for a KYC document image (front/back/selfie)' })
+  @ApiResponse({ status: 201, description: 'Signed upload URL generated successfully.' })
+  async getUploadUrl(@Body() dto: KycUploadUrlDto, @Request() req: any) {
+    const data = await this.kycService.getUploadUrl(req.user.id, dto);
+    return { message: 'Upload URL generated successfully', data };
   }
 
   @Post()

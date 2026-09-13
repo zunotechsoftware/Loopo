@@ -6,40 +6,90 @@ last_verified: 2026-09-13
 
 ## OPEN
 
-### P0/P1 — Uploaded files are likely undisplayable everywhere: private bucket, no read-side signing
-Found while auditing KYC document handling for exposure risk (the opposite problem
-turned up instead). `S3Service.generatePresignedUploadUrl`/`uploadBuffer` are the
-**only** places `getSignedUrl`/`GetObjectCommand` appear anywhere in the backend —
-both exclusively for the upload (PUT) side. The `fileUrl` that gets stored on
-`MediaFile` and returned to every client (product images, chat attachments, KYC
-document images, avatars — anything using this shared upload pipeline) is a plain,
-unsigned, permanent URL with no corresponding read-side signing anywhere.
+### RESOLVED — Storage/signed-URL architecture: private bucket + no read-side signing + KYC upload endpoint didn't exist at all
+Originally found while auditing KYC document handling for exposure risk (the
+opposite problem turned up instead — see history below). Fixed in full this
+session, category-by-category, verified live against the running backend + MinIO
+(not just by reading code).
 
-Verified live and empirically, not just by reading code: got a real presigned
-upload URL from the running backend, uploaded a real file through it (200 OK), then
-requested that exact `fileUrl` with no credentials at all —
-**`403 Access Denied`** from MinIO. A freshly created bucket (via `CreateBucketCommand`
-with no explicit ACL/policy, which is exactly what `S3Service.onModuleInit` does) is
-private by default; the same default applies to real AWS S3 buckets under any
-reasonably modern account (S3 Block Public Access is on by default). This is very
-likely a production issue too, not a MinIO-local quirk — nothing in the code sets a
-bucket policy either way.
+**What was actually wrong (two separate bugs):**
+1. `S3Service.generatePresignedUploadUrl`/`uploadBuffer` were the only places
+   `getSignedUrl`/`GetObjectCommand` appeared anywhere in the backend, both
+   exclusively for the upload (PUT) side. The `fileUrl` stored on `MediaFile` and
+   returned to every client was a plain, unsigned, permanent URL with no
+   corresponding read-side signing — and a freshly-created bucket (no explicit
+   ACL/policy) is private by default on both MinIO and real AWS S3.
+2. While designing the fix, discovered there was **no backend endpoint anywhere**
+   that generates a presigned upload URL for a KYC category or registers a
+   `MediaFile` with a KYC category — `CreateKycDto` expects pre-existing
+   `frontImageId`/`backImageId`/`selfieImageId` UUIDs that no real client could
+   ever obtain. KYC submission was completely non-functional, independent of the
+   storage/signing bug.
 
-**Why this wasn't fixed in this session, and shouldn't be rushed:** the naive fix
-(make the bucket public-read) would make product images/avatars work again but
-would also make **KYC document images (Aadhaar/PAN/selfie scans) directly,
-permanently, publicly fetchable by anyone with the URL** — trading a functional bug
-for a much worse PII exposure incident, especially given this session already found
-and remediated one real Aadhaar exposure (see the git-history entry below). The
-correct fix needs to differentiate by category: public read (or a CDN) for
-`PRODUCT_IMAGE`/avatar-style categories, and short-lived signed GET URLs generated
-fresh on every read (never stored/cached, since presigned URLs expire — the
-`fileUrl` column is permanent, a signed URL isn't) for `KYC_FRONT`/`KYC_BACK`/
-`KYC_SELFIE`/chat-attachment categories. That's real design work, not a one-line
-patch - deliberately left for a dedicated pass rather than attempted under time
-pressure. Also worth checking whether this is why seed data uses `ui-avatars.com`
-placeholder URLs instead of real uploaded images - the team may have already hit
-this and worked around it in seed data without fixing the pipeline itself.
+**The fix, by category** (public vs. private is now a real, enforced split, not
+a single bucket-wide policy):
+- `PUBLIC_MEDIA_CATEGORIES` in `s3.service.ts` = `PROFILE_IMAGE`, `COVER_IMAGE`,
+  `listing_images`, `listing_videos`. `S3Service.onModuleInit` now applies a
+  `PutBucketPolicyCommand` granting `s3:GetObject` scoped ONLY to those
+  categories' key prefixes (object keys are already `${category}/${userId}/...`,
+  so prefix-scoping lines up exactly with category). Everything else — `KYC_FRONT`,
+  `KYC_BACK`, `KYC_SELFIE`, `chat-attachments` — gets no policy at all and stays
+  private by MinIO/S3's own default.
+- `S3Service.getSignedReadUrl(fileKey, expiresIn=900)` (new) generates a
+  short-lived signed GET URL, never persisted — regenerated fresh on every read.
+  `resolveReadUrl`/`resolveUrlForDisplay`/`extractKeyFromUrl` (new) pick direct-URL
+  vs. signed-URL automatically based on category.
+- New KYC upload endpoint: `POST /kyc/upload-url` (`KycUploadUrlDto`: `slot`
+  FRONT|BACK|SELFIE + fileName/fileType/fileSize) → `KycService.getUploadUrl`
+  generates the presigned PUT and creates the `PENDING` `MediaFile` row, mirroring
+  `UsersService.getUploadUrl`'s existing pattern. Without this, `submitKyc` could
+  never have been reached by a real client, so the read-side signing fix below
+  wasn't even testable until this existed.
+- `KycService.signKyc`/`signMediaTriplet` (new, private helpers) intercept every
+  response path that includes `frontImage`/`backImage`/`selfieImage`
+  (`submitKyc`, `updateKyc`, `getMyKyc`, `getKycById`, `listKycApplications`,
+  `approveKyc`, `rejectKyc`) and replace the stored `fileUrl` with a freshly-signed
+  GET URL computed from `MediaFile.fileName` (which holds the S3 key). Fails safe
+  (falls back to the — still-private — stored value) rather than crashing the
+  response if signing itself errors.
+- Chat attachments are keyed by stored URL rather than a `MediaFile` row, so
+  `ChatService.signAttachments`/`signMessagesAttachments` (new) re-resolve
+  `originalUrl`/`thumbnailUrl` via `s3Service.resolveUrlForDisplay` on `sendMessage`
+  and `getMessages` — same private-by-default treatment as KYC, without needing a
+  MediaFile migration.
+- Found and fixed one more bug blocking the round-trip test: `kyc.repository.ts`'s
+  `create()` mixed a raw `userId` scalar with nested `frontImage`/`selfieImage`
+  `connect` relations, which forces Prisma's "checked" input type and rejects the
+  scalar — Prisma threw `PrismaClientValidationError` on every real KYC submission.
+  Changed to `user: { connect: { id: userId } }`. This was a pre-existing,
+  independent bug that nothing had ever exercised before, since no client could
+  reach `submitKyc` without the upload endpoint above existing first.
+
+**Verified live, full round trip, real backend + MinIO, not simulated:**
+register → login → `POST /kyc/upload-url` (FRONT, SELFIE) → real presigned PUT
+upload (200) → `POST /kyc` submit (201, previously 500) → `GET /kyc/me` returns
+`frontImage.fileUrl` containing `X-Amz-Signature` (i.e., freshly signed, not the
+stored permanent URL) → fetching that signed URL directly returns 200 → fetching
+the *same object's raw, unsigned key* directly (bypassing the signed URL) returns
+**403 Access Denied** — confirms KYC documents stay private even with the new
+bucket policy in place. Separately verified the public side: uploaded a
+`PROFILE_IMAGE` and fetched its raw stored URL with zero credentials — **200 OK**,
+confirming product/profile/cover images are now actually displayable in
+production-equivalent conditions (fixing the original "likely undisplayable
+everywhere" finding for every public category). `tsc --noEmit` clean; all 17
+existing backend unit suites / 83 tests still pass.
+
+**Deliberately not done in this pass** (scope boundary, not an oversight):
+`MessageAttachment` isn't backed by a `MediaFile` row, so its signing is
+best-effort key extraction from the stored URL rather than the cleaner
+MediaFile-based approach used for KYC/profile/cover — fine functionally, but a
+future refactor could unify attachment storage onto `MediaFile` for consistency.
+Product listing image/video upload and confirm flows were not touched beyond
+being covered by the new public bucket policy (they already worked once that
+policy existed; no code change was needed there). This never touched
+remote/staging infrastructure — the bucket policy is applied by `S3Service`
+itself against whichever bucket it's configured against (local MinIO in dev),
+consistent with the "keep it local" constraint.
 
 ### P1 — Edit-listing flow (loopo-client) is non-functional; separate from the create-flow fix
 `SellFlowView.tsx` (rendered at `/listing/[listingId]/edit`) never reads
