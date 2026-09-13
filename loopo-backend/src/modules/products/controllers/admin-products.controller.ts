@@ -23,9 +23,7 @@ export class AdminProductsController {
   @ApiOperation({ summary: 'Get listings pending moderator approval' })
   @ApiResponse({ status: 200, description: 'Paginated list of pending items.' })
   async findPending(@Query() query: ListingSearchQueryDto) {
-    // Override query status to PENDING for moderation queries
-    query.status = ProductStatus.PENDING;
-    const result = await this.productsService.findPublicListings(query);
+    const result = await this.productsService.findPublicListings(query, ProductStatus.PENDING);
     return { message: 'Pending listings retrieved successfully', data: result };
   }
 

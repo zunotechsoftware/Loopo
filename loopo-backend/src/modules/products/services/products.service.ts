@@ -20,8 +20,8 @@ export class ProductsService {
     private readonly redisService: RedisService,
     private readonly s3Service: S3Service,
     private readonly interactionsService: InteractionsService,
-    @InjectQueue('image-compression') private readonly imageCompressionQueue: Queue,
-    @InjectQueue('thumbnail-generation') private readonly thumbnailGenerationQueue: Queue,
+    @InjectQueue('product-image-compression') private readonly imageCompressionQueue: Queue,
+    @InjectQueue('product-thumbnail-generation') private readonly thumbnailGenerationQueue: Queue,
     @InjectQueue('product-expiration') private readonly expirationQueue: Queue,
     @InjectQueue('search-index-update') private readonly searchIndexQueue: Queue,
     @InjectQueue('notification') private readonly notificationQueue: Queue,
@@ -277,11 +277,17 @@ export class ProductsService {
     return { items, total, page: query.page, limit: query.limit };
   }
 
-  async findPublicListings(query: ListingSearchQueryDto) {
+  // statusOverride is for trusted, guard-protected admin callers only (e.g.
+  // AdminProductsController.findPending). query.status is deliberately never
+  // read here even though ListingSearchQueryDto declares it: this method is
+  // also called directly by the public, unauthenticated `GET /products`
+  // endpoint, and honoring a client-supplied status would let anyone request
+  // ?status=PENDING/REJECTED and see un-moderated listings.
+  async findPublicListings(query: ListingSearchQueryDto, statusOverride?: ProductStatus) {
     const skip = (query.page! - 1) * query.limit!;
-    
+
     const where: Prisma.ProductWhereInput = {
-      status: ProductStatus.APPROVED,
+      status: statusOverride || ProductStatus.APPROVED,
     };
 
     if (query.categoryId) {

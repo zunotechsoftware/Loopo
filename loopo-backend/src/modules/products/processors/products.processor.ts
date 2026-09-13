@@ -4,7 +4,7 @@ import { Job } from 'bullmq';
 import { ProductsRepository } from '../repositories/products.repository';
 import { RedisService } from '../../../shared/redis/redis.service';
 
-@Processor('image-compression')
+@Processor('product-image-compression')
 @Injectable()
 export class ImageCompressionProcessor extends WorkerHost {
   private readonly logger = new Logger(ImageCompressionProcessor.name);
@@ -34,7 +34,7 @@ export class ImageCompressionProcessor extends WorkerHost {
   }
 }
 
-@Processor('thumbnail-generation')
+@Processor('product-thumbnail-generation')
 @Injectable()
 export class ThumbnailGenerationProcessor extends WorkerHost {
   private readonly logger = new Logger(ThumbnailGenerationProcessor.name);

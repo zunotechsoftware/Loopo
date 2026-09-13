@@ -25,8 +25,13 @@ import {
     InteractionsModule,
     // Injecting BullMQ queues registered globally in QueuesModule
     BullModule.registerQueue(
-      { name: 'image-compression' },
-      { name: 'thumbnail-generation' },
+      // Named distinctly from chat's 'image-compression'/'thumbnail-generation'
+      // queues (see chat.module.ts): both modules used to register the same
+      // queue names with unrelated job payloads/processors, so BullMQ would
+      // hand either module's jobs to whichever worker was free, silently
+      // misprocessing them.
+      { name: 'product-image-compression' },
+      { name: 'product-thumbnail-generation' },
       { name: 'product-expiration' },
       { name: 'view-counter-sync' },
       { name: 'search-index-update' },
