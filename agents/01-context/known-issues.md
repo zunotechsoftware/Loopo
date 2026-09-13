@@ -41,22 +41,37 @@ Still broader than necessary; tightening to an explicit allowlist (client/admin
 origins from env) is a reasonable hardening pass, not an emergency — not done this
 session pending knowing the actual deployed frontend origins.
 
-### Local dev environment: no DB/Redis reachable
-Docker Desktop's daemon isn't running in this environment (`docker ps` fails to
-connect). Couldn't run `prisma migrate status` (needs a live DB), e2e tests, or any
-integration test this session. Migration-drift and runtime behavior remain
-**unverified** — only static analysis (tsc, build, analyze, unit tests with mocks)
-was possible. Start Docker Desktop (or point `DATABASE_URL`/`REDIS_HOST` at a
-reachable instance) before the next session that needs this.
+### RESOLVED — Local dev environment now has DB/Redis/MinIO reachable
+Docker was started mid-session (`loopo-postgres`, `loopo-redis`, `loopo-minio`
+containers). Local DB was baselined (see decisions.md) and seeded via
+`npx prisma db seed`. Full e2e suite now runs: started at 61 failed/9 passed,
+ended this session at **0 failed / 69 passed / 2 skipped** (71 total) after the
+fixes below. Local dev DB state: freshly truncated `users`/`categories`/`products`
++ re-seeded as of end of session — re-run `npx prisma db seed` if you need the
+full seeded dataset (150 support tickets/complaints, categories, brands, sellers,
+products, KYC docs, etc.) rather than an empty table.
+
+### P1/P2 — Admin analytics frontend calls backend routes that don't exist at all
+`loopo-admin/src/services/admin.service.ts`'s `analyticsService` calls
+`/admin/analytics/summary`, `/users`, `/products`, `/revenue`, `/categories`,
+`/search`, `/moderation` — **none of these match any real backend route**. The
+only real analytics routes are `AdminAnalyticsController`'s `dashboard`, `search`,
+`categories`, `payments` (fixed this session to no longer double-prefix, see
+RESOLVED) plus a per-product-ID `products/:id/analytics`. Nothing in
+`loopo-client`/`loopo-flutter` references any of `analytics.controller.ts`'s routes
+either. This means **the admin analytics page has no working backend behind it at
+all** right now, regardless of the double-prefix bug. Not fixed this session —
+deciding the real contract (rename backend routes to match the frontend's
+expectations, or vice versa, plus building whatever handlers/response shapes
+`summary`/`users`/`revenue`/`moderation` actually need) is a scoped feature task on
+its own, not a quick bug fix.
 
 ### Not yet audited
-Everything not explicitly listed under RESOLVED below is simply **not yet checked**:
-full runtime behavior of auth/chat/search/moderation flows (only static/code-review
-checks were done, see RESOLVED for what that covered), cross-platform API-contract
-consistency (client/admin/flutter vs actual backend DTOs), Prisma migration drift,
-seed data, CI workflows, mobile builds (analyzed only, not built). The auth/payments/
-chat code review this session was targeted (guard/secret/ownership patterns), not
-an exhaustive pass over all 30 backend modules — most modules haven't been read yet.
+Most of the ~30 backend modules haven't been read at all yet (this session's code
+review was targeted: auth, payments, chat, products, the shared audit-log
+interceptor). No cross-platform API-contract pass was done beyond what surfaced
+incidentally (the analytics mismatch above). No frontend (client/admin/flutter)
+runtime testing was done — only builds/analyze.
 
 ## RESOLVED (this session, 2026-09-13)
 
@@ -108,3 +123,52 @@ All of the above were spot-checked via manual code review of the auth/payments/c
 modules specifically (guard construction, secret handling, ownership scoping) — not
 found by a tool or exhaustive scan. Treat this as evidence the pattern *can* occur in
 this codebase, not proof no other instance exists elsewhere.
+
+### e2e test suite + real bugs it surfaced (Docker started mid-session)
+Getting the full e2e suite from 61 failed/9 passed to 0 failed/69 passed/2 skipped
+surfaced several genuine app bugs alongside pure test-fixture issues:
+
+- **Real bugs fixed:**
+  - `AuditLogInterceptor` crashed (`TypeError`) on any `@LogAudit`-decorated
+    POST/PUT/PATCH route that received no body (e.g. `PATCH .../approve`) —
+    every such action's audit log entry was silently never written.
+  - `AdminProductsController.findPending()` never actually filtered by PENDING —
+    `ProductsService.findPublicListings()` hardcoded `status: APPROVED`
+    regardless of the caller's intent, so the admin moderation "pending" queue
+    always returned approved-or-nothing. Fixed via an explicit
+    `statusOverride` param for trusted admin callers, and — importantly —
+    `query.status` (bindable from the public `GET /products` query params) is
+    now never read at all, closing a latent IDOR the naive fix would have
+    reopened (anyone could otherwise pass `?status=PENDING`/`REJECTED` to the
+    anonymous endpoint).
+  - `chat.module.ts` and `products.module.ts` both registered BullMQ queues
+    named `image-compression`/`thumbnail-generation` with unrelated, mutually
+    incompatible processors — a genuine cross-feature job-misrouting bug, not
+    hypothetical (both had live producers). Renamed products' side to
+    `product-image-compression`/`product-thumbnail-generation`.
+  - `analytics.controller.ts`'s 5 controllers double-prefixed their routes
+    (`/api/v1/v1/...`) — confirmed against the live running server, not just
+    the decorator. Fixed (see the separate admin-analytics-contract item above
+    for why this still doesn't make the admin analytics page work).
+  - Removed unused default NestJS scaffold (`AppController`/`AppService` +
+    their specs) — never wired into `AppModule`, confirmed via a bare
+    `AppModule` boot returning `Cannot GET /`.
+- **Test-only fixture bugs fixed** (no production impact): `auth.e2e-spec.ts`
+  truncating the shared `roles` table in its own `afterAll`, breaking every
+  suite that ran after it alphabetically; `roles: ['CUSTOMER']`/`['MODERATOR']`
+  hardcoded into manually-signed JWTs in 4 spec files even though neither role
+  exists (only `SUPER_ADMIN`/`ADMIN`/`USER` are seeded); two specs reading
+  `register()`'s response as if it returned the created user (it deliberately
+  doesn't — see `authSlice.ts`'s `registerUserThunk`, which already knows this
+  and follows up with a real `login()` call); two specs mocking BullMQ queue
+  tokens with no matching processor override, which breaks Worker registration
+  for that queue entirely (`"Worker requires a connection"`) — removed the
+  unmatched mocks rather than adding more overrides, since a real Redis is
+  reachable and letting those run for real is simpler.
+
+Local Postgres/Redis/MinIO (`loopo-postgres`, `loopo-redis`, `loopo-minio`
+containers) needed Docker Desktop started mid-session; the DB also needed a
+migration baseline (see decisions.md) since it had been provisioned via
+`db push` rather than tracked migrations — same risk exists for staging/prod if
+provisioned the same way, but per explicit user instruction this was kept
+local-only; no remote/staging DB was touched.

@@ -72,3 +72,48 @@ surface area is not an acceptable tradeoff).
 **Impact:** Future admin PRs will now actually fail the build on type errors instead of
 shipping them silently.
 **Date:** 2026-09-13
+
+---
+
+**Decision:** Baselined the local dev database's Prisma migration history
+(`prisma migrate resolve --applied` for both existing migrations) rather than
+running `prisma migrate reset` or `migrate dev`.
+**Reason:** The local DB's schema (112 tables) already exactly matched
+`schema.prisma` (confirmed via `prisma migrate diff` — zero drift), it just had no
+`_prisma_migrations` table, meaning it was originally provisioned via `db push`
+rather than tracked migrations. `migrate deploy` correctly refused to run
+(`P3005`) rather than risk altering an already-correct schema. Baselining marks
+the two existing migrations as applied without re-running their SQL — safe given
+the confirmed zero-diff, and non-destructive.
+**Alternatives considered:** `migrate reset` (rejected — destroys data
+unnecessarily for a problem that's purely bookkeeping); ignoring the P3005 and
+using `db push` going forward (rejected — leaves migration history permanently
+unusable).
+**Impact:** Local dev DB can now run `prisma migrate deploy` normally. This is
+**local-only** per explicit user instruction ("for now keep it local") — if
+staging/production was provisioned the same way (via `db push`, no migration
+history), it will hit the identical `P3005` error on a real deploy and needs the
+same baselining treatment there, deliberately not done as part of this session.
+**Date:** 2026-09-13
+
+---
+
+**Decision:** When `chat.module.ts` and `products.module.ts` were found to both
+register BullMQ queues named `image-compression`/`thumbnail-generation` with
+incompatible processors, renamed **products'** side
+(`product-image-compression`/`product-thumbnail-generation`) rather than chat's.
+**Reason:** Chat's implementation is the fully real one (downloads via URL,
+compresses with `sharp`, uploads to S3); products' is an explicit stub
+("Simulate high-performance WebP image compression" — doesn't actually compress
+anything, just fakes a DB update). Renaming the incomplete/stub side is lower risk
+and doesn't touch the feature that's actually depended upon in its current form.
+**Alternatives considered:** Rename chat's side instead (rejected — same
+mechanical cost, but touches the more mature implementation for no added
+benefit); leave both sharing the queue name and add `job.name` branching inside
+each processor to safely ignore jobs not meant for it (rejected — more invasive
+change to both processors' logic, whereas a name change is a pure rename with no
+behavioral risk to either processor's internals).
+**Impact:** `products.module.ts`, `products.processor.ts`, `products.service.ts`
+(2 `@InjectQueue` sites), `queues.module.ts`, and `products.service.spec.ts` (mock
+token names) all updated consistently. Chat's queues/processors untouched.
+**Date:** 2026-09-13
