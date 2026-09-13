@@ -6,6 +6,81 @@ last_verified: 2026-09-13
 
 ## OPEN
 
+### P1 — loopo-admin: several pages are still 100% hardcoded fake data despite a working real endpoint existing
+Found via a full visual sweep of all 21 admin pages (screenshot + console/network
+check per page, real superadmin login). Dashboard, the Listings-page item list,
+and the Complaints stats/category-breakdown widgets were the same class of bug
+and are now fixed (see the RESOLVED entry above this one). Still fake, not fixed
+this pass:
+- **Reviews** (`(admin)/reviews/page.tsx`): entirely a ~1000-line hardcoded
+  `INITIAL_REVIEWS` array with no fetch at all, despite `reviewsService` in
+  `admin.service.ts` already pointing at a real, working `GET /admin/reviews`
+  (confirmed live: returns real `Review` rows, currently empty since none are
+  seeded). Not fixed because the mock data's shape (`ratingBreakdown` with
+  quality/value/delivery/customerService, a seller `response`/reply feature, a
+  `moderationHistory` timeline) has **no equivalent in the real `Review` /
+  `ReviewRating` Prisma models** (real rating sub-scores are named differently -
+  communication/responseTime/productAccuracy/deliveryExperience/behaviour/
+  valueForMoney - and there's no reply or moderation-log concept at all).
+  Wiring this properly means either a real frontend simplification to match
+  what the backend actually has, or backend additions - a bigger, deliberate
+  piece of work, not a drop-in fetch call.
+- **Roles & Permissions** (`(admin)/roles/page.tsx`): `MOCK_ROLES`, no fetch.
+  `rolesService.getAll()`/`getPermissions()` in `admin.service.ts` call
+  `/admin/roles` and `/admin/permissions`, **neither of which exist on the
+  backend at all** (confirmed against the live route dump - no controller
+  registers either path). This needs real backend work (a Role/Permission CRUD
+  API over the existing `roles`/`permissions`/`role_permissions` tables), not
+  just a frontend fetch.
+- **Payments** (`(admin)/payments/page.tsx`): hardcoded transactions
+  (`John Doe`, `PayPal` - a provider this backend doesn't even integrate).
+  `paymentsService` calls `/admin/payments/transactions`, `/subscriptions`,
+  `/refunds` as separate GETs, but the real controller (found via the live
+  route dump) only exposes `GET /admin/payments`, `GET /admin/payments/:id`,
+  `POST /admin/payments/refunds` - a genuine path/contract mismatch, **and**
+  that controller has the exact same double-`api/v1/`-prefix bug documented
+  below for reviews, so none of its routes are even reachable at their
+  intended paths right now. There's also no "subscriptions" concept anywhere
+  in the schema (this is a per-listing marketplace, not a SaaS product) - the
+  Subscriptions tab has nothing real to wire to at all. Needs: fix the prefix
+  bug, reconcile the frontend's expected paths with the controller's actual
+  ones, and either drop the Subscriptions tab or clarify what it should show.
+- **Reports** (`(admin)/reports/page.tsx`): a full fake "report library" (58
+  generated reports, download counts, scheduled reports) with no fetch and,
+  as far as this sweep found, no real backend equivalent (no report-generation/
+  storage module exists) - this is a real feature gap, not a wiring gap.
+- **Pending Approval** (`(admin)/listings/pending/page.tsx`): a separate,
+  fully hardcoded duplicate of what the (now-fixed) main Listings page already
+  does correctly with a `status=PENDING` filter and working Approve/Reject
+  actions. Redundant as well as fake - worth just deleting this page and
+  linking "Pending Approval" to `Listings?status=PENDING` instead of
+  maintaining two implementations of the same view.
+- **Settings** (`(admin)/settings/page.tsx`): `MOCK_AUDIT_LOGS` and
+  `MOCK_BANNERS` - `auditLogsService.getAll()` calls `/admin/audit-logs`,
+  which (like roles/permissions above) doesn't exist on the backend at all.
+
+### P2 — loopo-backend: two more duplicate-controller route-prefix bugs, same class already found/fixed for analytics this session
+Grepping for the analytics double-prefix pattern (`@Controller('api/v1/...')`
+stacking on top of the global `api/v1` prefix, producing a dead
+`/api/v1/api/v1/...` route) while investigating the admin sweep above found two
+more instances, confirmed against the live route dump:
+- `src/modules/admin/reviews/admin-reviews.controller.ts` (`AdminReviewsService`-
+  backed: pagination, type filter, get-by-id, hard delete) is fully unreachable
+  at any sane path. A **second**, different implementation -
+  `src/modules/reviews/controllers/admin-reviews.controller.ts`
+  (`ReviewsService`-backed: list/hide/restore/soft-delete, no pagination or
+  get-by-id) - correctly owns the real `/admin/reviews` path and is what the
+  frontend's `reviewsService` already points at. Both are real, different
+  feature sets; simply stripping the bad prefix would make them collide on
+  identical paths (same resolution needed as the products/reviews duplicate
+  controllers found earlier this session - pick one, rename or merge, don't
+  just fix the prefix blindly).
+- `src/modules/admin/payments/...` (exact file not yet located) has the same
+  bug - see the Payments item above.
+Not fixed this pass (needs the same "pick a winner" judgment call as the
+products-queue-name and reviews duplication already handled this session, not
+a one-line rename) - flagging both so they don't get rediscovered from scratch.
+
 ### RESOLVED — Storage/signed-URL architecture: private bucket + no read-side signing + KYC upload endpoint didn't exist at all
 Originally found while auditing KYC document handling for exposure risk (the
 opposite problem turned up instead — see history below). Fixed in full this
@@ -148,10 +223,60 @@ this fix and the two adjacent bugs it surfaced.
 **Not done in this pass** (pre-existing, out of scope for this fix): product
 images still aren't sent by `createProduct`/`updateProduct` at all (a
 separate gap — the create flow never wires up the presigned-upload pipeline
-for listing photos), and there's a real hydration-mismatch warning on the
-listing detail page (self-heals via Next's client re-render, not a crash;
-root cause not investigated) plus cosmetic `<img src="">` console warnings
-when a listing has zero images.
+for listing photos — **now fixed, see the RESOLVED entry below**), and
+there's a real hydration-mismatch warning on the listing detail page
+(self-heals via Next's client re-render, not a crash; root cause not
+investigated) plus cosmetic `<img src="">` console warnings when a listing
+has zero images.
+
+### RESOLVED — Listing photos were never actually uploaded anywhere; the upload endpoint itself was also broken for every caller
+The sell flow (`sell/photos`) let a user pick photos, compressed/read them into
+base64 data URLs in Redux, showed them in the UI right through to the preview
+step - and then `productsApi.createProduct()` silently never sent `images` to
+the backend at all. Nothing was ever uploaded; every real listing on this
+platform had zero attached images.
+
+While wiring the real fix, found the actual upload endpoint
+(`POST /products/:id/images/upload-url`) was **also broken for every possible
+caller**, independent of the client: `PresignedUrlRequestDto`/`AttachMediaDto`
+in `product-media.controller.ts` had no `class-validator` decorators at all,
+and the global `ValidationPipe` runs with `whitelist: true, forbidNonWhitelisted:
+true` - a completely undecorated DTO class gets every property stripped
+regardless of what's sent, so this endpoint 400'd
+(`"property fileName should not exist"`) on every real request, forever. This
+is the same bug class documented elsewhere in this file for category/search
+params, just on a different endpoint no one had exercised yet.
+
+**Fixed:**
+- Added proper `@IsString()`/`@IsNotEmpty()`/`@IsOptional()` decorators to both
+  DTOs so the upload-url and attach-image endpoints actually accept requests.
+- `productsApi.uploadProductImage`/`uploadProductImages` (new): decodes a data
+  URL back into a `Blob`, requests a presigned PUT, uploads directly to S3/MinIO
+  (deliberately bypassing `apiClient` for this one call - it must not carry our
+  Bearer token or a JSON content-type to a different origin), then registers
+  the result via `POST /products/:id/images`. Sequential, not parallel (keeps
+  a burst of <=10 uploads simple and isolates one bad photo from the rest).
+- Wired into `sell/preview`'s publish handler: once `createProductThunk`
+  returns a real listing id, every photo in `formData.images` is uploaded
+  against it before navigating to the success screen. Best-effort - a failed
+  photo shows a toast but doesn't block the listing itself from publishing.
+
+**Verified live, full round trip, real backend + MinIO, not simulated:**
+drove the actual multi-step sell flow in a browser (category → details → a
+real file picked at the photos step → location → preview → publish), watched
+the real `POST /products` (201), `POST /products/:id/images/upload-url`
+(**201, was 400**), and `POST /products/:id/images` (201) network calls,
+then confirmed via `GET /products/:id` that the listing's `images` array now
+contains the real attached record, and fetched its `originalUrl` directly
+with zero credentials - **200 OK** (public `listing_images` category, per the
+storage-fix bucket policy above - this is the first real end-to-end proof
+that a listing photo is actually visible after publishing). `tsc --noEmit`
+clean on both apps; all 17 backend unit suites / 83 tests still pass.
+
+**Not done in this pass:** the edit flow (`SellFlowView`) still doesn't let a
+user add/remove photos on an existing listing - only the create flow
+(`sell/preview`) was wired. Video uploads use the same endpoint (category
+switches automatically by MIME type) but weren't separately exercised.
 
 ### P2 — loopo-client has its own separate ~13-page admin panel, duplicating loopo-admin
 `loopo-client/src/app/admin/` (categories, listings, reports, settings,

@@ -6,6 +6,7 @@ import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { createProductThunk } from '@/redux/slices/productsSlice';
 import { setPublishedListingId, setSubmitting, resetSellForm } from '@/redux/slices/sellSlice';
 import { showToast } from '@/redux/slices/uiSlice';
+import { productsApi } from '@/services/productsApi';
 import { ROUTES } from '@/routes/routes';
 import { ArrowLeft, CheckCircle2, Loader2, Edit3, MapPin, Tag, ShieldCheck } from 'lucide-react';
 
@@ -40,6 +41,19 @@ export default function SellPreviewPage() {
       if (createProductThunk.fulfilled.match(res)) {
         const listingId = res.payload?.id || 'prod-' + Date.now();
         dispatch(setPublishedListingId(listingId));
+
+        // Photos were only ever kept in Redux as data URLs and never
+        // actually sent anywhere - upload them now that the listing has a
+        // real id (the backend's media pipeline is per-listing: presign,
+        // PUT to S3, then register). Best-effort: a failed photo doesn't
+        // block the listing itself from being published.
+        if (formData.images.length > 0) {
+          const { failed } = await productsApi.uploadProductImages(listingId, formData.images);
+          if (failed > 0) {
+            dispatch(showToast(`Listing published, but ${failed} photo${failed > 1 ? 's' : ''} failed to upload.`));
+          }
+        }
+
         dispatch(setSubmitting(false));
         dispatch(showToast('Listing published successfully! 🎉'));
         router.push(ROUTES.SELL_SUCCESS);
