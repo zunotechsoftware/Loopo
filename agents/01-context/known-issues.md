@@ -32,13 +32,22 @@ long-term: it runs on **every** container start/restart and will silently apply
 destructive schema changes to production data with zero review, the moment any
 future `schema.prisma` change removes/renames a column.
 
-**Fixed the Dockerfile** to use `prisma migrate deploy` again (this session). But
-this alone will crash-loop again on the next deploy unless the **real
-staging/production database** gets the same one-time baseline treatment done
-locally (see decisions.md). This session deliberately did not touch any
-remote/staging DB (explicit user instruction: "keep it local") — someone with
-access to the actual Lightsail server / production `DATABASE_URL` needs to run,
-**before or during** the next deploy with the updated image:
+**Fixed the Dockerfile** to use `prisma migrate deploy` again (this session), and
+**live-verified end to end**: built the actual image (`docker build`), ran it on
+the same docker network as the local Postgres/Redis/MinIO with `NODE_ENV=production`,
+and confirmed `migrate deploy` reports "No pending migrations to apply" and the
+app starts cleanly (`Nest application successfully started`) — not just a code
+read. That live run also surfaced a second, related bug (now also fixed — see the
+payment-provider entry below): `StripeProvider`/`RazorpayProvider` used to `throw`
+in their constructor when unconfigured, which crashed the *entire* app in
+production, not just those two payment methods.
+
+This Dockerfile fix alone will still crash-loop again on the next real deploy
+unless the **real staging/production database** gets the same one-time baseline
+treatment done locally (see decisions.md). This session deliberately did not
+touch any remote/staging DB (explicit user instruction: "keep it local") —
+someone with access to the actual Lightsail server / production `DATABASE_URL`
+needs to run, **before or during** the next deploy with the updated image:
 
 ```sh
 # 1. Confirm zero drift first - do NOT baseline if this prints anything
@@ -66,7 +75,41 @@ unfilled `<your-dockerhub-username>` image tag — it's clearly a template, not
 something that runs as-is, so the real Lightsail server almost certainly has its
 own filled-in version outside this repo. Not verified either way (no server
 access) — worth the user double-checking the actual deployed secrets are strong,
+
+### RESOLVED — Payment providers crashed the whole app in production when unconfigured
+`StripeProvider`/`RazorpayProvider` (see the P0 fixes earlier in RESOLVED, below)
+originally `throw`'d in their constructor when unconfigured + `NODE_ENV=production`.
+Found by live-running the built Docker image (see the Dockerfile entry above) — the
+container failed to start with `STRIPE_SECRET_KEY is not configured` the instant
+production mode was set with no Stripe key, which is the exact state this repo's
+own `.env`/`.env.example` are already in for both Stripe and Razorpay. Since both
+providers are eagerly constructed by Nest's DI regardless of whether a request
+ever touches them, this took down the *entire* backend — auth, listings, chat,
+search, everything — over one optional, unconfigured payment gateway.
+
+Fixed: constructor now logs an ERROR instead of throwing; each of
+create/verify/refund now explicitly fails closed (`{success:false}`) when
+unconfigured in production, rather than crashing OR silently simulating success.
+Also found and fixed, in the same pass: `verifyPayment`/`refundPayment` on both
+providers additionally trusted a client-supplied ID's prefix
+(`providerPaymentId.startsWith('pi_mock_')` / `providerOrderId.startsWith('order_mock_')`)
+as sufficient alone to short-circuit into simulated success, **regardless of
+whether the provider was actually configured** — since that ID comes straight
+from the request body, this let anyone bypass real Stripe/Razorpay verification
+just by sending a fake-prefixed id, even with real credentials set. Removed.
+
+Live-reverified after the fix: rebuilt the image, re-ran the same container —
+starts cleanly now with a visible ERROR log line instead of crashing.
 independent of this repo's template file.
+
+### P2 — 6 duplicate Swagger DTO class names, will break on next @nestjs/swagger major
+Noticed in the live Docker boot log: `Duplicate DTO detected` warnings for
+`GetUploadUrlDto`, `UpdateProductDto`, `RejectProductDto`, `FeatureProductDto`,
+`BoostProductDto`, `CreateCouponDto` — each defined with different shapes in more
+than one module. Currently just a warning (Swagger docs may show the wrong schema
+for whichever one it picks), but Nest's own message says "this will throw an
+error in the next major version" of `@nestjs/swagger`. Not fixed this session —
+needs finding each pair and renaming one side, not a blind rename.
 
 ### P2 — loopo-client has no ESLint config
 `npx eslint .` in `loopo-client` fails immediately with "couldn't find an
