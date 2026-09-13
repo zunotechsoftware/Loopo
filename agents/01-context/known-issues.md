@@ -6,6 +6,41 @@ last_verified: 2026-09-13
 
 ## OPEN
 
+### P0/P1 — Uploaded files are likely undisplayable everywhere: private bucket, no read-side signing
+Found while auditing KYC document handling for exposure risk (the opposite problem
+turned up instead). `S3Service.generatePresignedUploadUrl`/`uploadBuffer` are the
+**only** places `getSignedUrl`/`GetObjectCommand` appear anywhere in the backend —
+both exclusively for the upload (PUT) side. The `fileUrl` that gets stored on
+`MediaFile` and returned to every client (product images, chat attachments, KYC
+document images, avatars — anything using this shared upload pipeline) is a plain,
+unsigned, permanent URL with no corresponding read-side signing anywhere.
+
+Verified live and empirically, not just by reading code: got a real presigned
+upload URL from the running backend, uploaded a real file through it (200 OK), then
+requested that exact `fileUrl` with no credentials at all —
+**`403 Access Denied`** from MinIO. A freshly created bucket (via `CreateBucketCommand`
+with no explicit ACL/policy, which is exactly what `S3Service.onModuleInit` does) is
+private by default; the same default applies to real AWS S3 buckets under any
+reasonably modern account (S3 Block Public Access is on by default). This is very
+likely a production issue too, not a MinIO-local quirk — nothing in the code sets a
+bucket policy either way.
+
+**Why this wasn't fixed in this session, and shouldn't be rushed:** the naive fix
+(make the bucket public-read) would make product images/avatars work again but
+would also make **KYC document images (Aadhaar/PAN/selfie scans) directly,
+permanently, publicly fetchable by anyone with the URL** — trading a functional bug
+for a much worse PII exposure incident, especially given this session already found
+and remediated one real Aadhaar exposure (see the git-history entry below). The
+correct fix needs to differentiate by category: public read (or a CDN) for
+`PRODUCT_IMAGE`/avatar-style categories, and short-lived signed GET URLs generated
+fresh on every read (never stored/cached, since presigned URLs expire — the
+`fileUrl` column is permanent, a signed URL isn't) for `KYC_FRONT`/`KYC_BACK`/
+`KYC_SELFIE`/chat-attachment categories. That's real design work, not a one-line
+patch - deliberately left for a dedicated pass rather than attempted under time
+pressure. Also worth checking whether this is why seed data uses `ui-avatars.com`
+placeholder URLs instead of real uploaded images - the team may have already hit
+this and worked around it in seed data without fixing the pipeline itself.
+
 ### P1 — Edit-listing flow (loopo-client) is non-functional; separate from the create-flow fix
 `SellFlowView.tsx` (rendered at `/listing/[listingId]/edit`) never reads
 `state.sell.formData` at all — it has its own fully independent local
