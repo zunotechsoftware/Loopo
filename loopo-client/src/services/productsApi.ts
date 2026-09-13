@@ -14,6 +14,16 @@ export interface CreateProductPayload {
   specs?: Record<string, string>;
 }
 
+/** All fields optional - only what's provided gets sent to PUT /products/:id. */
+export interface UpdateProductPayload {
+  title?: string;
+  description?: string;
+  categoryId?: string;
+  condition?: string;
+  price?: number;
+  location?: string;
+}
+
 function mapConditionToEnum(cond: string): 'NEW' | 'LIKE_NEW' | 'GOOD' | 'FAIR' {
   const normalized = (cond || '').toUpperCase().replace(/\s+/g, '_');
   if (normalized.includes('BRAND') || normalized === 'NEW') return 'NEW';
@@ -64,6 +74,18 @@ export const productsApi = {
     };
 
     return apiClient.post<Product>('/products', dto);
+  },
+
+  async updateProduct(id: string, payload: UpdateProductPayload): Promise<ApiResponse<Product>> {
+    const dto: Record<string, unknown> = {};
+    if (payload.title !== undefined) dto.title = payload.title;
+    if (payload.description !== undefined) dto.description = payload.description;
+    if (payload.categoryId !== undefined) dto.categoryId = payload.categoryId;
+    if (payload.condition !== undefined) dto.condition = mapConditionToEnum(payload.condition);
+    if (payload.price !== undefined) dto.price = Number(payload.price) || 0;
+    if (payload.location !== undefined) dto.location = parseLocationString(payload.location);
+
+    return apiClient.put<Product>(`/products/${id}`, dto);
   },
 
   async getCategories(): Promise<ApiResponse<any[]>> {

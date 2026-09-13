@@ -91,21 +91,67 @@ remote/staging infrastructure — the bucket policy is applied by `S3Service`
 itself against whichever bucket it's configured against (local MinIO in dev),
 consistent with the "keep it local" constraint.
 
-### P1 — Edit-listing flow (loopo-client) is non-functional; separate from the create-flow fix
-`SellFlowView.tsx` (rendered at `/listing/[listingId]/edit`) never reads
-`state.sell.formData` at all — it has its own fully independent local
-`useState` for every field. The edit page's `useEffect` dispatches
-`updateSellForm({ title: product.title, category: product.category, ... })`
-to prefill the form, but since `SellFlowView` doesn't consume that state,
-**editing any listing always shows a blank "create new" form**, regardless
-of which listing you opened. Separately, the edit page only ever looks for
-the listing in already-loaded Redux state (`products.find(p => p.id ===
-listingId)`) — on a fresh page load / direct link with nothing preloaded,
-`product` is `undefined` and nothing gets dispatched at all. Not fixed this
-session (fixed just enough for it to compile and submit a real categoryId,
-see decisions.md) — properly fixing this needs the component to actually
-consume synced state (or be refactored to take the product as a prop) and
-to fetch the listing by id from the API when it's not already in the store.
+### RESOLVED — Edit-listing flow (loopo-client) was non-functional; also created duplicates instead of updating
+Originally: `SellFlowView.tsx` (rendered at `/listing/[listingId]/edit`) never
+read `state.sell.formData` at all — it had its own fully independent local
+`useState` for every field. The edit page's `useEffect` dispatched
+`updateSellForm({...})` to prefill the form, but since `SellFlowView` never
+consumed that state, editing any listing always showed a blank "create new"
+form. Worse, and not previously documented: `SellFlowView`'s submit handler
+unconditionally called `createProductThunk` — there was no update path at
+all, so even a manually-refilled "edit" would have silently created a brand
+new duplicate listing rather than changing the existing one. Separately, the
+edit page only ever looked for the listing in already-loaded Redux state
+(`products.find(p => p.id === listingId)`) — on a fresh page load / direct
+link, `product` was `undefined` and nothing happened.
+
+**Fixed, this session:**
+- `SellFlowView` now takes `listingId`/`initialProduct` props; in edit mode it
+  prefills all local state from `initialProduct` once loaded (including
+  resolving `Product.category`'s display name back to a real categoryId via
+  `useCategories()`), shows a loading/not-found state while the listing isn't
+  available yet, and on submit dispatches the new `updateProductThunk` (→
+  `PUT /products/:id`) instead of `createProductThunk` when editing.
+- New `productsApi.updateProduct`/`updateProductThunk` and
+  `productsApi.getProductById`-backed `fetchProductByIdThunk` (new thunks in
+  `productsSlice.ts`).
+- The edit page (`listing/[listingId]/edit/page.tsx`) now fetches the listing
+  by id via `fetchProductByIdThunk` when it isn't already in the store,
+  tracks a tri-state (loading/not-found/loaded) instead of assuming presence,
+  and passes it down to `SellFlowView`. Removed the dead `updateSellForm`
+  dispatch (that Redux slice belongs to the separate, working multi-page
+  create flow at `/sell/*` — `SellFlowView` never read from it).
+- Found and fixed two more bugs while verifying the round trip end to end:
+  (1) `ProductDetailView.tsx` called `useRouter()` **after** a conditional
+  early return, a Rules-of-Hooks violation that only manifested once a
+  listing had to be fetched by id (the loading→loaded transition), throwing
+  "Rendered more/fewer hooks than during previous render" and two hard
+  request failures — this is exactly the page an edit save redirects to, so
+  it had never been exercised this way before. Moved the hook above the
+  early return. (2) `navigationSlice.ts`'s initial state hardcoded
+  `selectedProductId: 'p1'` (a placeholder), so every fresh listing-detail
+  page load fired one guaranteed-to-fail `GET /products/p1` (500, invalid
+  UUID) before the real id dispatched a tick later. Changed the default to
+  `null` (the field's own type was already `string | null`).
+
+**Verified live, full round trip, not simulated:** created a real listing via
+the API, opened `/listing/:id/edit` in a real browser session — title,
+description, price, location, and category all correctly prefilled from the
+existing listing (category correctly resolved from name back to UUID) —
+changed the title, stepped through to Preview, clicked Save Changes, watched
+the real `PUT /products/:id` return 200 with the new title persisted, got
+redirected to the listing detail page, and confirmed the detail page renders
+the updated title/price/description/category correctly with no console
+errors or failed requests (screenshot on file). `tsc --noEmit` clean on both
+this fix and the two adjacent bugs it surfaced.
+
+**Not done in this pass** (pre-existing, out of scope for this fix): product
+images still aren't sent by `createProduct`/`updateProduct` at all (a
+separate gap — the create flow never wires up the presigned-upload pipeline
+for listing photos), and there's a real hydration-mismatch warning on the
+listing detail page (self-heals via Next's client re-render, not a crash;
+root cause not investigated) plus cosmetic `<img src="">` console warnings
+when a listing has zero images.
 
 ### P2 — loopo-client has its own separate ~13-page admin panel, duplicating loopo-admin
 `loopo-client/src/app/admin/` (categories, listings, reports, settings,

@@ -24,7 +24,10 @@ interface NavigationState {
 
 const initialState: NavigationState = {
   activeTab: 'home',
-  selectedProductId: 'p1',
+  // Was a hardcoded 'p1' placeholder - every fresh listing-detail page load
+  // briefly held this stale default before the real id dispatched a tick
+  // later, firing a guaranteed-to-fail GET /products/p1 in the meantime.
+  selectedProductId: null,
   selectedCategoryName: null,
 };
 

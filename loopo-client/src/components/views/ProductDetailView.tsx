@@ -35,6 +35,7 @@ import { productsApi } from '@/services/productsApi';
 
 export default function ProductDetailView() {
   const dispatch = useAppDispatch();
+  const router = useRouter();
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
   const selectedProductId = useAppSelector((state) => state.navigation.selectedProductId);
   const products = useAppSelector((state) => state.products.items);
@@ -105,8 +106,6 @@ export default function ProductDetailView() {
     currency: 'INR',
     maximumFractionDigits: 0,
   }).format(priceNum);
-
-  const router = useRouter();
 
   const handleStartChat = () => {
     if (!isAuthenticated) {

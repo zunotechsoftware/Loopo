@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { Product } from '@/types';
-import { productsApi, CreateProductPayload } from '@/services/productsApi';
+import { productsApi, CreateProductPayload, UpdateProductPayload } from '@/services/productsApi';
 
 interface FilterState {
   searchQuery: string;
@@ -114,6 +114,30 @@ export const createProductThunk = createAsyncThunk(
   }
 );
 
+/** Fetches a single listing by id - used by the edit page when it isn't
+ * already loaded into `products.items` (e.g. a fresh page load / direct link). */
+export const fetchProductByIdThunk = createAsyncThunk(
+  'products/fetchProductById',
+  async (id: string, { rejectWithValue }) => {
+    const res = await productsApi.getProductById(id);
+    if (res.success && res.data) {
+      return normaliseProduct(res.data);
+    }
+    return rejectWithValue(res.error || 'Failed to load listing');
+  }
+);
+
+export const updateProductThunk = createAsyncThunk(
+  'products/updateProduct',
+  async ({ id, payload }: { id: string; payload: UpdateProductPayload }, { rejectWithValue }) => {
+    const res = await productsApi.updateProduct(id, payload);
+    if (res.success && res.data) {
+      return normaliseProduct(res.data);
+    }
+    return rejectWithValue(res.error || 'Failed to update listing');
+  }
+);
+
 export const productsSlice = createSlice({
   name: 'products',
   initialState,
@@ -170,6 +194,22 @@ export const productsSlice = createSlice({
       })
       .addCase(createProductThunk.fulfilled, (state, action) => {
         state.items.unshift(action.payload);
+      })
+      .addCase(fetchProductByIdThunk.fulfilled, (state, action) => {
+        const idx = state.items.findIndex((p) => p.id === action.payload.id);
+        if (idx >= 0) {
+          state.items[idx] = action.payload;
+        } else {
+          state.items.push(action.payload);
+        }
+      })
+      .addCase(updateProductThunk.fulfilled, (state, action) => {
+        const idx = state.items.findIndex((p) => p.id === action.payload.id);
+        if (idx >= 0) {
+          state.items[idx] = action.payload;
+        } else {
+          state.items.push(action.payload);
+        }
       });
   },
 });
