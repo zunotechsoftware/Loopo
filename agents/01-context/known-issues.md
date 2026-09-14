@@ -64,13 +64,52 @@ this pass:
   Wiring this properly means either a real frontend simplification to match
   what the backend actually has, or backend additions - a bigger, deliberate
   piece of work, not a drop-in fetch call.
-- **Roles & Permissions** (`(admin)/roles/page.tsx`): `MOCK_ROLES`, no fetch.
-  `rolesService.getAll()`/`getPermissions()` in `admin.service.ts` call
-  `/admin/roles` and `/admin/permissions`, **neither of which exist on the
-  backend at all** (confirmed against the live route dump - no controller
-  registers either path). This needs real backend work (a Role/Permission CRUD
-  API over the existing `roles`/`permissions`/`role_permissions` tables), not
-  just a frontend fetch.
+- ~~**Roles & Permissions**~~ **RESOLVED**: was `MOCK_ROLES`, no fetch, and
+  `/admin/roles`/`/admin/permissions` didn't exist on the backend at all.
+  Built a real `AdminRolesModule` (`admin/roles` + `admin/permissions`, both
+  guarded like every other admin controller) over the existing
+  `roles`/`permissions`/`role_permissions` tables: list roles with their real
+  permission names and assigned-user counts, list all permissions, create/
+  update/delete a role. `SUPER_ADMIN`/`ADMIN`/`USER` are hardcoded-protected
+  in the service (can't be renamed, can't have their permissions edited, and
+  can't be deleted) since `SUPER_ADMIN` bypasses every permission check
+  outright and the other two are referenced by name elsewhere in the app -
+  editing them through this API risked a self-lockout or breaking role
+  resolution generally, not just a UX nicety. Delete also refuses if any
+  non-deleted user still holds the role.
+
+  **Found and fixed a real, independent bug while building this:** seeded
+  permissions had drifted from what the code actually checks -
+  `admin.dashboard.view`, `admin.notifications.manage`,
+  `admin.payments.manage`, `admin.products.manage`, `admin.settings.manage`
+  were required by real `@Permissions(...)` guards on 5 different admin
+  controllers, but **none of them existed in `prisma/seed.ts`'s permission
+  list**. Since a role can never hold a permission that doesn't exist in the
+  `permissions` table, this meant the `ADMIN` role (a real, seeded role that
+  - unlike `SUPER_ADMIN` - does NOT bypass permission checks) was silently
+  locked out of the dashboard, notifications, payments, products-admin, and
+  settings-management endpoints with a 403, for as long as this repo has
+  existed. Added the 5 missing permissions (plus `roles.view`, which
+  `roles.create`/`update`/`delete` existed for but listing roles had no
+  permission of its own) to the seed list and re-ran `npx prisma db seed`
+  locally (idempotent upserts - safe, no data loss, no remote DB touched).
+
+  Rewrote the Roles page to match: real role cards (protected roles show a
+  lock icon and a disabled delete button), a create/edit dialog with
+  permissions grouped by module from the *real* fetched permission list
+  (replacing the hardcoded `PERMISSIONS` array), and working create/update/
+  delete wired to the real endpoints.
+
+  **Verified live, full round trip, not simulated:** direct API calls
+  confirmed list/create/update/delete and the `SUPER_ADMIN`-delete
+  protection (403); confirmed the 5 previously-missing permissions are now
+  real DB rows and that `ADMIN` holds them. Then drove the actual browser
+  UI end to end - opened Create Role, filled name/description, toggled a
+  real permission switch, clicked Save, watched the real `POST /admin/roles`
+  return 201 with exactly the toggled permission, and saw the new role card
+  render correctly (then deleted it via the UI's own delete button to clean
+  up). `tsc --noEmit` clean on both apps; all 17 backend unit suites / 83
+  tests still pass.
 - ~~**Payments**~~ **RESOLVED**: was hardcoded transactions (`John Doe`,
   `PayPal` - a provider this backend doesn't even integrate) with a
   double-`api/v1/`-prefix bug on the controller (fixed in the earlier

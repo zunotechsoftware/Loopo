@@ -165,10 +165,12 @@ export const auditLogsService = {
 };
 
 // --- Roles & Permissions Service ---
+// Real backend as of this session (previously /admin/roles and
+// /admin/permissions didn't exist at all - see known-issues.md).
 export const rolesService = {
   getAll: () => api.get('/admin/roles'),
-  create: (data: Record<string, unknown>) => api.post('/admin/roles', data),
-  update: (id: string, data: Record<string, unknown>) => api.patch(`/admin/roles/${id}`, data),
+  create: (data: { name: string; description?: string; permissionNames?: string[] }) => api.post('/admin/roles', data),
+  update: (id: string, data: { name?: string; description?: string; permissionNames?: string[] }) => api.patch(`/admin/roles/${id}`, data),
   delete: (id: string) => api.delete(`/admin/roles/${id}`),
   getPermissions: () => api.get('/admin/permissions'),
 };
