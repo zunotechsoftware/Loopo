@@ -6,6 +6,73 @@ last_verified: 2026-09-13
 
 ## OPEN
 
+### RESOLVED — loopo-client: the entire Seller Verification (KYC) flow was fake UI hitting endpoints that don't exist
+Same class of bug as the Flutter KYC screen fixed earlier this session, on
+the web client. All three pages were disconnected from any real backend:
+- `verification/page.tsx`: `verificationState` was a hardcoded literal
+  `'UNDER_REVIEW'` - **every user, including one who has never submitted
+  anything, saw "Your verification documents have been received and are
+  currently under review."**
+- `verification/documents/page.tsx`: no real file inputs at all (the
+  "Upload Front & Back Image" dropzone was decorative, not clickable), no
+  selfie step, and the submit handler was a `setTimeout` fake delay that
+  just showed a toast and navigated away - nothing was ever uploaded or
+  submitted anywhere.
+- `verification/review/page.tsx`: fully hardcoded submission date
+  ("August 23, 2026") and document number ("XXXX XXXX 9821").
+- `userApi.ts` already had `submitKyc`/`getKycStatus` methods, but calling
+  `/kyc/submit`/`/kyc/status` - endpoints that don't exist (the real ones,
+  built earlier this session, are `POST`/`PUT /kyc`, `GET /kyc/me`,
+  `POST /kyc/upload-url`). Confirmed zero callers of either before this fix
+  - dead code with a wrong contract, same as several other services found
+  this session.
+
+**Fixed:** rewired `userApi.ts`'s KYC methods to the real contract
+(`uploadKycImage(slot, file)` does the presign-PUT-register dance per slot,
+mirroring `productsApi.uploadProductImage`'s pattern but with a native
+`File` instead of a data URL; `submitKyc`/`getMyKyc` call the real routes).
+Rewrote all three pages: the documents page now has three real file inputs
+(front + selfie required, back optional) and does the full real upload +
+submit flow; the dashboard page fetches real status via `getMyKyc()` and
+branches UI correctly across not-started/draft/submitted/under-review/
+approved/rejected (showing the real rejection reason when present); the
+review page shows the real submitted document type, a properly masked
+document number, and the real submission date and status.
+
+**Verified live, full round trip, not simulated:** fresh test account
+correctly showed "NOT STARTED" (not a fake "under review"); drove the
+actual upload form in a browser with two real image files, watched the
+real `POST /kyc/upload-url` calls (201 x2) and `POST /kyc` (201, with real
+`frontImageId`/`selfieImageId`/`documentNumber`), landed on the review page
+showing the real submitted data (`AADHAAR`, masked number, today's date,
+`SUBMITTED` status) with a real toast notification. `tsc --noEmit` clean;
+all 17 backend unit suites / 83 tests still pass (no backend changes
+needed - the contract was already correct from this session's storage
+fix).
+
+### OPEN — loopo-client: "Offers" and "Saved Searches" pages are fully fake, and neither has a real backend concept to wire to
+Found in the same sweep as the KYC fix above. Both are 100% hardcoded
+(`offersMade`/`offersReceived` arrays with names like "Rahul Verma" and
+"MacBook Air M2 16GB"; saved searches like `"iPhone 15 Pro" ... Saved 2
+days ago` for a brand-new account that has never searched for anything),
+with zero fetch calls. Unlike every other fake page resolved this session,
+**there is no real backend model for either concept to wire to**:
+- No "Offer"/"Bargain" model or controller exists anywhere in the schema -
+  a buyer proposing a different price than the listed one, and a seller
+  accepting/rejecting it, is a real feature gap, not a wiring gap.
+- The closest thing to "Saved Searches" is `RecentSearch` (`userId`,
+  `query`, `createdAt` - a plain search-string history log), which has none
+  of what the UI depicts: no category/location filter storage, no
+  "alerts on/off" toggle, no notification hook. A real saved-search feature
+  needs its own model.
+
+Not fixed this pass - both need real product/schema design (what fields an
+Offer needs, whether accepting one should integrate with the payment flow,
+what "alert me" should actually trigger for a saved search) rather than a
+guessed-at schema addition. Flagging both clearly as fake so they don't get
+mistaken for working features, and so the schema work has a clear starting
+point if picked up.
+
 ### RESOLVED — P0: /admin/notifications had zero auth guards, fully open to unauthenticated read/write/delete
 Found while sweeping loopo-client's Notifications page for a 404
 (`GET /notifications` doesn't exist for regular users - see the separate open
