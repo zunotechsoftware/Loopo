@@ -253,11 +253,20 @@ export default function ProductDetailView() {
           <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="relative">
-                <img
-                  src={product.seller.avatar}
-                  alt={product.seller.name}
-                  className="w-12 h-12 rounded-full object-cover ring-2 ring-emerald-500/20"
-                />
+                {product.seller.avatar ? (
+                  <img
+                    src={product.seller.avatar}
+                    alt={product.seller.name}
+                    className="w-12 h-12 rounded-full object-cover ring-2 ring-emerald-500/20"
+                  />
+                ) : (
+                  <div
+                    className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-700 ring-2 ring-emerald-500/20 flex items-center justify-center text-sm font-bold"
+                    aria-label={product.seller.name}
+                  >
+                    {(product.seller.name || '?').trim().charAt(0).toUpperCase()}
+                  </div>
+                )}
                 {product.seller.isVerified && (
                   <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center ring-2 ring-white">
                     <ShieldCheck className="w-3 h-3" />

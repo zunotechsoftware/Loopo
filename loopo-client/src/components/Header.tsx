@@ -476,11 +476,20 @@ export default function Header() {
                 onClick={() => setShowProfileDropdown(!showProfileDropdown)}
                 className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-slate-50 border border-slate-200/80 hover:bg-slate-100 transition-colors"
               >
-                <img
-                  src={user.avatar}
-                  alt={user.name}
-                  className="w-7 h-7 rounded-full object-cover ring-1 ring-emerald-500/50"
-                />
+                {user.avatar ? (
+                  <img
+                    src={user.avatar}
+                    alt={user.name}
+                    className="w-7 h-7 rounded-full object-cover ring-1 ring-emerald-500/50"
+                  />
+                ) : (
+                  <div
+                    className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-700 ring-1 ring-emerald-500/50 flex items-center justify-center text-xs font-bold"
+                    aria-label={user.name}
+                  >
+                    {(user.name || '?').trim().charAt(0).toUpperCase()}
+                  </div>
+                )}
                 <div className="text-left hidden xl:block">
                   <div className="text-xs font-bold text-slate-800 leading-tight">{user.name}</div>
                   <div className="text-[10px] font-medium text-emerald-600">
