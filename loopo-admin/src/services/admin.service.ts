@@ -69,13 +69,19 @@ export const brandsService = {
 
 
 // --- Reports Service ---
+// Contract confirmed against reports/controllers/admin-reports.controller.ts
+// (the real, reachable one - a second, duplicate implementation under
+// admin/reports/ was deleted, see known-issues.md). assign/status/escalate
+// read specific @Body() keys server-side, not a generic object.
 export const reportsService = {
   getAll: (params?: Record<string, unknown>) => api.get('/admin/reports', { params }),
   getById: (id: string) => api.get(`/admin/reports/${id}`),
-  assign: (id: string, adminId: string) => api.patch(`/admin/reports/${id}/assign`, { adminId }),
-  resolve: (id: string, notes: string) => api.patch(`/admin/reports/${id}/resolve`, { notes }),
+  assign: (id: string, moderatorId: string) => api.patch(`/admin/reports/${id}/assign`, { moderatorId }),
+  resolve: (id: string) => api.patch(`/admin/reports/${id}/resolve`),
   reject: (id: string) => api.patch(`/admin/reports/${id}/reject`),
-  escalate: (id: string) => api.patch(`/admin/reports/${id}/escalate`),
+  escalate: (id: string, note?: string) => api.patch(`/admin/reports/${id}/escalate`, { note }),
+  updateStatus: (id: string, status: string, priority?: string) =>
+    api.patch(`/admin/reports/${id}/status`, { status, priority }),
 };
 
 // --- Payments Service ---
@@ -100,11 +106,18 @@ export const analyticsService = {
 };
 
 // --- Reviews Service ---
+// Contract confirmed against reviews/controllers/admin-reviews.controller.ts
+// (a second, duplicate implementation under admin/reviews/ was deleted, see
+// known-issues.md). There's no "publish" concept - a review is either
+// visible or hidden, and "restore" un-hides it; delete is a soft-delete
+// PATCH, not a hard DELETE (deleting also triggers a rating-recalculation
+// job on the backend, which a hard DELETE route would have no hook for).
 export const reviewsService = {
-  getAll: (params?: Record<string, unknown>) => api.get('/admin/reviews', { params }),
+  getAll: (params?: { skip?: number; take?: number; type?: string }) => api.get('/admin/reviews', { params }),
+  getById: (id: string) => api.get(`/admin/reviews/${id}`),
   hide: (id: string) => api.patch(`/admin/reviews/${id}/hide`),
-  publish: (id: string) => api.patch(`/admin/reviews/${id}/publish`),
-  delete: (id: string) => api.delete(`/admin/reviews/${id}`),
+  restore: (id: string) => api.patch(`/admin/reviews/${id}/restore`),
+  delete: (id: string) => api.patch(`/admin/reviews/${id}/delete`),
 };
 
 // --- Notifications Service ---

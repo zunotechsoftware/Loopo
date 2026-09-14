@@ -114,7 +114,7 @@ this pass:
   `MOCK_BANNERS` - `auditLogsService.getAll()` calls `/admin/audit-logs`,
   which (like roles/permissions above) doesn't exist on the backend at all.
 
-### RESOLVED (partially) — loopo-backend: the analytics double-prefix bug existed on 9 controllers, not 1
+### RESOLVED — loopo-backend: the analytics double-prefix bug existed on 9 controllers, not 1
 A full grep for the pattern (`@Controller('api/v1/...')` stacking on top of the
 global `api/v1` prefix, producing a dead `/api/v1/api/v1/...` route - the same
 bug already found and fixed on the 5 analytics controllers earlier this
@@ -147,36 +147,75 @@ with no fetch calls at all (unchanged, not in scope for this pass) - this
 fix means the service layer is now correct and ready whenever that page
 gets wired for real.
 
-**Still broken, genuine duplicate controllers - needs a "pick a winner" call,
-not a blind rename (same treatment as the products-queue-name duplication
-found earlier this session):**
+**The remaining 3 (reviews, reports, notifications) - now resolved:**
 - **Reviews**: `admin/reviews/admin-reviews.controller.ts`
   (`AdminReviewsService`-backed: pagination, type filter, get-by-id, hard
-  delete) vs. `reviews/controllers/admin-reviews.controller.ts`
-  (`ReviewsService`-backed: list/hide/restore/soft-delete) - the second
-  already correctly owns `/admin/reviews` and is what the frontend's
-  `reviewsService` points at; the first is fully unreachable dead code with a
-  richer feature set.
+  delete - unreachable dead code) vs. `reviews/controllers/admin-reviews.controller.ts`
+  (`ReviewsService`-backed: list/hide/restore/soft-delete - already correctly
+  live on `/admin/reviews`, what the frontend's `reviewsService` points at).
+  **Resolution: merged forward, then deleted the dead side.** Ported the
+  unreachable controller's genuinely valuable bits - pagination and a
+  `reviewType` filter on the list query (the working side's `findAllReviews()`
+  had neither, an unbounded `findMany()` with no limit at all - a real
+  scalability concern on its own) and a `GET :id` detail route - into
+  `ReviewsRepository.findAllReviews()` / `ReviewsService.adminGetAllReviews()`
+  + new `adminGetReviewById()` / `AdminReviewsController` (the real one).
+  Kept the working side's `restore` action and its delete's
+  rating-recalculation queue trigger, which the dead side's DTO-based
+  hide/hard-delete had no equivalent for. Deleted
+  `src/modules/admin/reviews/` (controller, service, DTO, module) entirely
+  and its registration in `admin.module.ts`. Also fixed `admin.service.ts`'s
+  `reviewsService`, which had its own independent contract drift (`publish`
+  and a hard `DELETE` that neither controller ever had) - now
+  `getAll(skip/take/type)`, `getById`, `hide`, `restore`, `delete` (the real
+  soft-delete `PATCH :id/delete`).
 - **Reports**: `admin/reports/admin-reports.controller.ts`
-  (`AdminReportsService`-backed) vs. `reports/controllers/admin-reports.controller.ts`
-  (`ReportsService`-backed, already correctly on `/admin/reports`). Note this
-  is the **user-filed abuse/moderation reports** feature (reports about a
-  listing or seller), a completely different concept from the fake admin
-  "Reports" *page* documented above (which depicts a PDF/CSV report-generation
-  library that has no backend at all, under either name) - don't confuse the
-  two when picking this up. Also newly noticed: `reportsService` in
-  `admin.service.ts` already points at the correct, working controller, but
-  **no admin page anywhere calls it** - there's a real, functioning backend
-  feature for reviewing user-filed reports with zero admin UI for it.
+  (`AdminReportsService`-backed - unreachable) vs.
+  `reports/controllers/admin-reports.controller.ts` (`ReportsService`-backed,
+  already correctly on `/admin/reports`). This is the **user-filed
+  abuse/moderation reports** feature (reports about a listing or seller), a
+  completely different concept from the fake admin "Reports" *page*
+  documented above (a PDF/CSV report-generation library with no backend at
+  all under either name) - don't confuse the two. **Resolution: deleted the
+  dead side outright** - the working controller was already a strict
+  superset (get-all with filters, get-by-id, assign, status update, escalate,
+  resolve, reject vs. the dead side's smaller get-all/get-by-id/resolve/
+  status-update), nothing worth porting forward. Also fixed two independent
+  contract bugs in `admin.service.ts`'s `reportsService` found while
+  comparing it against the real controller: `assign()` sent `{adminId}` but
+  the controller reads `@Body('moderatorId')` (assignment would have
+  silently no-opped with `moderatorId: undefined` on every call), and
+  `escalate()` never sent a body at all despite the controller expecting
+  `@Body('note')`. `resolve()` also lost its `notes` param - the real
+  endpoint has no field for it at all (`PATCH :id/resolve` takes no body);
+  flagged rather than invented a backend field for it. **Still true and
+  unchanged:** `reportsService` is now fully contract-correct but still has
+  **zero admin page calling it** - a real, working moderation feature with no
+  UI, a separate piece of work from this cleanup.
 - **Notifications**: `admin/notifications/admin-notifications.controller.ts`
-  vs. `notifications/controllers/notifications.controller.ts` (already
-  correctly on `/admin/notifications`, and already what the working
-  Notifications admin page uses - confirmed live/wired in the sweep above).
-  Same shape as the other two; not investigated further since the working
-  side is already confirmed fine.
+  (broadcast + system announcements) vs.
+  `notifications/controllers/notifications.controller.ts` (the `Notification`-
+  model CRUD list, already correctly on `/admin/notifications`, guards fixed
+  earlier this session). **Not actually the same resource** - unlike the
+  other two, this isn't really a duplicate, it manages a different model
+  (`SystemAnnouncement` broadcasts vs. individual `Notification` rows) that
+  happened to share a path due to the prefix bug. Naively fixing the prefix
+  to `admin/notifications` would have made `GET .../announcements` collide
+  with (and always lose to, per Express/Nest's route-registration-order
+  matching) the other controller's `GET .../:id`. **Resolution: gave it its
+  own top-level path**, `admin/announcements` (`POST`/`GET`, no sub-path
+  needed once it's not nested under notifications) rather than either
+  deleting real functionality or risking a silent route shadow. Verified
+  live: `GET /admin/announcements` and `POST /admin/announcements` both
+  return 200 with real data (previously 404 via the double prefix, for every
+  caller, forever). No frontend service or admin page calls this yet either
+  - same "real backend, no UI" situation as reports above.
 
-Not fixed this pass - each needs reading both implementations and deciding
-whether to rename one aside, merge, or delete, not a mechanical prefix edit.
+**Verified for all three:** live route dump shows every path unique with no
+collisions; a live round trip against `/admin/reviews` (pagination + type
+filter), `/admin/reports`, and `/admin/announcements` all returned correct
+200s; `tsc --noEmit` clean on both apps; all 17 backend unit suites / 83
+tests still pass.
 
 ### RESOLVED — Storage/signed-URL architecture: private bucket + no read-side signing + KYC upload endpoint didn't exist at all
 Originally found while auditing KYC document handling for exposure risk (the
