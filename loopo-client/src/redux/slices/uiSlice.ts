@@ -29,7 +29,6 @@ interface UiState {
   isSellModalOpen: boolean;
   isReportModalOpen: boolean;
   isReviewModalOpen: boolean;
-  isKycModalOpen: boolean;
   isAddressModalOpen: boolean;
   isAuthModalOpen: boolean;
   offerAmount: string;
@@ -46,7 +45,6 @@ const initialState: UiState = {
   isSellModalOpen: false,
   isReportModalOpen: false,
   isReviewModalOpen: false,
-  isKycModalOpen: false,
   isAddressModalOpen: false,
   isAuthModalOpen: false,
   offerAmount: '',
@@ -73,9 +71,6 @@ export const uiSlice = createSlice({
     },
     setReviewModalOpen: (state, action: PayloadAction<boolean>) => {
       state.isReviewModalOpen = action.payload;
-    },
-    setKycModalOpen: (state, action: PayloadAction<boolean>) => {
-      state.isKycModalOpen = action.payload;
     },
     setAddressModalOpen: (state, action: PayloadAction<boolean>) => {
       state.isAddressModalOpen = action.payload;
@@ -112,7 +107,6 @@ export const {
   setSellModalOpen,
   setReportModalOpen,
   setReviewModalOpen,
-  setKycModalOpen,
   setAddressModalOpen,
   setAuthModalOpen,
   setLocation,

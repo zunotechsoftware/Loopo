@@ -50,6 +50,39 @@ all 17 backend unit suites / 83 tests still pass (no backend changes
 needed - the contract was already correct from this session's storage
 fix).
 
+**Follow-up (same sweep, found via the `/settings` page screenshot):** two
+more spots had the exact same hardcoded-fake-KYC-status bug, independent of
+the three pages above and inconsistent with them:
+- `components/views/SettingsView.tsx`: "KYC & Identity Verification" row
+  had a permanently hardcoded green "Verified" badge, and clicking it
+  opened a fully decorative `KycModal` (non-functional file dropzone, a
+  submit handler that just closed the modal and showed a fake toast -
+  never called any API).
+- `components/views/ProfileView.tsx`: same - a hardcoded "Seller KYC
+  Identity Status: Verified" banner, with an "Update KYC Docs" button that
+  opened the same fake `KycModal`.
+
+**Fixed:** both views now call `userApi.getMyKyc()` and branch their
+badge/copy across the real status (mirroring `verification/page.tsx`'s
+`STATUS_COPY` pattern); both now navigate to the real `/verification`
+flow (`ROUTES.VERIFICATION` / `VERIFICATION_DOCUMENTS` / `VERIFICATION_REVIEW`
+depending on status) instead of opening a modal. Deleted the dead
+`components/ui/KycModal.tsx` entirely and removed its now-unused
+`isKycModalOpen`/`setKycModalOpen` state from `uiSlice.ts` (confirmed zero
+remaining references via grep).
+
+**Verified live:** fresh test account shows "Not Started" on `/settings`
+(was a hardcoded "Verified") and "Seller KYC Identity Status: NOT STARTED"
+with a "Start KYC" button on `/profile` (was a hardcoded "Verified" with
+"Update KYC Docs"). `tsc --noEmit` clean.
+
+**Noted but not fixed (out of scope for this fix, flagged for the broader
+loopo-client sweep):** `ProfileView.tsx` also has a hardcoded
+`savedAddresses` array (fake "Venkatesh" / Indiranagar / Domlur addresses,
+not from `GET /addresses`), a hardcoded "4.9 (48 rating score & buyer
+reviews)", a hardcoded "Bangalore, KA" primary city, and an "Edit Profile"
+button that only shows a toast instead of navigating to `/profile/edit`.
+
 ### OPEN — loopo-client: "Offers" and "Saved Searches" pages are fully fake, and neither has a real backend concept to wire to
 Found in the same sweep as the KYC fix above. Both are 100% hardcoded
 (`offersMade`/`offersReceived` arrays with names like "Rahul Verma" and

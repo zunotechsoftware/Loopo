@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   User,
   MapPin,
@@ -15,21 +16,41 @@ import {
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import {
-  setKycModalOpen,
   setAddressModalOpen,
   setReviewModalOpen,
   showToast,
 } from '@/redux/slices/uiSlice';
 import { initAuthThunk } from '@/redux/slices/authSlice';
+import { userApi } from '@/services/userApi';
+import { ROUTES } from '@/routes/routes';
+
+type KycStatus = 'NOT_STARTED' | 'DRAFT' | 'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED';
+
+const KYC_COPY: Record<KycStatus, string> = {
+  NOT_STARTED: 'Not started yet. Verify your identity to earn the Verified Seller badge.',
+  DRAFT: 'You have a draft application - finish and submit it for review.',
+  SUBMITTED: 'Submitted - queued for review.',
+  UNDER_REVIEW: 'Currently under review by our moderation team.',
+  APPROVED: 'Your Govt ID (Aadhaar/PAN) is verified. Verified sellers receive 3x more buyer inquiries.',
+  REJECTED: 'Your last submission was rejected. Tap to review the reason and re-submit.',
+};
 
 export default function ProfileView() {
   const dispatch = useAppDispatch();
+  const router = useRouter();
   const user = useAppSelector((state) => state.auth.user);
+  const [kycStatus, setKycStatus] = useState<KycStatus>('NOT_STARTED');
 
   // If not yet loaded, attempt a refresh
   useEffect(() => {
     if (!user) dispatch(initAuthThunk());
   }, [dispatch, user]);
+
+  useEffect(() => {
+    userApi.getMyKyc().then((res) => {
+      setKycStatus(res.success && res.data ? (res.data.status as KycStatus) : 'NOT_STARTED');
+    });
+  }, []);
 
   // Fallback display values when user data hasn't loaded yet
   const displayName = user?.name || 'My Profile';
@@ -121,18 +142,16 @@ export default function ProfileView() {
         <div className="space-y-1">
           <div className="flex items-center gap-2 font-black text-base">
             <FileCheck className="w-5 h-5 text-emerald-400" />
-            <span>Seller KYC Identity Status: Verified</span>
+            <span>Seller KYC Identity Status: {kycStatus === 'APPROVED' ? 'Verified' : kycStatus.replace('_', ' ')}</span>
           </div>
-          <p className="text-xs text-emerald-100 font-medium">
-            Your Govt ID (Aadhaar/PAN) is active. Verified sellers receive 3x more buyer inquiries.
-          </p>
+          <p className="text-xs text-emerald-100 font-medium">{KYC_COPY[kycStatus]}</p>
         </div>
 
         <button
-          onClick={() => dispatch(setKycModalOpen(true))}
+          onClick={() => router.push(kycStatus === 'NOT_STARTED' || kycStatus === 'DRAFT' || kycStatus === 'REJECTED' ? ROUTES.VERIFICATION_DOCUMENTS : ROUTES.VERIFICATION_REVIEW)}
           className="bg-white hover:bg-emerald-50 text-emerald-800 font-bold text-xs px-5 py-2.5 rounded-2xl shadow transition-all shrink-0"
         >
-          Update KYC Docs
+          {kycStatus === 'NOT_STARTED' ? 'Start KYC' : kycStatus === 'REJECTED' || kycStatus === 'DRAFT' ? 'Update KYC Docs' : 'View KYC Status'}
         </button>
       </div>
 
