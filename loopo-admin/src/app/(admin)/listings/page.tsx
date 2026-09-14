@@ -51,7 +51,8 @@ import {
   LocationOnOutlined
 } from '@mui/icons-material';
 import { productsService, categoriesService } from '@/services/admin.service';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 
 const StatCard = ({ title, value, icon, color, trend, trendValue, isPositive }: any) => (
   <Card sx={{ flex: 1, p: 2, display: 'flex', alignItems: 'center', gap: 2, borderRadius: 2, boxShadow: 'none', border: '1px solid #e2e8f0' }}>
@@ -71,13 +72,25 @@ const StatCard = ({ title, value, icon, color, trend, trendValue, isPositive }: 
 );
 
 export default function ListingsPage() {
+  return (
+    <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', p: 6 }}><CircularProgress /></Box>}>
+      <ListingsPageInner />
+    </Suspense>
+  );
+}
+
+function ListingsPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // Lets links like Sidebar's "Pending Approval" (-> /listings?status=PENDING)
+  // preset the filter instead of needing a separate duplicate page/view.
+  const initialStatus = searchParams.get('status') || '';
 
   // Data States
   const [listings, setListings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
-  
+
   const [categories, setCategories] = useState<any[]>([]);
   const [subcategories, setSubcategories] = useState<any[]>([]);
   const [locations, setLocations] = useState<string[]>([]);
@@ -88,7 +101,7 @@ export default function ListingsPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [subcategoryFilter, setSubcategoryFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState(initialStatus);
   const [conditionFilter, setConditionFilter] = useState('');
   const [locationFilter, setLocationFilter] = useState('');
   const [page, setPage] = useState(1);
@@ -102,6 +115,17 @@ export default function ListingsPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Re-sync the status filter whenever the URL's ?status= changes - this
+  // page doesn't remount when navigating between e.g. "All Listings"
+  // (/listings) and "Pending Approval" (/listings?status=PENDING) since
+  // both resolve to the same route, so the initial-state-only useState
+  // above wouldn't otherwise pick up the change.
+  useEffect(() => {
+    setStatusFilter(searchParams.get('status') || '');
+    setPage(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   // Debounce search
   useEffect(() => {

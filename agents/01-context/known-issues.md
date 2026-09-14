@@ -49,12 +49,25 @@ this pass:
   generated reports, download counts, scheduled reports) with no fetch and,
   as far as this sweep found, no real backend equivalent (no report-generation/
   storage module exists) - this is a real feature gap, not a wiring gap.
-- **Pending Approval** (`(admin)/listings/pending/page.tsx`): a separate,
-  fully hardcoded duplicate of what the (now-fixed) main Listings page already
-  does correctly with a `status=PENDING` filter and working Approve/Reject
-  actions. Redundant as well as fake - worth just deleting this page and
-  linking "Pending Approval" to `Listings?status=PENDING` instead of
-  maintaining two implementations of the same view.
+- ~~**Pending Approval**~~ **RESOLVED**: was a separate, fully hardcoded
+  duplicate of what the main Listings page already does correctly with a
+  `status=PENDING` filter and working Approve/Reject actions. Fixed:
+  `Sidebar.tsx`'s "Pending Approval" link now points at
+  `/listings?status=PENDING`; the Listings page reads `?status=` via
+  `useSearchParams` (wrapped in `Suspense`, required by Next's App Router)
+  both on initial load and on subsequent navigation (the page doesn't
+  remount when switching between `/listings` and `/listings?status=...` since
+  both resolve to the same route - a plain `useState(initialValue)` would
+  have gone stale, so this needed a `useEffect` re-syncing off
+  `searchParams`). The old `/listings/pending` route itself now just redirects
+  to the real page instead of 404ing for anyone with it bookmarked. Also fixed
+  a sidebar highlighting bug this surfaced: comparing only `pathname` (no
+  query string) made "All Listings" and "Pending Approval" both show active
+  at once, since they now share a pathname - `Sidebar.tsx` compares the full
+  path (pathname + query string) instead. Verified live: sidebar nav,
+  direct old-URL visits, and switching back and forth between the two filters
+  all behave correctly (screenshots taken, real seeded listings shown,
+  exactly one sidebar item highlighted at a time).
 - **Settings** (`(admin)/settings/page.tsx`): `MOCK_AUDIT_LOGS` and
   `MOCK_BANNERS` - `auditLogsService.getAll()` calls `/admin/audit-logs`,
   which (like roles/permissions above) doesn't exist on the backend at all.
