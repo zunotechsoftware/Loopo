@@ -71,19 +71,29 @@ this pass:
   registers either path). This needs real backend work (a Role/Permission CRUD
   API over the existing `roles`/`permissions`/`role_permissions` tables), not
   just a frontend fetch.
-- **Payments** (`(admin)/payments/page.tsx`): hardcoded transactions
-  (`John Doe`, `PayPal` - a provider this backend doesn't even integrate).
-  `paymentsService` calls `/admin/payments/transactions`, `/subscriptions`,
-  `/refunds` as separate GETs, but the real controller (found via the live
-  route dump) only exposes `GET /admin/payments`, `GET /admin/payments/:id`,
-  `POST /admin/payments/refunds` - a genuine path/contract mismatch, **and**
-  that controller has the exact same double-`api/v1/`-prefix bug documented
-  below for reviews, so none of its routes are even reachable at their
-  intended paths right now. There's also no "subscriptions" concept anywhere
-  in the schema (this is a per-listing marketplace, not a SaaS product) - the
-  Subscriptions tab has nothing real to wire to at all. Needs: fix the prefix
-  bug, reconcile the frontend's expected paths with the controller's actual
-  ones, and either drop the Subscriptions tab or clarify what it should show.
+- ~~**Payments**~~ **RESOLVED**: was hardcoded transactions (`John Doe`,
+  `PayPal` - a provider this backend doesn't even integrate) with a
+  double-`api/v1/`-prefix bug on the controller (fixed in the earlier
+  route-prefix pass) and a path/contract mismatch on top of that
+  (`paymentsService` called `/transactions`, `/subscriptions`, `/refunds` as
+  separate GETs; the real controller only had `GET /admin/payments`,
+  `GET /admin/payments/:id`, `POST /admin/payments/refunds`). Also corrected
+  a wrong assumption from earlier in this file: **there is a real
+  subscriptions concept** (`SubscriptionPlan`/`Subscription` models, a real
+  self-service `subscriptions` module for sellers to subscribe/cancel/check
+  their plan) - it just had no admin-facing list endpoint at all, same gap
+  as refunds (only `POST .../refunds` existed to create one, no `GET` to
+  list them). Fixed by adding `GET /admin/payments/subscriptions` and
+  `GET /admin/payments/refunds` to `AdminPaymentsService`/`AdminPaymentsController`
+  (registered before the `:id` route to avoid it swallowing the literal
+  segments), fixing `admin.service.ts`'s `paymentsService` to the real
+  contract, and rewriting the page to fetch and render all three tabs for
+  real (Payments/Subscriptions/Refunds), including a real client-side CSV
+  export of whatever's currently loaded (was a decorative button before).
+  Verified live: seeded one real payment/subscription/refund via Prisma,
+  confirmed all three tabs and all four stat cards render the real rows and
+  correct counts, then cleaned the test rows up. `tsc --noEmit` clean; all
+  17 backend unit suites / 83 tests still pass.
 - **Reports** (`(admin)/reports/page.tsx`): a full fake "report library" (58
   generated reports, download counts, scheduled reports) with no fetch and no
   real backend equivalent - a PDF/CSV report-generation module genuinely

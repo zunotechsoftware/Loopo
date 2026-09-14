@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../../shared/database/prisma.service';
 import { RefundPaymentDto } from './dto/admin-payment.dto';
-import { PaymentStatus } from '@prisma/client';
+import { PaymentStatus, RefundStatus } from '@prisma/client';
 
 @Injectable()
 export class AdminPaymentsService {
@@ -18,6 +18,45 @@ export class AdminPaymentsService {
       include: {
         user: { select: { id: true, firstName: true, lastName: true, email: true } },
         provider: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /** Real seller subscriptions (SubscriptionPlan/Subscription models) - there
+   * was previously no admin-facing list at all, only the user-self-service
+   * subscribe/cancel/current endpoints in the subscriptions module. */
+  async getAllSubscriptions(skip: number = 0, take: number = 20, status?: string) {
+    const where: any = { deletedAt: null };
+    if (status) where.status = status;
+
+    return this.prisma.subscription.findMany({
+      where,
+      skip,
+      take,
+      include: {
+        user: { select: { id: true, firstName: true, lastName: true, email: true } },
+        plan: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /** Refunds don't have a dedicated admin list endpoint either - only
+   * POST .../refunds to create one. */
+  async getAllRefunds(skip: number = 0, take: number = 20, status?: RefundStatus) {
+    const where: any = {};
+    if (status) where.status = status;
+
+    return this.prisma.refund.findMany({
+      where,
+      skip,
+      take,
+      include: {
+        payment: {
+          include: { user: { select: { id: true, firstName: true, lastName: true, email: true } } },
+        },
+        createdBy: { select: { id: true, firstName: true, lastName: true } },
       },
       orderBy: { createdAt: 'desc' },
     });

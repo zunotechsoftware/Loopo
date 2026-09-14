@@ -85,12 +85,17 @@ export const reportsService = {
 };
 
 // --- Payments Service ---
+// Contract confirmed against admin-payments.controller.ts. getSubscriptions/
+// getRefunds hit two endpoints added alongside this fix - there was
+// previously no admin list for either (subscriptions had no admin surface
+// at all; refunds only had the POST-to-create route).
 export const paymentsService = {
-  getTransactions: (params?: Record<string, unknown>) => api.get('/admin/payments/transactions', { params }),
-  getSubscriptions: (params?: Record<string, unknown>) => api.get('/admin/payments/subscriptions', { params }),
-  getRefunds: (params?: Record<string, unknown>) => api.get('/admin/payments/refunds', { params }),
-  issueRefund: (transactionId: string, amount: number, reason: string) =>
-    api.post(`/admin/payments/transactions/${transactionId}/refund`, { amount, reason }),
+  getPayments: (params?: { skip?: number; take?: number; status?: string }) => api.get('/admin/payments', { params }),
+  getPaymentById: (id: string) => api.get(`/admin/payments/${id}`),
+  getSubscriptions: (params?: { skip?: number; take?: number; status?: string }) => api.get('/admin/payments/subscriptions', { params }),
+  getRefunds: (params?: { skip?: number; take?: number; status?: string }) => api.get('/admin/payments/refunds', { params }),
+  issueRefund: (paymentId: string, amount: number, reason?: string) =>
+    api.post('/admin/payments/refunds', { paymentId, amount, reason }),
 };
 
 // --- Analytics Service ---
