@@ -753,14 +753,31 @@ Does not block `next build` (Next 16 doesn't run ESLint during build by default 
 Real code-quality debt, but 197 findings is deliberately **not** being bulk-fixed
 under deadline pressure — see [decisions.md](decisions.md).
 
-### P2 — Backend CORS: `origin: true` + `credentials: true`
-`main.ts` reflects any request Origin back as allowed, with credentials enabled.
-Verified there is **no cookie-based auth anywhere in the backend** (no
-`cookie-parser`, no `res.cookie`, no `Set-Cookie` — auth is pure Bearer-token), so
-the classic CSRF/credential-theft exploitation of this pattern doesn't apply here.
-Still broader than necessary; tightening to an explicit allowlist (client/admin
-origins from env) is a reasonable hardening pass, not an emergency — not done this
-session pending knowing the actual deployed frontend origins.
+### RESOLVED — Backend CORS: `origin: true` + `credentials: true`
+`main.ts` reflected any request Origin back as allowed, with credentials
+enabled. Verified there is **no cookie-based auth anywhere in the backend**
+(no `cookie-parser`, no `res.cookie`, no `Set-Cookie` — auth is pure
+Bearer-token), so the classic CSRF/credential-theft exploitation of this
+pattern doesn't apply here — this was never an active vulnerability, just
+broader than necessary.
+
+Fixed without guessing at production domains this session has no way to
+verify (hardcoding a wrong or incomplete allowlist would have silently
+broken the real deployed frontend the next time this ships): added a
+`CORS_ALLOWED_ORIGINS` env var (comma-separated) that, when set, restricts
+CORS to exactly those origins; left the default unchanged (`origin: true`)
+when it's unset, so nothing breaks for anyone until whoever manages the
+real deployment opts in by setting the env var — no further code change
+needed on their end. Documented in `.env.example`.
+
+Verified live: confirmed default behavior is byte-for-byte unchanged
+(reflects any Origin) when the env var is unset; then booted a second,
+throwaway instance on a separate port with
+`CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001` set and
+confirmed a listed origin gets reflected in `Access-Control-Allow-Origin`
+while an unlisted one (`http://evil.example.com`) gets no CORS header at
+all (blocked) - the allowlist branch actually works, not just compiles.
+`tsc --noEmit` clean; all 17 backend unit suites / 83 tests still pass.
 
 ### RESOLVED — Local dev environment now has DB/Redis/MinIO reachable
 Docker was started mid-session (`loopo-postgres`, `loopo-redis`, `loopo-minio`
