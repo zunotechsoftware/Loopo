@@ -18,7 +18,7 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@ne
 import { ChatService } from '../services/chat.service';
 import { ChatGateway } from '../gateways/chat.gateway';
 import { CreateConversationDto, UpdateConversationSettingsDto } from '../dto/conversation.dto';
-import { SendMessageDto, GetMessagesQueryDto, SearchMessagesQueryDto, GetUploadUrlDto, CreateAttachmentDto, EditMessageDto } from '../dto/message.dto';
+import { SendMessageDto, GetMessagesQueryDto, SearchMessagesQueryDto, ChatUploadUrlDto, CreateAttachmentDto, EditMessageDto } from '../dto/message.dto';
 import { JwtAuthGuard } from '../../../shared/common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../shared/common/guards/roles.guard';
 import { PermissionsGuard } from '../../../shared/common/guards/permissions.guard';
@@ -250,7 +250,7 @@ export class ChatController {
   @Post('upload-url')
   @Permissions('chat.send')
   @ApiOperation({ summary: 'Get a signed S3 upload URL for attachments' })
-  async getUploadUrl(@Body() dto: GetUploadUrlDto, @Request() req: any) {
+  async getUploadUrl(@Body() dto: ChatUploadUrlDto, @Request() req: any) {
     const result = await this.chatService.generateUploadUrl(req.user.id, dto.fileName, dto.fileType);
     return { message: 'Presigned upload URL generated successfully', data: result };
   }

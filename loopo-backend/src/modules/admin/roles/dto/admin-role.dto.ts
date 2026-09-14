@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsArray, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 
-export class CreateRoleDto {
+export class AdminCreateRoleDto {
   @ApiProperty({ description: 'Unique role name', example: 'SUPPORT_AGENT' })
   @IsNotEmpty()
   @IsString()
@@ -21,7 +21,7 @@ export class CreateRoleDto {
   permissionNames?: string[];
 }
 
-export class UpdateRoleDto {
+export class AdminUpdateRoleDto {
   @ApiPropertyOptional({ description: 'Unique role name' })
   @IsOptional()
   @IsString()

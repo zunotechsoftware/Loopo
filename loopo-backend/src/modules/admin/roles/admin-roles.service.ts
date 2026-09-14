@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../../shared/database/prisma.service';
-import { CreateRoleDto, UpdateRoleDto } from './dto/admin-role.dto';
+import { AdminCreateRoleDto, AdminUpdateRoleDto } from './dto/admin-role.dto';
 
 // The 3 roles this app actually seeds and depends on structurally
 // (SUPER_ADMIN bypasses every permission check outright; ADMIN/USER are
@@ -32,7 +32,7 @@ export class AdminRolesService {
     });
   }
 
-  async createRole(adminId: string, dto: CreateRoleDto) {
+  async createRole(adminId: string, dto: AdminCreateRoleDto) {
     const existing = await this.prisma.role.findUnique({ where: { name: dto.name } });
     if (existing) {
       throw new BadRequestException(`A role named "${dto.name}" already exists`);
@@ -54,7 +54,7 @@ export class AdminRolesService {
     return this.serializeRole(role);
   }
 
-  async updateRole(adminId: string, id: string, dto: UpdateRoleDto) {
+  async updateRole(adminId: string, id: string, dto: AdminUpdateRoleDto) {
     const role = await this.prisma.role.findUnique({ where: { id } });
     if (!role || role.deletedAt) throw new NotFoundException('Role not found');
 

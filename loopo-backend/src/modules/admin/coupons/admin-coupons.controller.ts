@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AdminCouponsService } from './admin-coupons.service';
-import { CreateCouponDto, UpdateCouponDto } from './dto/coupons.dto';
+import { AdminCreateCouponDto, UpdateCouponDto } from './dto/coupons.dto';
 import { JwtAuthGuard } from '../../../shared/common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../shared/common/guards/roles.guard';
 import { PermissionsGuard } from '../../../shared/common/guards/permissions.guard';
@@ -32,7 +32,7 @@ export class AdminCouponsController {
   @Permissions('coupons.manage')
   @ApiOperation({ summary: 'Create a new coupon' })
   @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: false }))
-  async createCoupon(@Body() dto: CreateCouponDto) {
+  async createCoupon(@Body() dto: AdminCreateCouponDto) {
     return this.couponsService.createCoupon(dto);
   }
 

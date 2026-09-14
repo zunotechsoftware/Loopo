@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AdminRolesService } from './admin-roles.service';
-import { CreateRoleDto, UpdateRoleDto } from './dto/admin-role.dto';
+import { AdminCreateRoleDto, AdminUpdateRoleDto } from './dto/admin-role.dto';
 import { JwtAuthGuard } from '../../../shared/common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../shared/common/guards/roles.guard';
 import { PermissionsGuard } from '../../../shared/common/guards/permissions.guard';
@@ -26,7 +26,7 @@ export class AdminRolesController {
   @Permissions('roles.create')
   @ApiOperation({ summary: 'Create a new role' })
   @ApiResponse({ status: 201, description: 'Role created successfully.' })
-  async createRole(@CurrentUser('id') adminId: string, @Body() dto: CreateRoleDto) {
+  async createRole(@CurrentUser('id') adminId: string, @Body() dto: AdminCreateRoleDto) {
     return this.adminRolesService.createRole(adminId, dto);
   }
 
@@ -36,7 +36,7 @@ export class AdminRolesController {
   async updateRole(
     @CurrentUser('id') adminId: string,
     @Param('id') id: string,
-    @Body() dto: UpdateRoleDto,
+    @Body() dto: AdminUpdateRoleDto,
   ) {
     return this.adminRolesService.updateRole(adminId, id, dto);
   }

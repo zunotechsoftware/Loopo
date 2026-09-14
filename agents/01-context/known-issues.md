@@ -649,14 +649,94 @@ Live-reverified after the fix: rebuilt the image, re-ran the same container —
 starts cleanly now with a visible ERROR log line instead of crashing.
 independent of this repo's template file.
 
-### P2 — 6 duplicate Swagger DTO class names, will break on next @nestjs/swagger major
-Noticed in the live Docker boot log: `Duplicate DTO detected` warnings for
-`GetUploadUrlDto`, `UpdateProductDto`, `RejectProductDto`, `FeatureProductDto`,
-`BoostProductDto`, `CreateCouponDto` — each defined with different shapes in more
-than one module. Currently just a warning (Swagger docs may show the wrong schema
-for whichever one it picks), but Nest's own message says "this will throw an
-error in the next major version" of `@nestjs/swagger`. Not fixed this session —
-needs finding each pair and renaming one side, not a blind rename.
+### RESOLVED — 8 duplicate Swagger DTO class names (6 original + 2 this session introduced)
+Was: `Duplicate DTO detected` boot warnings for `GetUploadUrlDto`,
+`UpdateProductDto`, `RejectProductDto`, `FeatureProductDto`, `BoostProductDto`,
+`CreateCouponDto` — each defined with a different shape in more than one
+module. Building the Roles & Permissions API this session added two more
+(`CreateRoleDto`/`UpdateRoleDto` clashing with a **pre-existing, already-
+registered RBAC module** at `src/modules/rbac/` - see below). Nest's own
+message says this will throw an error in the next `@nestjs/swagger` major
+version, not just warn - fixed all 8 rather than leaving the two new ones
+alongside the six already-documented ones.
+
+Resolved each pair on its merits, not a blind rename:
+- `GetUploadUrlDto` (chat vs. users): both real/reachable, different
+  validation (chat's had no `@IsNotEmpty`/MIME check). Renamed chat's to
+  `ChatUploadUrlDto`.
+- `RejectProductDto`/`FeatureProductDto`/`BoostProductDto` (admin/products vs.
+  products): **deleted**, not renamed - these three, and the `approve`
+  handler alongside them, were dead code. `ProductsModule` registers before
+  `AdminModule` in `app.module.ts`, so `products/controllers/
+  admin-products.controller.ts`'s identically-pathed `PATCH :id/approve|
+  reject|feature|boost` always won the route match; `admin/products/
+  admin-products.controller.ts`'s versions (and the
+  `updateProductStatus`/`featureProduct`/`boostProduct` service methods
+  backing them) could never actually execute. Removed all of it; the real,
+  reachable implementations are `ProductsService.approveProduct`/
+  `rejectProduct`/`promoteFeatured`/`promoteBoost`.
+- `UpdateProductDto` (admin/products vs. products): both real - the admin
+  side is a generic `PATCH /admin/products/:id`, the other is the
+  seller-facing `PUT /products/:id` this session's edit-listing-flow fix
+  uses. Renamed the admin side to `AdminUpdateProductDto`.
+- `CreateCouponDto` (admin/coupons vs. payments): both real, different
+  paths. Renamed the admin side to `AdminCreateCouponDto`.
+- `CreateRoleDto`/`UpdateRoleDto` (new admin/roles vs. pre-existing
+  `rbac.module.ts`): **discovered a second, independent duplicate-
+  implementation situation** while fixing this - see the dedicated entry
+  below. Renamed the newer (`admin/roles`) side to
+  `AdminCreateRoleDto`/`AdminUpdateRoleDto` since it's this session's own
+  addition and the RBAC module is pre-existing.
+
+Verified live: zero `Duplicate DTO detected` warnings on boot (previously
+8); re-verified `GET /admin/products`, `GET /admin/roles`,
+`GET /admin/permissions` all still return real data after the renames;
+confirmed the live route table still has no collisions on
+`admin/products/:id/approve|reject|feature|boost` (only the real,
+`ProductsModule`-owned ones remain - the dead duplicates are gone, not just
+unreachable). `tsc --noEmit` clean; all 17 backend unit suites / 83 tests
+still pass.
+
+### OPEN — Two independent role/permission management systems now exist (`/roles`+`/permissions` and `/admin/roles`+`/admin/permissions`)
+Discovered while fixing the `CreateRoleDto`/`UpdateRoleDto` Swagger clash
+above: `src/modules/rbac/` is a **complete, pre-existing, already-registered**
+RBAC system (`RolesController` at `/roles`, `PermissionsController` at
+`/permissions`, `UserRolesController` at `/users/:userId/roles`) that this
+session didn't know existed when it built the new `AdminRolesModule` for the
+Roles & Permissions admin page (see that RESOLVED entry above). No route
+collision (different base paths), but real functional overlap: both can
+create/update/delete a `Role`, both can list `Permission`s.
+
+They are **not** simply duplicates, though - each has something the other
+lacks entirely:
+- The pre-existing `rbac` module can create/update/delete individual
+  `Permission` **definitions** (new permission types) and assign/revoke a
+  **role to a user** (`POST`/`DELETE /users/:userId/roles`) - neither of
+  which the new `admin/roles` module does at all.
+- The new `admin/roles` module can **attach/detach permissions to/from a
+  role** (`RolePermission` management) - which, surprisingly, the
+  pre-existing `rbac` module never could: its `createRole`/`updateRole` only
+  ever touch `name`/`description`, never `RolePermission` rows. Before this
+  session, **there was no way at all**, anywhere in this codebase, to assign
+  a permission to a role via API (only via the seed script / a raw DB write).
+
+Confirmed via a full frontend grep that nothing calls `/roles`, `/permissions`,
+or `/users/:userId/roles` today - the admin frontend's `rolesService` was
+already written against `/admin/roles`/`/admin/permissions` (this session's
+new paths) before either existed, and role-to-user assignment goes through a
+**third**, separate path that does exist and register cleanly,
+`PATCH /admin/users/:id/roles` (`usersService.updateRoles`, in
+`admin-users` module - pre-existing, not investigated further as part of
+this pass beyond confirming the route is live).
+
+Not resolved this pass - unlike the other duplicate-controller cases this
+session, this isn't a "delete the redundant one" situation since both sides
+have real, non-overlapping capability. Needs a deliberate decision: merge
+`rbac`'s permission-definition CRUD and user-role-assignment into
+`admin/roles` (making one module authoritative) or keep both but document
+the split clearly and wire `PATCH /admin/users/:id/roles` to actually call
+into one of them consistently. Flagging so it doesn't get rediscovered from
+scratch or accidentally duplicated a third time.
 
 ### P2 — loopo-client has no ESLint config
 `npx eslint .` in `loopo-client` fails immediately with "couldn't find an

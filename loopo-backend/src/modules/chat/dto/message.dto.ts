@@ -112,7 +112,7 @@ export class SearchMessagesQueryDto {
   endDate?: string;
 }
 
-export class GetUploadUrlDto {
+export class ChatUploadUrlDto {
   @ApiProperty({ description: 'Name of the file to upload', example: 'photo.jpg' })
   @IsString()
   fileName: string;
