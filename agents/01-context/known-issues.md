@@ -6,6 +6,45 @@ last_verified: 2026-09-13
 
 ## OPEN
 
+### RESOLVED — P0: /admin/notifications had zero auth guards, fully open to unauthenticated read/write/delete
+Found while sweeping loopo-client's Notifications page for a 404
+(`GET /notifications` doesn't exist for regular users - see the separate open
+item below) and noticing there are three different notification-related
+controllers. `src/modules/notifications/controllers/notifications.controller.ts`
+(`NotificationsController`, mapped to `admin/notifications` - confirmed this
+is the real, reachable, currently-in-use path per the duplicate-controller
+audit above) had **no `@UseGuards` at all**, unlike every other admin
+controller in this codebase. There is no global auth-by-default in this app
+(`app.module.ts` only registers a global `ThrottlerGuard` for rate limiting;
+every controller must opt in to `JwtAuthGuard` explicitly) - so this
+controller's full CRUD (list/get/create/update/delete on the system-wide
+notification broadcast list) was reachable by anyone, no token required.
+
+**Confirmed live and exploited before fixing, not just by reading code:**
+`curl -X POST http://localhost:5000/api/v1/admin/notifications` with no
+`Authorization` header and a valid body returned **201** and created a real
+notification row. Fixed by adding the standard
+`@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)` +
+`@Permissions('admin.notifications.manage')` (class-level, matching every
+sibling admin controller) - re-verified live: the same unauthenticated GET
+and POST now both return 401, while an authenticated superadmin request
+still succeeds (200) with no behavior change for real users. The
+test-injected row from the exploit attempt was deleted afterward. All 17
+backend unit suites / 83 tests still pass.
+
+### OPEN — loopo-client: no user-facing "my notifications" endpoint exists at all
+`notificationsApi.ts` calls `GET /notifications?page=&limit=`, which 404s -
+there is no controller anywhere registered at a plain `/notifications` path.
+The only notification-related backend surfaces are `/notification-settings`
+(preferences, a different resource) and `/admin/notifications` (the
+system-wide broadcast list audited above, admin-only, not scoped to "my"
+notifications and not the right shape for an inbox anyway). This is a real,
+previously-undocumented feature gap - the client's Notifications screen can
+never load anything but a permanent 404, for every user. Not fixed this
+pass: needs a new user-scoped endpoint (list a user's own delivered
+notifications, mark-read, mark-all-read - the client already expects exactly
+this shape), which is backend feature work, not a wiring fix.
+
 ### P1 — loopo-admin: several pages are still 100% hardcoded fake data despite a working real endpoint existing
 Found via a full visual sweep of all 21 admin pages (screenshot + console/network
 check per page, real superadmin login). Dashboard, the Listings-page item list,
