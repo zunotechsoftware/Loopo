@@ -127,11 +127,17 @@ export const bannersService = {
 };
 
 // --- Settings Service ---
+// Real backend contract (confirmed against admin-settings.controller.ts /
+// admin-feature-flags.controller.ts): both are bulk PUT endpoints, not
+// per-key PATCH, and feature flags are their own top-level resource
+// (/admin/feature-flags), not nested under /admin/settings.
 export const settingsService = {
   getAll: () => api.get('/admin/settings'),
-  update: (key: string, value: unknown) => api.patch(`/admin/settings/${key}`, { value }),
-  getFeatureFlags: () => api.get('/admin/settings/feature-flags'),
-  updateFeatureFlag: (key: string, enabled: boolean) => api.patch(`/admin/settings/feature-flags/${key}`, { enabled }),
+  update: (key: string, value: Record<string, unknown>, group?: string) =>
+    api.put('/admin/settings', { settings: [{ key, value, group }] }),
+  getFeatureFlags: () => api.get('/admin/feature-flags'),
+  updateFeatureFlag: (key: string, isEnabled: boolean, name?: string, description?: string) =>
+    api.put('/admin/feature-flags', { flags: [{ key, isEnabled, name, description }] }),
 };
 
 // --- Audit Logs Service ---

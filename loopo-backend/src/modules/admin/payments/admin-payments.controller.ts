@@ -12,7 +12,7 @@ import { PaymentStatus } from '@prisma/client';
 @ApiTags('Admin - Payments')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
-@Controller('api/v1/admin/payments')
+@Controller('admin/payments')
 export class AdminPaymentsController {
   constructor(private readonly adminPaymentsService: AdminPaymentsService) {}
 

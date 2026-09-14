@@ -46,9 +46,12 @@ this pass:
   bug, reconcile the frontend's expected paths with the controller's actual
   ones, and either drop the Subscriptions tab or clarify what it should show.
 - **Reports** (`(admin)/reports/page.tsx`): a full fake "report library" (58
-  generated reports, download counts, scheduled reports) with no fetch and,
-  as far as this sweep found, no real backend equivalent (no report-generation/
-  storage module exists) - this is a real feature gap, not a wiring gap.
+  generated reports, download counts, scheduled reports) with no fetch and no
+  real backend equivalent - a PDF/CSV report-generation module genuinely
+  doesn't exist. Don't confuse this with the *other* "reports" concept
+  (user-filed abuse/moderation reports about a listing or seller), which does
+  have a real, working backend with no admin page at all - see the
+  double-prefix-bug entry below for details.
 - ~~**Pending Approval**~~ **RESOLVED**: was a separate, fully hardcoded
   duplicate of what the main Listings page already does correctly with a
   `status=PENDING` filter and working Approve/Reject actions. Fixed:
@@ -72,27 +75,69 @@ this pass:
   `MOCK_BANNERS` - `auditLogsService.getAll()` calls `/admin/audit-logs`,
   which (like roles/permissions above) doesn't exist on the backend at all.
 
-### P2 — loopo-backend: two more duplicate-controller route-prefix bugs, same class already found/fixed for analytics this session
-Grepping for the analytics double-prefix pattern (`@Controller('api/v1/...')`
-stacking on top of the global `api/v1` prefix, producing a dead
-`/api/v1/api/v1/...` route) while investigating the admin sweep above found two
-more instances, confirmed against the live route dump:
-- `src/modules/admin/reviews/admin-reviews.controller.ts` (`AdminReviewsService`-
-  backed: pagination, type filter, get-by-id, hard delete) is fully unreachable
-  at any sane path. A **second**, different implementation -
-  `src/modules/reviews/controllers/admin-reviews.controller.ts`
-  (`ReviewsService`-backed: list/hide/restore/soft-delete, no pagination or
-  get-by-id) - correctly owns the real `/admin/reviews` path and is what the
-  frontend's `reviewsService` already points at. Both are real, different
-  feature sets; simply stripping the bad prefix would make them collide on
-  identical paths (same resolution needed as the products/reviews duplicate
-  controllers found earlier this session - pick one, rename or merge, don't
-  just fix the prefix blindly).
-- `src/modules/admin/payments/...` (exact file not yet located) has the same
-  bug - see the Payments item above.
-Not fixed this pass (needs the same "pick a winner" judgment call as the
-products-queue-name and reviews duplication already handled this session, not
-a one-line rename) - flagging both so they don't get rediscovered from scratch.
+### RESOLVED (partially) — loopo-backend: the analytics double-prefix bug existed on 9 controllers, not 1
+A full grep for the pattern (`@Controller('api/v1/...')` stacking on top of the
+global `api/v1` prefix, producing a dead `/api/v1/api/v1/...` route - the same
+bug already found and fixed on the 5 analytics controllers earlier this
+session) turned up **9 total occurrences** under `src/modules/admin/*`, all
+confirmed against the live route dump. Checked each for a competing
+controller already correctly registered at the intended path (the
+products/reviews duplicate-controller pattern found earlier this session)
+before touching anything - 6 had none and were safe to fix outright; 3 are
+genuine duplicates needing a judgment call, not a blind prefix strip.
+
+**Fixed (6, zero collision risk, now live and reachable for the first time):**
+`admin/cms` (→ `admin/pages`), `admin/dashboard`, `admin/feature-flags`,
+`admin/payments`, `admin/settings`, `admin/system`. Verified live with a real
+admin token: `GET /admin/dashboard` now returns real aggregate stats,
+`GET /admin/system/health` returns real DB/Redis/storage status,
+`PUT /admin/feature-flags` and `PUT /admin/settings` both create real rows -
+all were flatly unreachable (404, wrong prefix) before this fix, for every
+caller, forever.
+
+While fixing `admin/settings`/`admin/feature-flags`, found the frontend
+(`admin.service.ts`'s `settingsService`) also had a contract mismatch
+independent of the prefix bug: it called `PATCH /admin/settings/:key` and
+`GET`/`PATCH /admin/settings/feature-flags[/:key]`, but the real controllers
+are bulk-only (`PUT /admin/settings` with `{settings: [...]}`,
+`PUT /admin/feature-flags` with `{flags: [...]}`) and feature flags are their
+own top-level resource, not nested under settings. Fixed `settingsService` to
+match the real contract; verified live (`PUT` calls to both now return 200
+with real created rows). The Settings *page* itself is still `MOCK_...` data
+with no fetch calls at all (unchanged, not in scope for this pass) - this
+fix means the service layer is now correct and ready whenever that page
+gets wired for real.
+
+**Still broken, genuine duplicate controllers - needs a "pick a winner" call,
+not a blind rename (same treatment as the products-queue-name duplication
+found earlier this session):**
+- **Reviews**: `admin/reviews/admin-reviews.controller.ts`
+  (`AdminReviewsService`-backed: pagination, type filter, get-by-id, hard
+  delete) vs. `reviews/controllers/admin-reviews.controller.ts`
+  (`ReviewsService`-backed: list/hide/restore/soft-delete) - the second
+  already correctly owns `/admin/reviews` and is what the frontend's
+  `reviewsService` points at; the first is fully unreachable dead code with a
+  richer feature set.
+- **Reports**: `admin/reports/admin-reports.controller.ts`
+  (`AdminReportsService`-backed) vs. `reports/controllers/admin-reports.controller.ts`
+  (`ReportsService`-backed, already correctly on `/admin/reports`). Note this
+  is the **user-filed abuse/moderation reports** feature (reports about a
+  listing or seller), a completely different concept from the fake admin
+  "Reports" *page* documented above (which depicts a PDF/CSV report-generation
+  library that has no backend at all, under either name) - don't confuse the
+  two when picking this up. Also newly noticed: `reportsService` in
+  `admin.service.ts` already points at the correct, working controller, but
+  **no admin page anywhere calls it** - there's a real, functioning backend
+  feature for reviewing user-filed reports with zero admin UI for it.
+- **Notifications**: `admin/notifications/admin-notifications.controller.ts`
+  vs. `notifications/controllers/notifications.controller.ts` (already
+  correctly on `/admin/notifications`, and already what the working
+  Notifications admin page uses - confirmed live/wired in the sweep above).
+  Same shape as the other two; not investigated further since the working
+  side is already confirmed fine.
+
+Not fixed this pass - each needs reading both implementations and deciding
+whether to rename one aside, merge, or delete, not a mechanical prefix edit.
 
 ### RESOLVED — Storage/signed-URL architecture: private bucket + no read-side signing + KYC upload endpoint didn't exist at all
 Originally found while auditing KYC document handling for exposure risk (the

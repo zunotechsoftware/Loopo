@@ -9,7 +9,7 @@ import { Permissions } from '../../../shared/common/decorators/permissions.decor
 @ApiTags('Admin - Dashboard')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
-@Controller('api/v1/admin/dashboard')
+@Controller('admin/dashboard')
 export class AdminDashboardController {
   constructor(private readonly dashboardService: AdminDashboardService) {}
 
