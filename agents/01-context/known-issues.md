@@ -94,13 +94,33 @@ this pass:
   confirmed all three tabs and all four stat cards render the real rows and
   correct counts, then cleaned the test rows up. `tsc --noEmit` clean; all
   17 backend unit suites / 83 tests still pass.
-- **Reports** (`(admin)/reports/page.tsx`): a full fake "report library" (58
-  generated reports, download counts, scheduled reports) with no fetch and no
-  real backend equivalent - a PDF/CSV report-generation module genuinely
-  doesn't exist. Don't confuse this with the *other* "reports" concept
-  (user-filed abuse/moderation reports about a listing or seller), which does
-  have a real, working backend with no admin page at all - see the
-  double-prefix-bug entry below for details.
+- ~~**Reports**~~ **RESOLVED, by repurposing the page rather than building the
+  fake concept:** this page used to depict a "report library" (58 generated
+  reports, download counts, scheduled reports) - a PDF/CSV report-generation
+  module that genuinely doesn't exist and would be new infrastructure to
+  build. Separately, the *other* "reports" concept (user-filed abuse/
+  moderation reports about a listing or seller - see the double-prefix-bug
+  entry below) has a real, fairly sophisticated backend (reports grouped
+  into moderation cases, evidence attachments, an AI-moderation queue that
+  auto-triages priority/status, assignment, escalation) with **zero admin
+  UI anywhere**. Replaced the fake report-library page with a real
+  moderation-reports page at the same `/reports` route - same reasoning as
+  the Notifications/Announcements split earlier: this is what "Reports"
+  conventionally means in a marketplace admin panel anyway, and there was
+  nothing salvageable in the fake concept to preserve. New page: stat cards
+  (Open/In Progress/Escalated/Closed, computed from the loaded list),
+  status/target-type/priority filters, a detail dialog (reporter, target,
+  reason, details, evidence links, case), and working actions (assign to a
+  moderator, escalate with a note, resolve, reject). Verified live, not
+  simulated: filed a real report through the actual user-facing
+  `POST /reports` endpoint, confirmed it appeared on the page (and that the
+  AI-moderation queue had already auto-escalated it to CRITICAL/UNDER_REVIEW
+  by the time it loaded - the pipeline is real, not a stub), opened the
+  detail dialog, and executed a real "Mark resolved" action that returned
+  200 and updated the row's status and the stat cards live. `tsc --noEmit`
+  clean; all 17 backend unit suites / 83 tests still pass (no backend
+  changes were needed for this one - the contract was already correct from
+  the earlier duplicate-controller cleanup).
 - ~~**Pending Approval**~~ **RESOLVED**: was a separate, fully hardcoded
   duplicate of what the main Listings page already does correctly with a
   `status=PENDING` filter and working Approve/Reject actions. Fixed:
