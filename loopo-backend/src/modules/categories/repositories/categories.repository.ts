@@ -96,13 +96,25 @@ export class CategoriesRepository {
   }
 
   async findParents() {
-    return this.prisma.category.findMany({
+    const categories = await this.prisma.category.findMany({
       where: {
         parentId: null,
         deletedAt: null,
       },
       orderBy: { sortOrder: 'asc' },
+      include: {
+        _count: {
+          select: { products: { where: { status: 'APPROVED', deletedAt: null } } },
+        },
+      },
     });
+
+    // Flatten _count.products -> itemCount so consumers don't need to know
+    // about the Prisma relation-count shape.
+    return categories.map(({ _count, ...category }) => ({
+      ...category,
+      itemCount: _count.products,
+    }));
   }
 
   async findAncestors(categoryId: string): Promise<any[]> {

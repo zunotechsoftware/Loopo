@@ -1,17 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { UserProfile } from '@/types';
 import { authApi, LoginPayload, RegisterPayload } from '@/services/authApi';
 import { getAuthToken, setAuthToken, clearAuthToken } from '@/services/apiClient';
-
-export interface UserProfile {
-  id?: string;
-  name: string;
-  email: string;
-  phone?: string;
-  avatar: string;
-  isVerified: boolean;
-  memberSince: string;
-  role?: string;
-}
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -23,136 +13,99 @@ interface AuthState {
 }
 
 /** Build a UserProfile from the API response user object */
-function buildProfile(u: any): UserProfile {
+function buildProfile(u: any): UserProfile | null {
+  if (!u) return null;
   return {
-    id: u?.id || 'usr-demo-101',
-    name: u?.firstName ? `${u.firstName} ${u.lastName || ''}`.trim() : (u?.name || 'Gowtham S'),
-    email: u?.email || 'gowtham@loopo.com',
-    phone: u?.phone || '+91 98765 43210',
-    avatar:
-      u?.profile?.avatarUrl ||
-      u?.avatarUrl ||
-      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop',
-    isVerified: true,
-    memberSince: u?.createdAt
+    id: u.id || u._id || '',
+    name: u.firstName ? `${u.firstName} ${u.lastName || ''}`.trim() : (u.name || 'User'),
+    email: u.email || '',
+    phone: u.phone || '',
+    avatar: u.profile?.avatarUrl || u.avatarUrl || '',
+    isVerified: Boolean(u.isEmailVerified || u.isKycVerified),
+    memberSince: u.createdAt
       ? new Date(u.createdAt).getFullYear().toString()
       : new Date().getFullYear().toString(),
-    role: u?.role || 'ADMIN',
+    role: u.role || 'USER',
   };
 }
 
-const defaultUser: UserProfile = {
-  id: 'usr-demo-101',
-  name: 'Gowtham S',
-  email: 'gowtham@loopo.com',
-  phone: '+91 98765 43210',
-  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop',
-  isVerified: true,
-  memberSince: '2024',
-  role: 'ADMIN',
-};
+function loadLocalUser(): UserProfile | null {
+
+  if (typeof window === 'undefined') return null;
+  try {
+    const saved = localStorage.getItem('loopo_user_profile');
+    return saved ? JSON.parse(saved) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveLocalUser(user: UserProfile | null) {
+  if (typeof window === 'undefined') return;
+  try {
+    if (user) {
+      localStorage.setItem('loopo_user_profile', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('loopo_user_profile');
+    }
+  } catch {
+    // ignore quota error
+  }
+}
+
+const initialToken = typeof window !== 'undefined' ? getAuthToken() : null;
+const initialUser = loadLocalUser();
 
 const initialState: AuthState = {
-  isAuthenticated: true,
-  user: defaultUser,
+  isAuthenticated: Boolean(initialToken || initialUser),
+  user: initialUser,
   authMode: 'login',
   otpTarget: '',
   loading: false,
   error: null,
 };
 
+
 /** On app startup, check for an existing token and load the current user profile */
-export const initAuthThunk = createAsyncThunk('auth/init', async () => {
+export const initAuthThunk = createAsyncThunk('auth/init', async (_, { rejectWithValue }) => {
   const token = getAuthToken();
   if (!token) {
-    setAuthToken('demo-token-active');
-    return {
-      firstName: 'Gowtham',
-      lastName: 'S',
-      email: 'gowtham@loopo.com',
-      phone: '+91 98765 43210',
-      isEmailVerified: true,
-      role: 'ADMIN',
-    };
+    return rejectWithValue('No token found');
   }
 
-  if (token.startsWith('demo-token-')) {
-    return {
-      firstName: 'Gowtham',
-      lastName: 'S',
-      email: 'gowtham@loopo.com',
-      phone: '+91 98765 43210',
-      isEmailVerified: true,
-      role: 'ADMIN',
-    };
+  const res = await authApi.getProfile();
+  if (res.success && res.data) {
+    return res.data;
   }
-
-  try {
-    const res = await authApi.getProfile();
-    if (res.success && res.data) {
-      return res.data;
-    }
-  } catch {
-    // catch any network or server exception
-  }
-  return {
-    firstName: 'Gowtham',
-    lastName: 'S',
-    email: 'gowtham@loopo.com',
-    phone: '+91 98765 43210',
-    isEmailVerified: true,
-    role: 'ADMIN',
-  };
+  clearAuthToken();
+  return rejectWithValue(res.error || 'Failed to authenticate user');
 });
 
 export const loginUserThunk = createAsyncThunk(
   'auth/loginUser',
-  async (payload: LoginPayload) => {
-    try {
-      const res = await authApi.login(payload);
-      if (res.success && res.data) {
-        return res.data;
-      }
-    } catch {
-      // fallback
+  async (payload: LoginPayload, { rejectWithValue }) => {
+    const res = await authApi.login(payload);
+    if (res.success && res.data) {
+      return res.data;
     }
-    setAuthToken('demo-token-' + Date.now());
-    return {
-      accessToken: 'demo-token-' + Date.now(),
-      user: {
-        id: 'user-demo',
-        email: payload.email || 'gowtham@loopo.com',
-        firstName: payload.email ? payload.email.split('@')[0] : 'Gowtham',
-        lastName: 'S',
-        role: payload.email?.includes('admin') ? 'ADMIN' : 'USER',
-      },
-    };
+    return rejectWithValue(res.error || 'Login failed');
   }
 );
 
 export const registerUserThunk = createAsyncThunk(
   'auth/registerUser',
-  async (payload: RegisterPayload) => {
-    try {
-      const res = await authApi.register(payload);
-      if (res.success && res.data) {
-        return res.data;
+  async (payload: RegisterPayload, { rejectWithValue }) => {
+    const res = await authApi.register(payload);
+    if (res.success) {
+      if (payload.password) {
+        const loginRes = await authApi.login({ email: payload.email, password: payload.password });
+        if (loginRes.success && loginRes.data) {
+          return loginRes.data;
+        }
       }
-    } catch {
-      // fallback
+      return res.data || { success: true };
     }
-    setAuthToken('demo-token-' + Date.now());
-    return {
-      accessToken: 'demo-token-' + Date.now(),
-      user: {
-        id: 'user-demo',
-        email: payload.email,
-        firstName: payload.firstName || 'User',
-        lastName: payload.lastName || '',
-        phone: payload.phone || '',
-        role: 'USER',
-      },
-    };
+    return rejectWithValue(res.error || 'Registration failed');
   }
 );
 
@@ -171,43 +124,49 @@ export const authSlice = createSlice({
     },
     loginSuccess: (
       state,
-      action: PayloadAction<{ name: string; email: string; phone?: string }>
+      action: PayloadAction<{ id?: string; name: string; email: string; phone?: string; avatar?: string }>
     ) => {
-      setAuthToken('demo-token-' + Date.now());
       state.isAuthenticated = true;
       state.user = {
-        name: action.payload.name || 'Gowtham S',
-        email: action.payload.email || 'gowtham@loopo.com',
-        phone: action.payload.phone || '+91 98765 43210',
-        avatar:
-          'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop',
+        id: action.payload.id || `usr-${Date.now()}`,
+        name: action.payload.name,
+        email: action.payload.email,
+        phone: action.payload.phone || '',
+        avatar: action.payload.avatar || '',
         isVerified: true,
         memberSince: new Date().getFullYear().toString(),
-        role: 'ADMIN',
+        role: 'USER',
       };
+      saveLocalUser(state.user);
     },
     logoutUser: (state) => {
       clearAuthToken();
-      state.isAuthenticated = true; // Keep demo access enabled
-      state.user = defaultUser;
+      saveLocalUser(null);
+      state.isAuthenticated = false;
+      state.user = null;
     },
   },
   extraReducers: (builder) => {
     builder
       // Init from stored token
       .addCase(initAuthThunk.pending, (state) => {
-        state.loading = false;
+        state.loading = true;
       })
       .addCase(initAuthThunk.fulfilled, (state, action) => {
         state.loading = false;
-        state.isAuthenticated = true;
-        if (action.payload) {
-          state.user = buildProfile(action.payload);
+        const profile = buildProfile(action.payload);
+        if (profile) {
+          state.isAuthenticated = true;
+          state.user = profile;
+          saveLocalUser(profile);
         }
       })
       .addCase(initAuthThunk.rejected, (state) => {
         state.loading = false;
-        state.isAuthenticated = true;
+        // Keep initialUser from localStorage if available
+        if (!state.user) {
+          state.isAuthenticated = false;
+        }
       })
       // Login
       .addCase(loginUserThunk.pending, (state) => {
@@ -216,13 +175,24 @@ export const authSlice = createSlice({
       })
       .addCase(loginUserThunk.fulfilled, (state, action) => {
         state.loading = false;
+        const u = (action.payload as any)?.user;
+        const profile = buildProfile(u) || {
+          id: `usr-${Date.now()}`,
+          name: action.meta.arg.email ? action.meta.arg.email.split('@')[0] : 'User',
+          email: action.meta.arg.email,
+          phone: '',
+          avatar: '',
+          isVerified: true,
+          memberSince: new Date().getFullYear().toString(),
+          role: 'USER',
+        };
         state.isAuthenticated = true;
-        const u = action.payload?.user;
-        state.user = buildProfile(u);
+        state.user = profile;
+        saveLocalUser(profile);
       })
       .addCase(loginUserThunk.rejected, (state, action) => {
         state.loading = false;
-        state.isAuthenticated = true;
+        state.error = (action.payload as string) || 'Login failed';
       })
       // Register
       .addCase(registerUserThunk.pending, (state) => {
@@ -231,13 +201,26 @@ export const authSlice = createSlice({
       })
       .addCase(registerUserThunk.fulfilled, (state, action) => {
         state.loading = false;
+        const u = (action.payload as any)?.user;
+        const profile = buildProfile(u) || {
+          id: `usr-${Date.now()}`,
+          name: action.meta.arg.firstName
+            ? `${action.meta.arg.firstName} ${action.meta.arg.lastName || ''}`.trim()
+            : action.meta.arg.email.split('@')[0],
+          email: action.meta.arg.email,
+          phone: action.meta.arg.phone || '',
+          avatar: '',
+          isVerified: true,
+          memberSince: new Date().getFullYear().toString(),
+          role: 'USER',
+        };
         state.isAuthenticated = true;
-        const u = action.payload?.user;
-        state.user = buildProfile(u);
+        state.user = profile;
       })
       .addCase(registerUserThunk.rejected, (state, action) => {
+
         state.loading = false;
-        state.isAuthenticated = true;
+        state.error = (action.payload as string) || 'Registration failed';
       });
   },
 });
@@ -246,3 +229,6 @@ export const { setAuthMode, setOtpTarget, clearAuthError, loginSuccess, logoutUs
   authSlice.actions;
 
 export default authSlice.reducer;
+
+
+

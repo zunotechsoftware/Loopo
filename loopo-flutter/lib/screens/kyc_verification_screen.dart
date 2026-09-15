@@ -1,6 +1,19 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../theme/app_colors.dart';
 import '../services/kyc_service.dart';
+
+/// Display label -> real backend KycDocumentType enum value.
+/// "Voter ID Card" has no dedicated enum on the backend - NATIONAL_ID is the
+/// closest real category for it.
+const Map<String, String> _docTypeToEnum = {
+  'Aadhaar Card': 'AADHAAR',
+  'Driving License': 'DRIVING_LICENSE',
+  'Voter ID Card': 'NATIONAL_ID',
+  'PAN Card': 'PAN',
+  'Passport': 'PASSPORT',
+};
 
 class KycVerificationScreen extends StatefulWidget {
   const KycVerificationScreen({super.key});
@@ -11,21 +24,16 @@ class KycVerificationScreen extends StatefulWidget {
 
 class _KycVerificationScreenState extends State<KycVerificationScreen> {
   final KycService _kycService = KycService();
+  final ImagePicker _picker = ImagePicker();
   String _selectedDocType = 'Aadhaar Card';
   final TextEditingController _docNumberController = TextEditingController();
-  bool _docUploaded = false;
-  bool _selfieUploaded = false;
+  File? _docPhoto;
+  File? _selfiePhoto;
   bool _isSubmitted = false;
   bool _isSubmitting = false;
   String? _errorMessage;
 
-  final List<String> _docTypes = [
-    'Aadhaar Card',
-    'Driving License',
-    'Voter ID Card',
-    'PAN Card',
-    'Passport',
-  ];
+  final List<String> _docTypes = _docTypeToEnum.keys.toList();
 
   @override
   void dispose() {
@@ -33,8 +41,22 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
     super.dispose();
   }
 
+  Future<void> _pickDocPhoto() async {
+    final XFile? file = await _picker.pickImage(source: ImageSource.camera, imageQuality: 85);
+    if (file != null) setState(() => _docPhoto = File(file.path));
+  }
+
+  Future<void> _pickSelfie() async {
+    final XFile? file = await _picker.pickImage(
+      source: ImageSource.camera,
+      preferredCameraDevice: CameraDevice.front,
+      imageQuality: 85,
+    );
+    if (file != null) setState(() => _selfiePhoto = File(file.path));
+  }
+
   Future<void> _submitKyc() async {
-    if (!_docUploaded || !_selfieUploaded) {
+    if (_docPhoto == null || _selfiePhoto == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please upload both Document Photo and Selfie')),
       );
@@ -47,13 +69,26 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
       return;
     }
 
-    setState(() { _isSubmitting = true; _errorMessage = null; });
+    setState(() {
+      _isSubmitting = true;
+      _errorMessage = null;
+    });
     try {
-      await _kycService.verifyKyc(
-        docType: _selectedDocType.toUpperCase().replaceAll(' ', '_'),
-        docNumber: _docNumberController.text.trim(),
+      // Both images must be uploaded (and a MediaFile registered for each)
+      // before the KYC application itself can reference them.
+      final frontImageId = await _kycService.uploadDocumentImage(file: _docPhoto!, slot: 'FRONT');
+      final selfieImageId = await _kycService.uploadDocumentImage(file: _selfiePhoto!, slot: 'SELFIE');
+
+      await _kycService.submitKyc(
+        documentType: _docTypeToEnum[_selectedDocType] ?? 'NATIONAL_ID',
+        documentNumber: _docNumberController.text.trim(),
+        frontImageId: frontImageId,
+        selfieImageId: selfieImageId,
       );
-      setState(() { _isSubmitted = true; _isSubmitting = false; });
+      setState(() {
+        _isSubmitted = true;
+        _isSubmitting = false;
+      });
     } catch (e) {
       setState(() {
         _isSubmitting = false;
@@ -253,46 +288,39 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
                   const Text('2. Upload Front Photo of Document', style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.appDark)),
                   const SizedBox(height: 10),
                   InkWell(
-                    onTap: () {
-                      setState(() {
-                        _docUploaded = true;
-                        if (_docNumberController.text.isEmpty) {
-                          _docNumberController.text = '123456789012';
-                        }
-                      });
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('$_selectedDocType uploaded successfully')),
-                      );
-                    },
+                    onTap: _isSubmitting ? null : _pickDocPhoto,
                     borderRadius: BorderRadius.circular(16),
                     child: Container(
                       height: 110,
                       decoration: BoxDecoration(
-                        color: _docUploaded ? AppColors.appGreen.withValues(alpha: 0.1) : Colors.white,
+                        color: _docPhoto != null ? AppColors.appGreen.withValues(alpha: 0.1) : Colors.white,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: _docUploaded ? AppColors.appGreen : const Color(0xFFCBD5E1),
+                          color: _docPhoto != null ? AppColors.appGreen : const Color(0xFFCBD5E1),
                           style: BorderStyle.solid,
-                          width: _docUploaded ? 2 : 1,
+                          width: _docPhoto != null ? 2 : 1,
                         ),
+                        image: _docPhoto != null
+                            ? DecorationImage(image: FileImage(_docPhoto!), fit: BoxFit.cover, opacity: 0.35)
+                            : null,
                       ),
                       child: Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
-                              _docUploaded ? Icons.check_circle_rounded : Icons.add_a_photo_outlined,
+                              _docPhoto != null ? Icons.check_circle_rounded : Icons.add_a_photo_outlined,
                               size: 32,
-                              color: _docUploaded ? AppColors.appGreen : Colors.grey.shade500,
+                              color: _docPhoto != null ? AppColors.appGreen : Colors.grey.shade500,
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              _docUploaded ? '$_selectedDocType Attached' : 'Tap to capture / upload $_selectedDocType',
+                              _docPhoto != null ? '$_selectedDocType Attached' : 'Tap to capture $_selectedDocType',
                               style: TextStyle(
                                 fontFamily: 'Poppins',
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: _docUploaded ? AppColors.appGreen : Colors.grey.shade600,
+                                color: _docPhoto != null ? AppColors.appGreen : Colors.grey.shade600,
                               ),
                             ),
                           ],
@@ -306,40 +334,38 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
                   const Text('3. Take a Live Selfie Photo', style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.appDark)),
                   const SizedBox(height: 10),
                   InkWell(
-                    onTap: () {
-                      setState(() => _selfieUploaded = true);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Selfie captured successfully')),
-                      );
-                    },
+                    onTap: _isSubmitting ? null : _pickSelfie,
                     borderRadius: BorderRadius.circular(16),
                     child: Container(
                       height: 110,
                       decoration: BoxDecoration(
-                        color: _selfieUploaded ? AppColors.appGreen.withValues(alpha: 0.1) : Colors.white,
+                        color: _selfiePhoto != null ? AppColors.appGreen.withValues(alpha: 0.1) : Colors.white,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: _selfieUploaded ? AppColors.appGreen : const Color(0xFFCBD5E1),
-                          width: _selfieUploaded ? 2 : 1,
+                          color: _selfiePhoto != null ? AppColors.appGreen : const Color(0xFFCBD5E1),
+                          width: _selfiePhoto != null ? 2 : 1,
                         ),
+                        image: _selfiePhoto != null
+                            ? DecorationImage(image: FileImage(_selfiePhoto!), fit: BoxFit.cover, opacity: 0.35)
+                            : null,
                       ),
                       child: Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
-                              _selfieUploaded ? Icons.check_circle_rounded : Icons.face_rounded,
+                              _selfiePhoto != null ? Icons.check_circle_rounded : Icons.face_rounded,
                               size: 32,
-                              color: _selfieUploaded ? AppColors.appGreen : Colors.grey.shade500,
+                              color: _selfiePhoto != null ? AppColors.appGreen : Colors.grey.shade500,
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              _selfieUploaded ? 'Selfie Photo Attached' : 'Tap to take a selfie for face match',
+                              _selfiePhoto != null ? 'Selfie Photo Attached' : 'Tap to take a selfie for face match',
                               style: TextStyle(
                                 fontFamily: 'Poppins',
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: _selfieUploaded ? AppColors.appGreen : Colors.grey.shade600,
+                                color: _selfiePhoto != null ? AppColors.appGreen : Colors.grey.shade600,
                               ),
                             ),
                           ],

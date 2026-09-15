@@ -26,7 +26,8 @@ import {
 import { setActiveTab } from '@/redux/slices/navigationSlice';
 import { setActiveConversation } from '@/redux/slices/chatSlice';
 import { showToast } from '@/redux/slices/uiSlice';
-import { NotificationType } from '@/mockData/notifications';
+import { NotificationType } from '@/types';
+
 
 export default function NotificationsView() {
   const dispatch = useAppDispatch();
@@ -73,8 +74,9 @@ export default function NotificationsView() {
       dispatch(setActiveConversation(notif.targetId));
       dispatch(setActiveTab('messages'));
     } else if (notif.targetTab) {
-      dispatch(setActiveTab(notif.targetTab));
+      dispatch(setActiveTab(notif.targetTab as any));
     }
+
   };
 
   return (

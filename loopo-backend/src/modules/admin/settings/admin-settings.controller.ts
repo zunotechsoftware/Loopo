@@ -11,7 +11,7 @@ import { CurrentUser } from '../../../shared/common/decorators/current-user.deco
 @ApiTags('Admin - Settings')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
-@Controller('api/v1/admin/settings')
+@Controller('admin/settings')
 export class AdminSettingsController {
   constructor(private readonly settingsService: AdminSettingsService) {}
 

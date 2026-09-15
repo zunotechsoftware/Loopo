@@ -125,7 +125,7 @@ describe('Categories & Attributes (e2e)', () => {
     customerToken = custLoginRes.body.data.accessToken;
 
     // Register admin (we will manually attach SUPER_ADMIN role in database)
-    const adminReg = await request(app.getHttpServer())
+    await request(app.getHttpServer())
       .post('/api/v1/auth/register')
       .send({
         email: adminEmail,
@@ -134,7 +134,11 @@ describe('Categories & Attributes (e2e)', () => {
         lastName: 'E2E',
         phone: `+1555${Math.floor(1000000 + Math.random() * 9000000)}`,
       });
-    const adminUserId = adminReg.body.data.user.id;
+    // register() intentionally doesn't return the created user (see auth.service.ts
+    // register()) - the real client follows up with a login call to get it, so we
+    // look it up directly here instead.
+    const adminUser = await prismaService.user.findUnique({ where: { email: adminEmail } });
+    const adminUserId = adminUser!.id;
 
     const superAdminRole = await prismaService.role.findUnique({ where: { name: 'SUPER_ADMIN' } });
     if (superAdminRole) {

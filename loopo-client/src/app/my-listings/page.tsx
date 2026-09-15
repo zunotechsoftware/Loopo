@@ -1,20 +1,32 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
-import { deleteAd, updateAdStatus, fetchMyAdsThunk } from '@/redux/slices/myAdsSlice';
+import { markAsSoldThunk, deleteAdThunk } from '@/redux/slices/myAdsSlice';
 import { showToast } from '@/redux/slices/uiSlice';
 import { ROUTES } from '@/routes/routes';
 import { Edit3, Trash2, CheckCircle, Eye, Play, Pause, RefreshCw, Loader2 } from 'lucide-react';
 
+/** Per-raw-status badge (the coarse Active/Sold/Inactive bucket on
+ * ad.status collapses Draft/Pending/Rejected/etc. all into one label,
+ * which is misleading in a list meant to show every listing at once). */
+const STATUS_DISPLAY: Record<string, { label: string; className: string }> = {
+  DRAFT: { label: 'Draft', className: 'bg-slate-100 text-slate-600' },
+  PENDING: { label: 'Pending', className: 'bg-amber-100 text-amber-700' },
+  UNDER_REVIEW: { label: 'Under Review', className: 'bg-amber-100 text-amber-700' },
+  APPROVED: { label: 'Active', className: 'bg-emerald-100 text-emerald-700' },
+  REJECTED: { label: 'Rejected', className: 'bg-red-100 text-red-700' },
+  EXPIRED: { label: 'Expired', className: 'bg-slate-100 text-slate-600' },
+  ARCHIVED: { label: 'Archived', className: 'bg-slate-100 text-slate-600' },
+  PAUSED: { label: 'Paused', className: 'bg-slate-100 text-slate-600' },
+  SOLD: { label: 'Sold', className: 'bg-blue-100 text-blue-700' },
+};
+
 export default function MyListingsAllPage() {
   const dispatch = useAppDispatch();
+  // Fetched once by the shared my-listings/layout.tsx.
   const { ads, loading } = useAppSelector((state) => state.myAds);
-
-  useEffect(() => {
-    dispatch(fetchMyAdsThunk());
-  }, [dispatch]);
 
   return (
     <div className="space-y-3">
@@ -28,7 +40,9 @@ export default function MyListingsAllPage() {
           No listings found in your account.
         </div>
       ) : (
-        ads.map((ad) => (
+        ads.map((ad) => {
+          const disp = STATUS_DISPLAY[ad.rawStatus] || { label: ad.status, className: 'bg-slate-100 text-slate-600' };
+          return (
           <div
             key={ad.id}
             className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-slate-200 transition-all"
@@ -42,16 +56,8 @@ export default function MyListingsAllPage() {
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <h3 className="font-extrabold text-slate-900 text-sm">{ad.title}</h3>
-                  <span
-                    className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full ${
-                      ad.status === 'Active'
-                        ? 'bg-emerald-100 text-emerald-700'
-                        : ad.status === 'Sold'
-                        ? 'bg-blue-100 text-blue-700'
-                        : 'bg-slate-100 text-slate-600'
-                    }`}
-                  >
-                    {ad.status}
+                  <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full ${disp.className}`}>
+                    {disp.label}
                   </span>
                 </div>
                 <div className="text-base font-black text-emerald-600">{ad.price}</div>
@@ -79,11 +85,15 @@ export default function MyListingsAllPage() {
                 <span className="hidden md:inline">Edit</span>
               </Link>
 
-              {ad.status === 'Active' && (
+              {ad.rawStatus === 'APPROVED' && (
                 <button
-                  onClick={() => {
-                    dispatch(updateAdStatus({ id: ad.id, status: 'Sold' }));
-                    dispatch(showToast('Marked as Sold!'));
+                  onClick={async () => {
+                    try {
+                      await dispatch(markAsSoldThunk(ad.id)).unwrap();
+                      dispatch(showToast('Marked as Sold!'));
+                    } catch (err: any) {
+                      dispatch(showToast(err || 'Failed to mark as sold'));
+                    }
                   }}
                   className="flex items-center gap-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-xs font-bold px-3 py-2 rounded-xl transition-colors"
                 >
@@ -93,9 +103,13 @@ export default function MyListingsAllPage() {
               )}
 
               <button
-                onClick={() => {
-                  dispatch(deleteAd(ad.id));
-                  dispatch(showToast('Listing deleted'));
+                onClick={async () => {
+                  try {
+                    await dispatch(deleteAdThunk(ad.id)).unwrap();
+                    dispatch(showToast('Listing deleted'));
+                  } catch (err: any) {
+                    dispatch(showToast(err || 'Failed to delete listing'));
+                  }
                 }}
                 className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-colors"
                 title="Delete"
@@ -104,7 +118,8 @@ export default function MyListingsAllPage() {
               </button>
             </div>
           </div>
-        ))
+          );
+        })
       )}
     </div>
   );

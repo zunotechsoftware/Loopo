@@ -1,5 +1,7 @@
-export const API_BASE_URL =
+const RAW_API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/api/v1';
+
+export const API_BASE_URL = RAW_API_BASE_URL.replace(/\/api\/docs\/?$/, '/api/v1');
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -42,7 +44,8 @@ export async function apiRequest<T>(
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2500); // 2.5s fast timeout for fallback
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
 
     const response = await fetch(url, {
       ...options,

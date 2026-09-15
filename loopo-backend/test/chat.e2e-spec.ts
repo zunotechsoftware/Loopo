@@ -16,8 +16,13 @@ describe('Chat System (e2e)', () => {
   let socket2: Socket;
   let port: number;
 
-  const mockUser1 = { id: 'd3b07384-d113-4956-a5cc-810237e19003', email: 'buyer@loopo.com', roles: ['CUSTOMER'] };
-  const mockUser2 = { id: 'd3b07384-d113-4956-a5cc-810237e19004', email: 'seller@loopo.com', roles: ['CUSTOMER'] };
+  // 'CUSTOMER' isn't a real seeded role (only SUPER_ADMIN/ADMIN/USER are - see
+  // prisma/seed.ts) - PermissionsGuard resolves permissions by looking up
+  // RolePermission rows for the exact role name in the JWT, so a role that
+  // doesn't exist in the DB silently resolves to zero permissions and every
+  // @Permissions(...) endpoint 403s. Use the real role name.
+  const mockUser1 = { id: 'd3b07384-d113-4956-a5cc-810237e19003', email: 'buyer@loopo.com', roles: ['USER'] };
+  const mockUser2 = { id: 'd3b07384-d113-4956-a5cc-810237e19004', email: 'seller@loopo.com', roles: ['USER'] };
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({

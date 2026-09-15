@@ -146,6 +146,17 @@ export class ProductsController {
     return { message: 'Listing resumed to review successfully', data: product };
   }
 
+  @Patch(':id/sold')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+  @Permissions('products.update')
+  @LogAudit('MARK_SOLD_PRODUCT', 'Product')
+  @ApiOperation({ summary: 'Mark a listing as sold' })
+  async markSold(@Param('id') id: string, @Request() req: any) {
+    const product = await this.productsService.updateProduct(id, { status: ProductStatus.SOLD } as any, req.user.id);
+    return { message: 'Listing marked as sold successfully', data: product };
+  }
+
   @Patch(':id/renew')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)

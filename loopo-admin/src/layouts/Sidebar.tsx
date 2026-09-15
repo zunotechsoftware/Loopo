@@ -32,7 +32,7 @@ import ExpandLess from '@mui/icons-material/ExpandLess';
 import Logout from '@mui/icons-material/Logout';
 import ReportProblem from '@mui/icons-material/ReportProblem';
 import SupportAgent from '@mui/icons-material/SupportAgent';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 
 interface SidebarProps {
@@ -72,7 +72,7 @@ const NAV_GROUPS: NavGroup[] = [
         children: [
           { text: 'All Listings', icon: <Inventory fontSize="small" />, path: '/listings' },
           { text: 'Add Listing', icon: <Inventory fontSize="small" />, path: '/listings/add' },
-          { text: 'Pending Approval', icon: <Inventory fontSize="small" />, path: '/listings/pending' },
+          { text: 'Pending Approval', icon: <Inventory fontSize="small" />, path: '/listings?status=PENDING' },
           { text: 'Bulk Upload', icon: <Inventory fontSize="small" />, path: '/listings/bulk' },
         ]
       },
@@ -124,8 +124,16 @@ const NAV_GROUPS: NavGroup[] = [
 
 export default function Sidebar({ drawerWidth, mobileOpen, handleDrawerToggle }: SidebarProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const { user, logout } = useAuth();
+
+  // Some nav items (e.g. "Pending Approval" -> /listings?status=PENDING) carry
+  // a query string to preset a filter on a shared page rather than needing
+  // their own duplicate route - compare against the full current path so
+  // those still get highlighted as active correctly.
+  const queryString = searchParams.toString();
+  const currentFullPath = queryString ? `${pathname}?${queryString}` : pathname;
   
   // Default expanded state based on pathname
   const [openMenus, setOpenMenus] = React.useState<Record<string, boolean>>({
@@ -181,7 +189,7 @@ export default function Sidebar({ drawerWidth, mobileOpen, handleDrawerToggle }:
             )}
             <List dense disablePadding sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
               {group.items.map((item) => {
-                const isItemActive = pathname === item.path || (item.children ? pathname.startsWith(item.path) : false);
+                const isItemActive = currentFullPath === item.path || pathname === item.path || (item.children ? pathname.startsWith(item.path) : false);
                 const isOpen = openMenus[item.text] || false;
                 
                 return (
@@ -229,7 +237,12 @@ export default function Sidebar({ drawerWidth, mobileOpen, handleDrawerToggle }:
                       <Collapse in={isOpen} timeout="auto" unmountOnExit>
                         <List component="div" disablePadding sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mt: 0.5 }}>
                           {item.children.map(child => {
-                            const isChildActive = pathname === child.path;
+                            // Compare the full path (including query string) so
+                            // e.g. "All Listings" (/listings) and "Pending
+                            // Approval" (/listings?status=PENDING) don't both
+                            // light up at once just because they share a
+                            // pathname.
+                            const isChildActive = currentFullPath === child.path;
                             return (
                               <ListItemButton
                                 key={child.text}

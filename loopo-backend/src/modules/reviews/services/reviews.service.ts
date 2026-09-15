@@ -183,8 +183,14 @@ export class ReviewsService {
   }
 
   // --- Admin ---
-  async adminGetAllReviews() {
-    return this.reviewsRepository.findAllReviews();
+  async adminGetAllReviews(skip?: number, take?: number, reviewType?: ReviewType) {
+    return this.reviewsRepository.findAllReviews({ skip, take, reviewType });
+  }
+
+  async adminGetReviewById(reviewId: string) {
+    const review = await this.reviewsRepository.findReviewById(reviewId);
+    if (!review) throw new NotFoundException('Review not found');
+    return review;
   }
 
   async adminHideReview(reviewId: string) {

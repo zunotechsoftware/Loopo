@@ -229,7 +229,7 @@ export default function EmailTemplateSidebar({ template }: EmailTemplateSidebarP
                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
                   <Box sx={{ p: 1, bgcolor: '#f3e8ff', color: '#a855f7', borderRadius: 2 }}>
                     {/* Mock Icon */}
-                    <Box sx={{ width: 20, height: 20, border: '2px solid currentColor', borderRadius: 1, borderRadius: '50%' }} />
+                    <Box sx={{ width: 20, height: 20, border: '2px solid currentColor', borderRadius: '50%' }} />
                   </Box>
                   <Typography variant="caption" sx={{ fontWeight: 600, color: '#1e293b' }}>Repeat</Typography>
                   <Typography variant="caption" sx={{ color: '#64748b', fontSize: '0.65rem', textAlign: 'center' }}>Reuse & save more</Typography>

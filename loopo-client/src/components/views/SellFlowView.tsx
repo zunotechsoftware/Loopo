@@ -1,19 +1,42 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Camera, CheckCircle2, ArrowRight, ArrowLeft, Upload, MapPin, Tag, Trash2, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { setActiveTab } from '@/redux/slices/navigationSlice';
 import { showToast, setAuthModalOpen } from '@/redux/slices/uiSlice';
-import { createProductThunk, fetchProductsThunk } from '@/redux/slices/productsSlice';
+import { createProductThunk, updateProductThunk, fetchProductsThunk } from '@/redux/slices/productsSlice';
 import { fetchMyAdsThunk } from '@/redux/slices/myAdsSlice';
 import { getAuthToken } from '@/services/apiClient';
 import CustomSelect from '@/components/ui/CustomSelect';
+import { useCategories } from '@/hooks/useCategories';
+import { Product } from '@/types';
+import { ROUTES } from '@/routes/routes';
 
-export default function SellFlowView() {
+/** Maps a mapConditionToEnum-friendly label back from whatever the backend/normaliseProduct stored. */
+function normaliseConditionLabel(cond: string): 'Brand New' | 'Like New' | 'Good' | 'Fair' {
+  const c = (cond || '').toUpperCase();
+  if (c.includes('NEW') && !c.includes('LIKE')) return 'Brand New';
+  if (c.includes('LIKE')) return 'Like New';
+  if (c.includes('FAIR')) return 'Fair';
+  return 'Good';
+}
+
+interface SellFlowViewProps {
+  /** When set, the form edits this existing listing (PUT) instead of creating a new one (POST). */
+  listingId?: string;
+  /** The listing being edited, once loaded - used to prefill the form. Undefined while still loading. */
+  initialProduct?: Product | null;
+}
+
+export default function SellFlowView({ listingId, initialProduct }: SellFlowViewProps) {
   const dispatch = useAppDispatch();
+  const router = useRouter();
+  const isEditMode = !!listingId;
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { categories } = useCategories();
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -21,13 +44,36 @@ export default function SellFlowView() {
   // Form State
   const [images, setImages] = useState<string[]>([]);
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState('Mobiles');
+  const [category, setCategory] = useState('');
+  const [categoryId, setCategoryId] = useState('');
   const [condition, setCondition] = useState<'Brand New' | 'Like New' | 'Good' | 'Fair'>('Like New');
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
   const [location, setLocation] = useState('');
   const [interestedInExchange, setInterestedInExchange] = useState(false);
   const [isNegotiable, setIsNegotiable] = useState(false);
+  // Tracks whether the edit form has been prefilled from initialProduct yet,
+  // so the category-defaulting effect below doesn't stomp on it and so we
+  // don't re-apply stale values if the product reference changes identity.
+  const [prefilledFor, setPrefilledFor] = useState<string | null>(null);
+
+  // Edit mode: prefill the form once the listing has loaded. Runs again if a
+  // different listingId's product arrives (e.g. navigating between edit pages).
+  useEffect(() => {
+    if (!isEditMode || !initialProduct || prefilledFor === initialProduct.id) return;
+    setTitle(initialProduct.title);
+    setDescription(initialProduct.description);
+    setPrice(String(initialProduct.price));
+    setLocation(initialProduct.location);
+    setCondition(normaliseConditionLabel(initialProduct.condition));
+    setImages(initialProduct.images || []);
+    setCategory(initialProduct.category);
+    // Product.category is a display name (see normaliseProduct) - resolve it
+    // back to the real UUID the API needs once categories have loaded.
+    const matched = categories.find((c) => c.name === initialProduct.category);
+    if (matched) setCategoryId(matched.id);
+    setPrefilledFor(initialProduct.id);
+  }, [isEditMode, initialProduct, categories, prefilledFor]);
 
   const steps = [
     { num: 1, label: 'Add Photos' },
@@ -95,6 +141,22 @@ export default function SellFlowView() {
     setImages((prev) => prev.filter((_, idx) => idx !== index));
   };
 
+  // Default to the first real category once loaded, if nothing picked yet.
+  // Skipped in edit mode until the listing itself has been prefilled, so this
+  // doesn't briefly flash/overwrite the listing's real category on load.
+  React.useEffect(() => {
+    if (isEditMode && !prefilledFor) return;
+    if (!categoryId && categories.length > 0) {
+      setCategory(categories[0].name);
+      setCategoryId(categories[0].id);
+    }
+  }, [categories, categoryId, isEditMode, prefilledFor]);
+
+  const handleSelectCategory = (name: string) => {
+    setCategory(name);
+    setCategoryId(categories.find((c) => c.name === name)?.id || '');
+  };
+
   const resetForm = () => {
     setTitle('');
     setDescription('');
@@ -102,7 +164,8 @@ export default function SellFlowView() {
     setLocation('');
     setImages([]);
     setStep(1);
-    setCategory('Mobiles');
+    setCategory(categories[0]?.name || '');
+    setCategoryId(categories[0]?.id || '');
     setCondition('Like New');
   };
 
@@ -140,6 +203,11 @@ export default function SellFlowView() {
         return;
       }
 
+      if (!categoryId) {
+        dispatch(showToast('Please choose a category before publishing.'));
+        return;
+      }
+
       if (isSubmitting) return;
       setIsSubmitting(true);
 
@@ -151,10 +219,31 @@ export default function SellFlowView() {
               'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?q=80&w=800&auto=format&fit=crop',
             ];
 
+      if (isEditMode && listingId) {
+        dispatch(
+          updateProductThunk({
+            id: listingId,
+            payload: { title, categoryId, description, price: parsedPrice, location, condition },
+          })
+        )
+          .unwrap()
+          .then(() => {
+            setIsSubmitting(false);
+            dispatch(showToast('Listing updated! 🎉'));
+            dispatch(fetchMyAdsThunk());
+            router.push(ROUTES.LISTING_DETAIL(listingId));
+          })
+          .catch((err) => {
+            setIsSubmitting(false);
+            dispatch(showToast(typeof err === 'string' ? err : 'Failed to update listing'));
+          });
+        return;
+      }
+
       dispatch(
         createProductThunk({
           title,
-          category,
+          categoryId,
           description,
           price: parsedPrice,
           location,
@@ -181,10 +270,32 @@ export default function SellFlowView() {
   const handleBack = () => {
     if (step > 1) {
       setStep((step - 1) as 1 | 2 | 3 | 4);
+    } else if (isEditMode && listingId) {
+      // This is a standalone route (/listing/[id]/edit), not part of the
+      // tab-based navigation the create flow lives in - route back directly.
+      router.push(ROUTES.LISTING_DETAIL(listingId));
     } else {
       dispatch(setActiveTab('home'));
     }
   };
+
+  if (isEditMode && initialProduct === undefined) {
+    return (
+      <div className="max-w-3xl mx-auto bg-white p-10 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center gap-3 text-slate-500">
+        <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
+        <span className="text-xs font-semibold">Loading listing...</span>
+      </div>
+    );
+  }
+
+  if (isEditMode && initialProduct === null) {
+    return (
+      <div className="max-w-3xl mx-auto bg-white p-10 rounded-3xl border border-slate-100 shadow-sm text-center space-y-2">
+        <p className="text-sm font-bold text-slate-800">Listing not found</p>
+        <p className="text-xs text-slate-500">It may have been removed, or you don't have access to edit it.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 animate-in fade-in duration-300">
@@ -200,7 +311,7 @@ export default function SellFlowView() {
 
       {/* Step Header Indicator */}
       <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
-        <h1 className="text-2xl font-black text-slate-900">Post an Ad</h1>
+        <h1 className="text-2xl font-black text-slate-900">{isEditMode ? 'Edit Listing' : 'Post an Ad'}</h1>
 
         <div className="grid grid-cols-4 gap-2">
           {steps.map((s) => (
@@ -284,9 +395,9 @@ export default function SellFlowView() {
 
           <CustomSelect
             label="Category"
-            options={['Mobiles', 'Vehicles', 'Electronics', 'Home & Living', 'Property', 'Fashion', 'Jobs', 'Services']}
+            options={categories.map((c) => c.name)}
             value={category}
-            onChange={setCategory}
+            onChange={handleSelectCategory}
           />
 
           <div>
@@ -390,7 +501,7 @@ export default function SellFlowView() {
       {/* Step 4: Preview */}
       {step === 4 && (
         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
-          <h2 className="text-lg font-bold text-slate-900">Review & Publish</h2>
+          <h2 className="text-lg font-bold text-slate-900">{isEditMode ? 'Review & Save Changes' : 'Review & Publish'}</h2>
 
           <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200 flex flex-col sm:flex-row gap-4">
             {images.length > 0 ? (
@@ -441,11 +552,11 @@ export default function SellFlowView() {
           {isSubmitting ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
-              <span>Publishing...</span>
+              <span>{isEditMode ? 'Saving...' : 'Publishing...'}</span>
             </>
           ) : (
             <>
-              <span>{step === 4 ? 'Publish Ad' : 'Next'}</span>
+              <span>{step === 4 ? (isEditMode ? 'Save Changes' : 'Publish Ad') : 'Next'}</span>
               <ArrowRight className="w-4 h-4" />
             </>
           )}

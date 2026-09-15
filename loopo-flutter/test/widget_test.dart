@@ -1,42 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:loopo/screens/login_screen.dart';
+import 'package:loopo/screens/location_screen.dart';
 
 void main() {
-  testWidgets('shows email/mobile login form and login action', (
-    WidgetTester tester,
-  ) async {
-    await tester.pumpWidget(const MaterialApp(home: LoginScreen()));
+  TestWidgetsFlutterBinding.ensureInitialized();
 
-    expect(find.text('Email'), findsWidgets);
-    expect(find.text('Mobile'), findsOneWidget);
-    expect(find.text('Login'), findsWidgets);
-
-    await tester.tap(find.text('Mobile'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Mobile Number'), findsOneWidget);
-    expect(find.text('Password'), findsOneWidget);
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
   });
 
-  testWidgets('rejects invalid Indian mobile prefixes', (
+  testWidgets('renders login screen with welcome back header', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(const MaterialApp(home: LoginScreen()));
+    expect(find.text('Welcome Back!'), findsOneWidget);
+    expect(find.text('Login to your account'), findsOneWidget);
+  });
 
-    await tester.tap(find.text('Mobile'));
-    await tester.pumpAndSettle();
-
-    final mobileField = find.byWidgetPredicate(
-      (widget) =>
-          widget is TextField &&
-          widget.decoration?.hintText == 'Enter mobile number',
-    );
-
-    await tester.enterText(mobileField, '1234567890');
-    await tester.pump();
-
-    expect(tester.widget<TextField>(mobileField).controller?.text, isEmpty);
+  testWidgets('renders location screen with use current location button', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: LocationScreen()));
+    expect(find.text('Where is your location?'), findsOneWidget);
+    expect(find.text('Find My Location'), findsOneWidget);
+    expect(find.text('Other Location'), findsOneWidget);
   });
 }

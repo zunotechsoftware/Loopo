@@ -6,6 +6,7 @@ import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { createProductThunk } from '@/redux/slices/productsSlice';
 import { setPublishedListingId, setSubmitting, resetSellForm } from '@/redux/slices/sellSlice';
 import { showToast } from '@/redux/slices/uiSlice';
+import { productsApi } from '@/services/productsApi';
 import { ROUTES } from '@/routes/routes';
 import { ArrowLeft, CheckCircle2, Loader2, Edit3, MapPin, Tag, ShieldCheck } from 'lucide-react';
 
@@ -17,6 +18,11 @@ export default function SellPreviewPage() {
   const primaryImage = formData.images[formData.primaryImageIndex] || formData.images[0] || 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?q=80&w=800&auto=format&fit=crop';
 
   const handlePublish = async () => {
+    if (!formData.categoryId) {
+      dispatch(showToast('Please choose a category before publishing.'));
+      router.push(ROUTES.SELL_CATEGORY);
+      return;
+    }
     dispatch(setSubmitting(true));
     try {
       const priceNum = Number(formData.price) || 5000;
@@ -25,22 +31,43 @@ export default function SellPreviewPage() {
           title: formData.title || 'Pre-loved Item',
           description: formData.description || 'Great condition item for sale.',
           price: priceNum,
-          category: formData.category || 'Mobiles',
+          categoryId: formData.categoryId,
           condition: formData.condition || 'Like New',
-          location: `${formData.area}, ${formData.city}`,
+          location: `${formData.area || 'Indiranagar'}, ${formData.city || 'Bangalore'}`,
           images: formData.images.length > 0 ? formData.images : [primaryImage],
         })
       );
 
-      const listingId = createProductThunk.fulfilled.match(res) ? res.payload?.id || 'prod-' + Date.now() : 'prod-' + Date.now();
-      dispatch(setPublishedListingId(listingId));
-      dispatch(showToast('Listing published successfully!'));
-      router.push(ROUTES.SELL_SUCCESS);
+      if (createProductThunk.fulfilled.match(res)) {
+        const listingId = res.payload?.id || 'prod-' + Date.now();
+        dispatch(setPublishedListingId(listingId));
+
+        // Photos were only ever kept in Redux as data URLs and never
+        // actually sent anywhere - upload them now that the listing has a
+        // real id (the backend's media pipeline is per-listing: presign,
+        // PUT to S3, then register). Best-effort: a failed photo doesn't
+        // block the listing itself from being published.
+        if (formData.images.length > 0) {
+          const { failed } = await productsApi.uploadProductImages(listingId, formData.images);
+          if (failed > 0) {
+            dispatch(showToast(`Listing published, but ${failed} photo${failed > 1 ? 's' : ''} failed to upload.`));
+          }
+        }
+
+        dispatch(setSubmitting(false));
+        dispatch(showToast('Listing published successfully! 🎉'));
+        router.push(ROUTES.SELL_SUCCESS);
+      } else {
+        dispatch(setSubmitting(false));
+        const err = (res.payload as string) || 'Failed to publish listing. Please verify login.';
+        dispatch(showToast(err));
+      }
     } catch {
       dispatch(setSubmitting(false));
       dispatch(showToast('Failed to publish listing. Please try again.'));
     }
   };
+
 
   return (
     <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-6 animate-in fade-in duration-200">

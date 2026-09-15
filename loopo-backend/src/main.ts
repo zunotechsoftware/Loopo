@@ -29,11 +29,31 @@ async function bootstrap() {
   app.use(
     helmet({
       contentSecurityPolicy: false,
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
     }),
   );
 
+
+  // Reflecting any Origin (origin: true) is broader than necessary, but
+  // verified not to be a live CSRF/credential-theft vector: this app has no
+  // cookie-based auth anywhere (no cookie-parser, no res.cookie/Set-Cookie -
+  // pure Bearer-token auth), so a malicious page reflecting a victim's
+  // origin back can't ride along on an authenticated session the way it
+  // could with cookies. Still tightened to an explicit allowlist when one is
+  // configured, since "not currently exploitable" isn't the same as
+  // "intentionally scoped" - set CORS_ALLOWED_ORIGINS (comma-separated) to
+  // the real deployed frontend origins to opt in. Left permissive by
+  // default (unchanged behavior) rather than guessing at production
+  // domains this session has no way to verify - hardcoding a wrong or
+  // incomplete allowlist would silently break the real deployed frontend.
+  const allowedOrigins = configService
+    .get<string>('CORS_ALLOWED_ORIGINS', '')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+
   app.enableCors({
-    origin: true,
+    origin: allowedOrigins.length > 0 ? allowedOrigins : true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });

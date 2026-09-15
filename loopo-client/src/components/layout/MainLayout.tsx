@@ -12,7 +12,6 @@ import MobileBottomNav from '@/components/MobileBottomNav';
 import OfferModal from '@/components/ui/OfferModal';
 import ReportModal from '@/components/ui/ReportModal';
 import ReviewModal from '@/components/ui/ReviewModal';
-import KycModal from '@/components/ui/KycModal';
 import AddressModal from '@/components/ui/AddressModal';
 import AuthModal from '@/components/ui/AuthModal';
 
@@ -116,7 +115,6 @@ export default function MainLayout({ children }: MainLayoutProps) {
       <OfferModal />
       <ReportModal />
       <ReviewModal />
-      <KycModal />
       <AddressModal />
       <AuthModal />
 

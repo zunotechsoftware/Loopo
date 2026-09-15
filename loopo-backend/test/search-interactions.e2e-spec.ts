@@ -4,6 +4,10 @@ import request from 'supertest';
 import { AppModule } from './../src/app.module';
 import { PrismaService } from './../src/shared/database/prisma.service';
 import { getQueueToken } from '@nestjs/bullmq';
+import { EmailProcessor } from './../src/shared/queues/processors/email.processor';
+import { SmsProcessor } from './../src/shared/queues/processors/sms.processor';
+import { NotificationProcessor } from './../src/shared/queues/processors/notification.processor';
+import { ProfileImageProcessingProcessor } from './../src/shared/queues/processors/profile-image-processing.processor';
 import { RedisService } from './../src/shared/redis/redis.service';
 import { TransformInterceptor } from './../src/shared/common/interceptors/transform.interceptor';
 import { AllExceptionsFilter } from './../src/shared/common/exceptions/all-exceptions.filter';
@@ -39,24 +43,24 @@ describe('Search & Interactions Integration (e2e)', () => {
       .useValue(mockQueue)
       .overrideProvider(getQueueToken('profile-image-processing'))
       .useValue(mockQueue)
-      .overrideProvider(getQueueToken('image-compression'))
-      .useValue(mockQueue)
-      .overrideProvider(getQueueToken('thumbnail-generation'))
-      .useValue(mockQueue)
-      .overrideProvider(getQueueToken('product-expiration'))
-      .useValue(mockQueue)
-      .overrideProvider(getQueueToken('search-index-update'))
-      .useValue(mockQueue)
-      .overrideProvider(getQueueToken('view-counter-sync'))
-      .useValue(mockQueue)
-      .overrideProvider(getQueueToken('search-analytics'))
-      .useValue(mockQueue)
-      .overrideProvider(getQueueToken('trending-calculation'))
-      .useValue(mockQueue)
-      .overrideProvider(getQueueToken('recommendation-refresh'))
-      .useValue(mockQueue)
-      .overrideProvider(getQueueToken('cache-refresh'))
-      .useValue(mockQueue)
+      // Deliberately not mocking the other ~9 queues used by this flow
+      // (image-compression, thumbnail-generation, product-expiration,
+      // search-index-update, view-counter-sync, search-analytics,
+      // trending-calculation, recommendation-refresh, cache-refresh):
+      // overriding a queue token replaces the real BullMQ Queue instance,
+      // but @nestjs/bullmq still registers a real Worker for that queue's
+      // @Processor() class at module init, and that registration reads its
+      // connection info from the (now-fake) Queue instance - so it fails
+      // with "Worker requires a connection". A real Redis is reachable here,
+      // so it's simpler and safer to just let these run for real.
+      .overrideProvider(EmailProcessor)
+      .useValue({})
+      .overrideProvider(SmsProcessor)
+      .useValue({})
+      .overrideProvider(NotificationProcessor)
+      .useValue({})
+      .overrideProvider(ProfileImageProcessingProcessor)
+      .useValue({})
       .overrideProvider(RedisService)
       .useValue(mockRedisService)
       .compile();

@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
+import '../../services/location_service.dart';
 import 'sell_widgets.dart';
 import 'sell_flow_controller.dart';
 
@@ -31,8 +32,15 @@ class _LocationScreenState extends State<LocationScreen> {
   void initState() {
     super.initState();
     final d = widget.controller.data;
-    _selectedLocation = d.locationName;
-    _selectedAddress = d.locationAddress;
+    if (d.locationName != null && d.locationName!.isNotEmpty) {
+      _selectedLocation = d.locationName;
+      _selectedAddress = d.locationAddress;
+    } else {
+      final loc = LocationService();
+      _selectedLocation = loc.currentCity;
+      _selectedAddress = '${loc.currentCity}, ${loc.currentState}';
+      _syncToController(_selectedLocation!, _selectedAddress!, lat: loc.latitude, lng: loc.longitude);
+    }
   }
 
   @override
@@ -43,16 +51,21 @@ class _LocationScreenState extends State<LocationScreen> {
 
   Future<void> _detectCurrentLocation() async {
     setState(() => _isDetecting = true);
-    // Simulated delay – replace with geolocator
-    await Future.delayed(const Duration(seconds: 2));
+    final loc = await LocationService().detectCurrentLocation();
     if (!mounted) return;
+    final city = loc['city'] ?? 'Bangalore';
+    final state = loc['state'] ?? 'Karnataka';
+    final country = loc['country'] ?? 'India';
+    final address = '$city, $state, $country';
+    final lat = LocationService().latitude;
+    final lng = LocationService().longitude;
     setState(() {
       _isDetecting = false;
-      _selectedLocation = 'My Current Location';
-      _selectedAddress = 'Bengaluru, Karnataka';
+      _selectedLocation = city;
+      _selectedAddress = address;
       _locationError = null;
     });
-    _syncToController('My Current Location', 'Bengaluru, Karnataka');
+    _syncToController(city, address, lat: lat, lng: lng);
   }
 
   void _selectRecent(String name, String address) {
@@ -64,9 +77,11 @@ class _LocationScreenState extends State<LocationScreen> {
     _syncToController(name, address);
   }
 
-  void _syncToController(String name, String address) {
+  void _syncToController(String name, String address, {double? lat, double? lng}) {
     widget.controller.data.locationName = name;
     widget.controller.data.locationAddress = address;
+    if (lat != null) widget.controller.data.latitude = lat;
+    if (lng != null) widget.controller.data.longitude = lng;
   }
 
   bool _validate() {
@@ -133,9 +148,44 @@ class _LocationScreenState extends State<LocationScreen> {
                     hint: 'Search locality, area or city…',
                     controller: _searchCtrl,
                     onChanged: (v) {
-                      // TODO: integrate location search API
+                      setState(() {});
                     },
                   ),
+                  if (_searchCtrl.text.trim().isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    InkWell(
+                      onTap: () {
+                        final val = _searchCtrl.text.trim();
+                        _selectRecent(val, '$val, India');
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: AppColors.appGreen.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.appGreen.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.add_location_alt_outlined, color: AppColors.appGreen, size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Use "${_searchCtrl.text.trim()}"',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.appGreen,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                            const Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.appGreen),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                   if (_locationError != null) ...[
                     const SizedBox(height: 6),
                     Text(

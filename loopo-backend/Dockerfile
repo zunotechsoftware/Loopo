@@ -28,5 +28,26 @@ COPY --from=builder /app/prisma ./prisma
 
 EXPOSE 3000
 
-# Sync DB schema and start the application
-CMD ["sh", "-c", "npx prisma db push --accept-data-loss && node dist/src/main.js"]
+# Apply pending migrations and start the application.
+#
+# This was previously `prisma db push --accept-data-loss`, switched to
+# after `migrate deploy` hit a crash loop (P3005: "database schema is not
+# empty"). That happened because the database had been provisioned via
+# `db push`, not tracked migrations, so it had no _prisma_migrations
+# history for `migrate deploy` to reconcile against - `migrate deploy`
+# was correctly refusing to guess. `db push --accept-data-loss` "fixed"
+# the crash loop by sidestepping migrations entirely, but it runs on
+# every container start/restart and will SILENTLY apply destructive
+# schema changes (dropped/renamed columns) straight to production data
+# with no review, the moment any future schema.prisma change removes or
+# renames something.
+#
+# Fixed at the root instead: the database needs a one-time migration
+# baseline (`prisma migrate resolve --applied <migration>` for each
+# existing migration, after confirming zero schema drift via
+# `prisma migrate diff`) before this reverted command will work - see
+# agents/01-context/known-issues.md ("Dockerfile used db push in
+# production") for the exact one-time steps. Do this before/during the
+# next deploy with this image, or migrate deploy will crash-loop again
+# exactly like before.
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main.js"]

@@ -11,7 +11,7 @@ import { CurrentUser } from '../../../shared/common/decorators/current-user.deco
 @ApiTags('Admin - CMS')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
-@Controller('api/v1/admin/pages')
+@Controller('admin/pages')
 export class AdminCmsController {
   constructor(private readonly cmsService: AdminCmsService) {}
 

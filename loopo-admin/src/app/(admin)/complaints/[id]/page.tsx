@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  Box, Typography, Card, CardContent, Grid, Chip,
+  Box, Typography, Card, CardContent, Grid2 as Grid, Chip,
   Button, TextField, Avatar, Stack, Breadcrumbs, Link,
   Tabs, Tab, Divider, Dialog, DialogTitle, DialogContent,
   DialogActions, Snackbar, Alert, Tooltip, IconButton,
@@ -15,7 +15,7 @@ import {
   History, Security, SupportAgent, LocalShipping,
   Gavel, Download, Visibility, Close, Autorenew,
   AddComment, TaskAlt, HighlightOff, AccessTime,
-  Business, Payment, ErrorOutline, CheckCircleOutline
+  Business, Payment, ErrorOutline, CheckCircleOutline, Shield
 } from '@mui/icons-material';
 import { useRouter, useParams } from 'next/navigation';
 import { complaintsService } from '@/services/admin.service';

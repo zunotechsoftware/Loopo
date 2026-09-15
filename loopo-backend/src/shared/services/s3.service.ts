@@ -1,8 +1,27 @@
 import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { S3Client, PutObjectCommand, DeleteObjectCommand, CreateBucketCommand, HeadBucketCommand } from '@aws-sdk/client-s3';
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectCommand,
+  CreateBucketCommand,
+  HeadBucketCommand,
+  PutBucketPolicyCommand,
+} from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { randomUUID } from 'crypto';
+
+/**
+ * Media categories that are safe to serve as world-readable static assets
+ * (product listing photos/videos, profile & cover pictures). Every other
+ * category (KYC documents, chat attachments) MUST stay private and can only
+ * ever be read back via a freshly-generated, short-lived signed URL —
+ * never a stored permanent link. Category names double as the first path
+ * segment of every object key (see generatePresignedUploadUrl), which is
+ * what lets the bucket policy below scope public access by prefix.
+ */
+export const PUBLIC_MEDIA_CATEGORIES = ['PROFILE_IMAGE', 'COVER_IMAGE', 'listing_images', 'listing_videos'];
 
 @Injectable()
 export class S3Service implements OnModuleInit {
@@ -52,6 +71,106 @@ export class S3Service implements OnModuleInit {
         this.logger.error(`Failed to connect to storage bucket "${this.bucketName}":`, err);
       }
     }
+
+    await this.ensurePublicReadPolicy();
+  }
+
+  /**
+   * Buckets (both real S3 and MinIO) are private-by-default: nothing under
+   * them is publicly readable until a policy says otherwise. Scope public
+   * GET access to ONLY the public-media prefixes so listing/profile/cover
+   * images actually load in a browser, while KYC documents and chat
+   * attachments remain unreachable without a signed URL. This never touches
+   * remote/production infrastructure — it configures the bucket this
+   * service itself already owns (local MinIO in dev).
+   */
+  private async ensurePublicReadPolicy() {
+    const resources = PUBLIC_MEDIA_CATEGORIES.map((category) => `arn:aws:s3:::${this.bucketName}/${category}/*`);
+    const policy = {
+      Version: '2012-10-17',
+      Statement: [
+        {
+          Sid: 'PublicReadForPublicMediaCategoriesOnly',
+          Effect: 'Allow',
+          Principal: '*',
+          Action: ['s3:GetObject'],
+          Resource: resources,
+        },
+      ],
+    };
+
+    try {
+      await this.s3Client.send(
+        new PutBucketPolicyCommand({ Bucket: this.bucketName, Policy: JSON.stringify(policy) }),
+      );
+      this.logger.log(
+        `Public-read bucket policy applied for: ${PUBLIC_MEDIA_CATEGORIES.join(', ')}. All other categories (KYC, chat attachments) remain private and require signed URLs.`,
+      );
+    } catch (err) {
+      // Fail closed: if the policy can't be applied, files simply stay
+      // private (and public ones fall back to signed URLs via
+      // resolveReadUrl) rather than risking anything becoming exposed.
+      this.logger.error(`Failed to apply public-read bucket policy on "${this.bucketName}":`, err);
+    }
+  }
+
+  isPublicCategory(category: string): boolean {
+    return PUBLIC_MEDIA_CATEGORIES.includes(category);
+  }
+
+  /** The category is always the first path segment of a generated file key. */
+  categoryFromKey(fileKey: string): string {
+    return fileKey.split('/')[0];
+  }
+
+  /**
+   * Turns a stored file key back into a URL a client can actually load:
+   * a direct (bucket-policy-backed) URL for public categories, or a
+   * freshly-generated short-lived signed GET URL for everything private.
+   * Never persist the signed URL itself — always regenerate at read time.
+   */
+  async resolveReadUrl(fileKey: string, category?: string): Promise<string> {
+    const cat = category || this.categoryFromKey(fileKey);
+    if (this.isPublicCategory(cat)) {
+      const endpoint = this.configService.get<string>('S3_ENDPOINT', 'http://localhost:9000');
+      return endpoint
+        ? `${endpoint}/${this.bucketName}/${fileKey}`
+        : `https://${this.bucketName}.s3.amazonaws.com/${fileKey}`;
+    }
+    return this.getSignedReadUrl(fileKey);
+  }
+
+  /**
+   * Given a previously-stored direct S3/MinIO URL (e.g. chat attachments,
+   * which are keyed by URL rather than a MediaFile row), extracts the
+   * object key so it can be re-resolved via resolveReadUrl. Returns null
+   * if the URL doesn't point into our own bucket.
+   */
+  extractKeyFromUrl(url: string): string | null {
+    if (!url) return null;
+    const marker = `/${this.bucketName}/`;
+    const idx = url.indexOf(marker);
+    if (idx === -1) return null;
+    try {
+      return decodeURIComponent(url.slice(idx + marker.length));
+    } catch {
+      return url.slice(idx + marker.length);
+    }
+  }
+
+  /** Convenience wrapper: re-resolves a stored URL, signing it if private. */
+  async resolveUrlForDisplay(url: string): Promise<string> {
+    const key = this.extractKeyFromUrl(url);
+    if (!key) return url; // not one of our objects — leave untouched
+    return this.resolveReadUrl(key);
+  }
+
+  async getSignedReadUrl(fileKey: string, expiresIn = 900): Promise<string> {
+    const command = new GetObjectCommand({
+      Bucket: this.bucketName,
+      Key: fileKey,
+    });
+    return getSignedUrl(this.s3Client, command, { expiresIn });
   }
 
   async generatePresignedUploadUrl(

@@ -6,6 +6,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import {
   Search,
   MapPin,
+  Navigation,
   MessageSquare,
   Bell,
   Heart,
@@ -22,9 +23,12 @@ import {
   ShieldAlert,
   PlusCircle,
 } from 'lucide-react';
+
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { setSearchQuery } from '@/redux/slices/productsSlice';
-import { setLocation, showToast } from '@/redux/slices/uiSlice';
+import { setLocation, setLocationData, showToast, setAuthModalOpen } from '@/redux/slices/uiSlice';
+
+
 import { logout } from '@/redux/slices/authSlice';
 import { useDebounce } from '@/hooks/useDebounce';
 import { ROUTES } from '@/routes/routes';
@@ -212,7 +216,58 @@ export default function Header() {
             </button>
 
             {showLocationDropdown && (
-              <div className="absolute right-0 top-9 w-52 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+              <div className="absolute right-0 top-9 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+                {/* Use Current Location */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowLocationDropdown(false);
+                    if ('geolocation' in navigator) {
+                      navigator.geolocation.getCurrentPosition(
+                        async (pos) => {
+                          try {
+                            const res = await fetch(`https://ipapi.co/${pos.coords.latitude},${pos.coords.longitude}/json/`).catch(() => null);
+                            // Fallback: use IP-based geolocation
+                            const ipRes = await fetch('https://ipapi.co/json/').then(r => r.json()).catch(() => null);
+                            const city = ipRes?.city || 'Bangalore';
+                            const state = ipRes?.region || 'Karnataka';
+                            const country = ipRes?.country_name || 'India';
+                            dispatch(setLocationData({
+                              displayName: `${city}, ${state}`,
+                              city, state, country,
+                              latitude: pos.coords.latitude,
+                              longitude: pos.coords.longitude,
+                            }));
+                            dispatch(showToast(`📍 Location detected: ${city}, ${state}`));
+                          } catch {
+                            dispatch(showToast('Could not detect location. Please select manually.'));
+                          }
+                        },
+                        () => {
+                          // GPS denied — try IP fallback
+                          fetch('https://ipapi.co/json/').then(r => r.json()).then(ipRes => {
+                            const city = ipRes?.city || 'Bangalore';
+                            const state = ipRes?.region || 'Karnataka';
+                            dispatch(setLocationData({
+                              displayName: `${city}, ${state}`,
+                              city, state, country: ipRes?.country_name || 'India',
+                            }));
+                            dispatch(showToast(`📍 Location detected via IP: ${city}, ${state}`));
+                          }).catch(() => {
+                            dispatch(showToast('Could not detect location. Please select manually.'));
+                          });
+                        },
+                        { timeout: 5000 }
+                      );
+                    } else {
+                      dispatch(showToast('Geolocation not supported. Please select manually.'));
+                    }
+                  }}
+                  className="w-full text-left px-3 py-2.5 text-xs font-bold text-emerald-600 hover:bg-emerald-50 transition-colors flex items-center gap-2 border-b border-slate-100 mb-1"
+                >
+                  <Navigation className="w-3.5 h-3.5" />
+                  <span>Use Current Location</span>
+                </button>
                 <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                   Popular Locations
                 </div>
@@ -235,6 +290,7 @@ export default function Header() {
               </div>
             )}
           </div>
+
 
           <button
             type="submit"
@@ -329,6 +385,13 @@ export default function Header() {
           {/* Primary CTA: SELL */}
           <Link
             href={ROUTES.SELL}
+            onClick={(e) => {
+              if (!isAuthenticated) {
+                e.preventDefault();
+                dispatch(setAuthModalOpen(true));
+                dispatch(showToast('Please log in to post your ad'));
+              }
+            }}
             className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold text-xs px-4 py-2.5 rounded-full shadow-md shadow-emerald-500/20 transition-all"
           >
             <PlusCircle className="w-4 h-4" />
@@ -338,6 +401,13 @@ export default function Header() {
           {/* Messages Icon */}
           <Link
             href={ROUTES.CHATS}
+            onClick={(e) => {
+              if (!isAuthenticated) {
+                e.preventDefault();
+                dispatch(setAuthModalOpen(true));
+                dispatch(showToast('Please log in to view your messages'));
+              }
+            }}
             className={`relative p-2.5 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors ${
               pathname.startsWith(ROUTES.CHATS) ? 'bg-emerald-50 text-emerald-600' : ''
             }`}
@@ -354,6 +424,13 @@ export default function Header() {
           {/* Notifications Bell */}
           <Link
             href={ROUTES.NOTIFICATIONS}
+            onClick={(e) => {
+              if (!isAuthenticated) {
+                e.preventDefault();
+                dispatch(setAuthModalOpen(true));
+                dispatch(showToast('Please log in to view notifications'));
+              }
+            }}
             className={`relative p-2.5 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors ${
               pathname === ROUTES.NOTIFICATIONS ? 'bg-emerald-50 text-emerald-600' : ''
             }`}
@@ -370,6 +447,13 @@ export default function Header() {
           {/* Favorites */}
           <Link
             href={ROUTES.FAVOURITES}
+            onClick={(e) => {
+              if (!isAuthenticated) {
+                e.preventDefault();
+                dispatch(setAuthModalOpen(true));
+                dispatch(showToast('Please log in to view saved items'));
+              }
+            }}
             className={`relative p-2.5 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors hidden md:flex ${
               pathname === ROUTES.FAVOURITES ? 'bg-emerald-50 text-emerald-600' : ''
             }`}
@@ -383,6 +467,7 @@ export default function Header() {
             )}
           </Link>
 
+
           {/* Profile Menu or Login */}
           {isAuthenticated && user ? (
             <div className="relative">
@@ -391,11 +476,20 @@ export default function Header() {
                 onClick={() => setShowProfileDropdown(!showProfileDropdown)}
                 className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-slate-50 border border-slate-200/80 hover:bg-slate-100 transition-colors"
               >
-                <img
-                  src={user.avatar}
-                  alt={user.name}
-                  className="w-7 h-7 rounded-full object-cover ring-1 ring-emerald-500/50"
-                />
+                {user.avatar ? (
+                  <img
+                    src={user.avatar}
+                    alt={user.name}
+                    className="w-7 h-7 rounded-full object-cover ring-1 ring-emerald-500/50"
+                  />
+                ) : (
+                  <div
+                    className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-700 ring-1 ring-emerald-500/50 flex items-center justify-center text-xs font-bold"
+                    aria-label={user.name}
+                  >
+                    {(user.name || '?').trim().charAt(0).toUpperCase()}
+                  </div>
+                )}
                 <div className="text-left hidden xl:block">
                   <div className="text-xs font-bold text-slate-800 leading-tight">{user.name}</div>
                   <div className="text-[10px] font-medium text-emerald-600">

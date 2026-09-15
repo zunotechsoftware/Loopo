@@ -10,14 +10,37 @@ export class RazorpayProvider implements IPaymentProvider {
   private razorpay: Razorpay;
   private keySecret: string;
   private webhookSecret: string;
+  /** True when no real Razorpay credentials are configured. */
+  private readonly isMock: boolean;
+  private readonly isProduction: boolean;
 
   constructor(private readonly configService: ConfigService) {
-    const keyId = this.configService.get<string>('RAZORPAY_KEY_ID') || 'rzp_test_placeholder';
-    this.keySecret = this.configService.get<string>('RAZORPAY_KEY_SECRET') || 'secret_placeholder';
+    const keyId = this.configService.get<string>('RAZORPAY_KEY_ID');
+    const keySecret = this.configService.get<string>('RAZORPAY_KEY_SECRET');
+    this.isMock = !keyId || !keySecret;
+    this.isProduction = this.configService.get<string>('NODE_ENV') === 'production';
+
+    if (this.isMock && this.isProduction) {
+      // Don't throw here: Razorpay is one of several payment providers (see
+      // payment-provider.factory.ts) and this class is eagerly constructed
+      // by Nest's DI at app bootstrap regardless of whether any request ever
+      // uses it. Throwing would crash the entire backend over one optional,
+      // unconfigured payment gateway. Every method below fails closed
+      // instead (see the isMock checks) - keySecret also doubles as the HMAC
+      // key for verifyPayment's signature check, so simulating success here
+      // would let anyone forge a "payment succeeded" signature.
+      this.logger.error(
+        'RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET are not configured in production. Razorpay payments will fail closed until this is set.',
+      );
+    } else if (this.isMock) {
+      this.logger.warn('Razorpay credentials not configured — RazorpayProvider running in simulated mode.');
+    }
+
+    this.keySecret = keySecret || '';
     this.webhookSecret = this.configService.get<string>('RAZORPAY_WEBHOOK_SECRET') || '';
 
     this.razorpay = new Razorpay({
-      key_id: keyId,
+      key_id: keyId || 'rzp_test_placeholder',
       key_secret: this.keySecret,
     });
   }
@@ -27,6 +50,20 @@ export class RazorpayProvider implements IPaymentProvider {
     currency: string,
     metadata: Record<string, any>,
   ): Promise<PaymentProviderResponse> {
+    if (this.isMock) {
+      if (this.isProduction) {
+        this.logger.error('Refusing to create a Razorpay order in production: credentials not configured.');
+        return { success: false, status: 'FAILED', rawResponse: { error: 'Razorpay is not configured' } };
+      }
+      this.logger.warn('Razorpay credentials not configured. Returning simulated order.');
+      return {
+        success: true,
+        providerOrderId: `order_mock_${Date.now()}`,
+        status: 'PENDING',
+        rawResponse: { simulated: true },
+      };
+    }
+
     try {
       this.logger.log(`Creating Razorpay Order for amount: ${amount} ${currency}`);
       // Razorpay expects amount in paise
@@ -60,6 +97,26 @@ export class RazorpayProvider implements IPaymentProvider {
     providerOrderId: string,
     signature?: string,
   ): Promise<PaymentProviderResponse> {
+    // Deliberately not keying off providerOrderId.startsWith('order_mock_'):
+    // providerOrderId is client-supplied (see payments.service.ts.verifyPayment,
+    // which forwards dto.providerOrderId from the request body), so trusting
+    // its prefix would let anyone bypass real signature verification just by
+    // sending a fake 'order_mock_...' id, even with real credentials configured.
+    if (this.isMock) {
+      if (this.isProduction) {
+        this.logger.error('Refusing to verify a Razorpay payment in production: credentials not configured.');
+        return { success: false, status: 'FAILED', rawResponse: { error: 'Razorpay is not configured' } };
+      }
+      this.logger.warn('Razorpay credentials not configured. Returning simulated verification.');
+      return {
+        success: true,
+        providerPaymentId,
+        providerOrderId,
+        status: 'SUCCESS',
+        rawResponse: { simulated: true },
+      };
+    }
+
     try {
       this.logger.log(`Verifying Razorpay signature - Order ID: ${providerOrderId}, Payment ID: ${providerPaymentId}`);
 
@@ -129,6 +186,20 @@ export class RazorpayProvider implements IPaymentProvider {
     amount: number,
     reason?: string,
   ): Promise<RefundProviderResponse> {
+    if (this.isMock) {
+      if (this.isProduction) {
+        this.logger.error('Refusing to refund a Razorpay payment in production: credentials not configured.');
+        return { success: false, status: 'FAILED', rawResponse: { error: 'Razorpay is not configured' } };
+      }
+      this.logger.warn('Razorpay credentials not configured. Returning simulated refund.');
+      return {
+        success: true,
+        providerRefundId: `refund_mock_${Date.now()}`,
+        status: 'SUCCESS',
+        rawResponse: { simulated: true },
+      };
+    }
+
     try {
       this.logger.log(`Refunding Razorpay Payment: ${providerPaymentId}, Amount: ${amount}`);
       const refund = await this.razorpay.payments.refund(providerPaymentId, {
@@ -157,7 +228,9 @@ export class RazorpayProvider implements IPaymentProvider {
     headers: Record<string, any>,
     secret: string,
   ): boolean {
-    const bypass = this.configService.get<string>('BYPASS_WEBHOOK_SIGNATURE_FOR_TESTING') === 'true';
+    const bypass =
+      this.configService.get<string>('BYPASS_WEBHOOK_SIGNATURE_FOR_TESTING') === 'true' &&
+      this.configService.get<string>('NODE_ENV') !== 'production';
     if (bypass) {
       this.logger.warn('Bypassing Razorpay webhook signature verification for testing purposes');
       return true;
@@ -168,6 +241,12 @@ export class RazorpayProvider implements IPaymentProvider {
       if (!signature) return false;
 
       const verifySecret = secret || this.webhookSecret;
+      if (!verifySecret) {
+        // No configured secret to verify against — reject rather than HMAC
+        // with an empty key, which anyone could reproduce.
+        this.logger.error('Razorpay webhook secret not configured; rejecting webhook');
+        return false;
+      }
       const expectedSignature = crypto
         .createHmac('sha256', verifySecret)
         .update(rawBody)

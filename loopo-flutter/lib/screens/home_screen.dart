@@ -143,6 +143,7 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void initState() {
     super.initState();
+    _locationService.addListener(_onLocationChanged);
     _loadCategories();
     _detectLocationOnLaunch();
     _bannerController = AnimationController(
@@ -157,7 +158,14 @@ class _HomeScreenState extends State<HomeScreen>
     _bannerController.forward();
   }
 
+  void _onLocationChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
   Future<void> _detectLocationOnLaunch() async {
+    if (_locationService.hasSavedLocation) return;
     setState(() => _isDetectingLocation = true);
     await _locationService.detectCurrentLocation();
     if (mounted) {
@@ -167,6 +175,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   void dispose() {
+    _locationService.removeListener(_onLocationChanged);
     _bannerController.dispose();
     super.dispose();
   }

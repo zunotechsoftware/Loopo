@@ -1,7 +1,17 @@
 // ─── Step 2 – Category Selection ─────────────────────────────────────────────
+//
+// Previously rendered a fully hardcoded category tree with fake string ids
+// ('electronics', 'vehicles', ...) instead of real backend UUIDs. Since the
+// backend's CreateProductDto requires categoryId to be a real @IsUUID(),
+// every listing submitted through this screen failed validation - this was
+// the Flutter side of the same bug found and fixed in loopo-client's sell
+// flow (see agents/01-context/known-issues.md). Now fetches the real
+// category tree from GET /categories/tree via CategoryService (the same
+// service categories_screen.dart already uses successfully).
 
 import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
+import '../../services/category_service.dart';
 import 'sell_widgets.dart';
 import 'sell_flow_controller.dart';
 
@@ -32,109 +42,54 @@ class _CategoryNode {
   });
 }
 
-const _categoryTree = [
-  _CategoryNode(
-    id: 'electronics',
-    label: 'Electronics',
-    icon: Icons.devices_rounded,
-    iconColor: Color(0xFF1E88E5),
-    bgColor: Color(0xFFEFF6FF),
-    subcategories: [
-      _SubCategory(id: 'mobile_phones', label: 'Mobile Phones'),
-      _SubCategory(id: 'laptops', label: 'Laptops'),
-      _SubCategory(id: 'tablets', label: 'Tablets'),
-      _SubCategory(id: 'cameras', label: 'Cameras'),
-      _SubCategory(id: 'tv_audio', label: 'TV & Audio'),
-      _SubCategory(id: 'accessories', label: 'Accessories'),
-    ],
-  ),
-  _CategoryNode(
-    id: 'vehicles',
-    label: 'Vehicles',
-    icon: Icons.directions_car_rounded,
-    iconColor: Color(0xFFF59E0B),
-    bgColor: Color(0xFFFFFBEB),
-    subcategories: [
-      _SubCategory(id: 'cars', label: 'Cars'),
-      _SubCategory(id: 'motorcycles', label: 'Motorcycles'),
-      _SubCategory(id: 'scooters', label: 'Scooters'),
-      _SubCategory(id: 'trucks', label: 'Trucks & Buses'),
-      _SubCategory(id: 'bicycles', label: 'Bicycles'),
-      _SubCategory(id: 'boats', label: 'Boats'),
-    ],
-  ),
-  _CategoryNode(
-    id: 'property',
-    label: 'Property',
-    icon: Icons.apartment_rounded,
-    iconColor: Color(0xFF059669),
-    bgColor: Color(0xFFECFDF5),
-    subcategories: [
-      _SubCategory(id: 'flats', label: 'Flats & Apartments'),
-      _SubCategory(id: 'houses', label: 'Houses & Villas'),
-      _SubCategory(id: 'commercial', label: 'Commercial Spaces'),
-      _SubCategory(id: 'land', label: 'Land & Plots'),
-      _SubCategory(id: 'pg', label: 'PG & Hostels'),
-    ],
-  ),
-  _CategoryNode(
-    id: 'fashion',
-    label: 'Fashion',
-    icon: Icons.checkroom_rounded,
-    iconColor: Color(0xFFEC4899),
-    bgColor: Color(0xFFFDF2F8),
-    subcategories: [
-      _SubCategory(id: 'mens', label: "Men's Clothing"),
-      _SubCategory(id: 'womens', label: "Women's Clothing"),
-      _SubCategory(id: 'kids', label: "Kids' Clothing"),
-      _SubCategory(id: 'footwear', label: 'Footwear'),
-      _SubCategory(id: 'bags', label: 'Bags & Wallets'),
-      _SubCategory(id: 'jewellery', label: 'Jewellery'),
-    ],
-  ),
-  _CategoryNode(
-    id: 'furniture',
-    label: 'Furniture',
-    icon: Icons.chair_rounded,
-    iconColor: Color(0xFF92400E),
-    bgColor: Color(0xFFFEF3C7),
-    subcategories: [
-      _SubCategory(id: 'sofa', label: 'Sofas & Chairs'),
-      _SubCategory(id: 'bed', label: 'Beds & Wardrobes'),
-      _SubCategory(id: 'dining', label: 'Dining Tables'),
-      _SubCategory(id: 'office_furniture', label: 'Office Furniture'),
-      _SubCategory(id: 'kids_furniture', label: "Kids' Furniture"),
-    ],
-  ),
-  _CategoryNode(
-    id: 'books',
-    label: 'Books',
-    icon: Icons.menu_book_rounded,
-    iconColor: Color(0xFF0284C7),
-    bgColor: Color(0xFFE0F2FE),
-    subcategories: [
-      _SubCategory(id: 'textbooks', label: 'Textbooks'),
-      _SubCategory(id: 'novels', label: 'Novels & Fiction'),
-      _SubCategory(id: 'comics', label: 'Comics'),
-      _SubCategory(id: 'magazines', label: 'Magazines'),
-      _SubCategory(id: 'self_help', label: 'Self-Help'),
-    ],
-  ),
-  _CategoryNode(
-    id: 'services',
-    label: 'Services',
-    icon: Icons.home_repair_service_rounded,
-    iconColor: Color(0xFF16A34A),
-    bgColor: Color(0xFFF0FDF4),
-    subcategories: [
-      _SubCategory(id: 'tutoring', label: 'Tutoring & Classes'),
-      _SubCategory(id: 'repairs', label: 'Repairs & Home'),
-      _SubCategory(id: 'events', label: 'Events & Entertainment'),
-      _SubCategory(id: 'health', label: 'Health & Wellness'),
-      _SubCategory(id: 'it_services', label: 'IT & Tech Services'),
-    ],
-  ),
-];
+// Real categories don't carry an icon/color from the backend, so both are
+// picked by matching on the category's real name, with a generic fallback.
+const _fallbackIcon = Icons.category_rounded;
+const _fallbackIconColor = Color(0xFF64748B);
+const _fallbackBgColor = Color(0xFFF1F5F9);
+
+({IconData icon, Color iconColor, Color bgColor}) _styleForCategory(String name) {
+  final key = name.toLowerCase();
+  if (key.contains('mobile') || key.contains('phone') || key.contains('electronic')) {
+    return (icon: Icons.devices_rounded, iconColor: const Color(0xFF1E88E5), bgColor: const Color(0xFFEFF6FF));
+  }
+  if (key.contains('vehicle') || key.contains('car') || key.contains('bike')) {
+    return (icon: Icons.directions_car_rounded, iconColor: const Color(0xFFF59E0B), bgColor: const Color(0xFFFFFBEB));
+  }
+  if (key.contains('propert') || key.contains('home') || key.contains('living')) {
+    return (icon: Icons.apartment_rounded, iconColor: const Color(0xFF059669), bgColor: const Color(0xFFECFDF5));
+  }
+  if (key.contains('fashion') || key.contains('cloth')) {
+    return (icon: Icons.checkroom_rounded, iconColor: const Color(0xFFEC4899), bgColor: const Color(0xFFFDF2F8));
+  }
+  if (key.contains('furniture')) {
+    return (icon: Icons.chair_rounded, iconColor: const Color(0xFF92400E), bgColor: const Color(0xFFFEF3C7));
+  }
+  if (key.contains('book')) {
+    return (icon: Icons.menu_book_rounded, iconColor: const Color(0xFF0284C7), bgColor: const Color(0xFFE0F2FE));
+  }
+  if (key.contains('service')) {
+    return (icon: Icons.home_repair_service_rounded, iconColor: const Color(0xFF16A34A), bgColor: const Color(0xFFF0FDF4));
+  }
+  return (icon: _fallbackIcon, iconColor: _fallbackIconColor, bgColor: _fallbackBgColor);
+}
+
+List<_CategoryNode> _mapCategoryTree(List<dynamic> raw) {
+  return raw.map((c) {
+    final style = _styleForCategory((c['name'] ?? '').toString());
+    final children = (c['children'] as List<dynamic>? ?? [])
+        .map((s) => _SubCategory(id: (s['id'] ?? '').toString(), label: (s['name'] ?? '').toString()))
+        .toList();
+    return _CategoryNode(
+      id: (c['id'] ?? '').toString(),
+      label: (c['name'] ?? '').toString(),
+      icon: style.icon,
+      iconColor: style.iconColor,
+      bgColor: style.bgColor,
+      subcategories: children,
+    );
+  }).toList();
+}
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 
@@ -149,15 +104,39 @@ class CategorySelectionScreen extends StatefulWidget {
 }
 
 class _CategorySelectionScreenState extends State<CategorySelectionScreen> {
+  final _categoryService = CategoryService();
   final _searchCtrl = TextEditingController();
   String _search = '';
   String? _expandedId;
   String? _selectedSubId;
+  List<_CategoryNode> _categories = [];
+  bool _isLoading = true;
+  bool _hasError = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCategories();
+  }
+
+  Future<void> _loadCategories() async {
+    setState(() {
+      _isLoading = true;
+      _hasError = false;
+    });
+    final tree = await _categoryService.getCategoryTree();
+    if (!mounted) return;
+    setState(() {
+      _categories = _mapCategoryTree(tree);
+      _hasError = tree.isEmpty;
+      _isLoading = false;
+    });
+  }
 
   List<_CategoryNode> get _filtered {
-    if (_search.isEmpty) return _categoryTree;
+    if (_search.isEmpty) return _categories;
     final q = _search.toLowerCase();
-    return _categoryTree
+    return _categories
         .where((c) =>
             c.label.toLowerCase().contains(q) ||
             c.subcategories.any((s) => s.label.toLowerCase().contains(q)))
@@ -165,6 +144,18 @@ class _CategorySelectionScreenState extends State<CategorySelectionScreen> {
   }
 
   void _toggleExpand(String id) {
+    // Categories with no subcategories select themselves directly rather
+    // than expanding into an empty list - otherwise a category with no
+    // subcategories yet would be a permanent dead end for sellers.
+    final node = _categories.firstWhere((c) => c.id == id, orElse: () => _categories.first);
+    if (node.subcategories.isEmpty) {
+      setState(() => _selectedSubId = node.id);
+      widget.controller.data.selectedCategoryId = node.id;
+      widget.controller.data.selectedCategoryName = node.label;
+      widget.controller.data.selectedSubcategoryId = null;
+      widget.controller.data.selectedSubcategoryName = null;
+      return;
+    }
     setState(() => _expandedId = _expandedId == id ? null : id);
   }
 
@@ -208,7 +199,26 @@ class _CategorySelectionScreenState extends State<CategorySelectionScreen> {
 
           // List
           Expanded(
-            child: _filtered.isEmpty
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _hasError
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text(
+                              'Could not load categories',
+                              style: TextStyle(fontFamily: 'Poppins', color: Colors.grey),
+                            ),
+                            const SizedBox(height: 12),
+                            TextButton(
+                              onPressed: _loadCategories,
+                              child: const Text('Retry'),
+                            ),
+                          ],
+                        ),
+                      )
+                    : _filtered.isEmpty
                 ? const Center(
                     child: Text(
                       'No categories found',

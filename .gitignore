@@ -14,3 +14,10 @@
 node_modules/
 dist/
 build/
+
+# Guard against stray KYC/ID test uploads landing at repo root
+# (e.g. aadhaar_*.jpg, pan_*.jpg) — these must never be committed.
+/*.jpg
+/*.jpeg
+/*.png
+/*.pdf

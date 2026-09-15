@@ -15,7 +15,7 @@ describe('Payments & Subscriptions System (e2e)', () => {
   const mockCustomer = {
     id: 'f8b07384-d113-4956-a5cc-810237e19001',
     email: 'customer@loopo.com',
-    roles: ['CUSTOMER'],
+    roles: ['USER'],
   };
 
   const mockAdmin = {
@@ -78,7 +78,7 @@ describe('Payments & Subscriptions System (e2e)', () => {
     });
 
     // Grant roles to users
-    const customerRole = await prisma.role.findUnique({ where: { name: 'CUSTOMER' } });
+    const customerRole = await prisma.role.findUnique({ where: { name: 'USER' } });
     if (customerRole) {
       await prisma.userRole.upsert({
         where: { userId_roleId: { userId: mockCustomer.id, roleId: customerRole.id } },
@@ -98,11 +98,11 @@ describe('Payments & Subscriptions System (e2e)', () => {
 
     // Clear role permissions cache in Redis for clean verification
     const redisClient = app.get('REDIS_CLIENT');
-    await redisClient.del('role:permissions:CUSTOMER');
+    await redisClient.del('role:permissions:USER');
     await redisClient.del('role:permissions:ADMIN');
 
     // Sign tokens
-    customerToken = jwtService.sign({ sub: mockCustomer.id, email: mockCustomer.email, roles: ['CUSTOMER'] });
+    customerToken = jwtService.sign({ sub: mockCustomer.id, email: mockCustomer.email, roles: ['USER'] });
     adminToken = jwtService.sign({ sub: mockAdmin.id, email: mockAdmin.email, roles: ['ADMIN'] });
 
     await app.init();

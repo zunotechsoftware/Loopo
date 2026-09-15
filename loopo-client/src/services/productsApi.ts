@@ -1,9 +1,11 @@
 import { apiClient, ApiResponse } from './apiClient';
-import { Product } from '@/mockData/products';
+import { Product } from '@/types';
+
 
 export interface CreateProductPayload {
   title: string;
-  category: string;
+  /** Real backend category UUID (see useCategories()) - NOT a display name. */
+  categoryId: string;
   description: string;
   price: number;
   condition: string;
@@ -12,17 +14,15 @@ export interface CreateProductPayload {
   specs?: Record<string, string>;
 }
 
-const CATEGORY_UUID_MAP: Record<string, string> = {
-  Mobiles: '4fb6bfe2-6962-4fca-8667-841f184a9c93',
-  Vehicles: '2d1d3b26-a3b1-4cd7-b223-309af3264425',
-  Cars: '2d1d3b26-a3b1-4cd7-b223-309af3264425',
-  Bikes: '6af6cee3-9b4a-4595-b800-74c72e805bf8',
-  Electronics: '5b988561-9148-4308-824d-a1ffc13ba8d6',
-  Furniture: '806a9037-db1d-4414-a6f8-4449a013c694',
-  Fashion: '04c988cc-50d5-4193-b174-cec7455e6374',
-  Books: '963a9ff0-0c67-43a8-ab9a-bdf71080a0ab',
-  'Home & Living': '55a3350d-5503-4906-93d3-f57c60326cbd',
-};
+/** All fields optional - only what's provided gets sent to PUT /products/:id. */
+export interface UpdateProductPayload {
+  title?: string;
+  description?: string;
+  categoryId?: string;
+  condition?: string;
+  price?: number;
+  location?: string;
+}
 
 function mapConditionToEnum(cond: string): 'NEW' | 'LIKE_NEW' | 'GOOD' | 'FAIR' {
   const normalized = (cond || '').toUpperCase().replace(/\s+/g, '_');
@@ -35,17 +35,34 @@ function mapConditionToEnum(cond: string): 'NEW' | 'LIKE_NEW' | 'GOOD' | 'FAIR' 
 function parseLocationString(locStr: string) {
   const parts = (locStr || '').split(',').map((p) => p.trim()).filter(Boolean);
   return {
-    city: parts[0] || 'Bangalore',
+    country: 'India',
     state: parts[1] || 'Karnataka',
-    country: parts[2] || 'India',
+    city: parts[1] ? parts[0] : 'Bangalore',
+    area: parts[0] || 'Indiranagar',
+    zipCode: '560038',
   };
 }
 
+/** Decodes a `data:<mime>;base64,<...>` URL (what the sell flow's photo
+ * picker produces) into a Blob suitable for a direct S3 PUT. */
+function dataUrlToBlob(dataUrl: string): { blob: Blob; mimeType: string } {
+  const [header, base64] = dataUrl.split(',');
+  const mimeMatch = header.match(/data:(.*?);base64/);
+  const mimeType = mimeMatch?.[1] || 'image/jpeg';
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return { blob: new Blob([bytes], { type: mimeType }), mimeType };
+}
+
+
 export const productsApi = {
-  async getProducts(category?: string, query?: string): Promise<ApiResponse<Product[]>> {
+  /** @param categoryId - real backend category UUID, not a display name (see useCategories()) */
+  async getProducts(categoryId?: string, keyword?: string, city?: string): Promise<ApiResponse<Product[]>> {
     const params = new URLSearchParams();
-    if (category && category !== 'All Categories') params.append('category', category);
-    if (query) params.append('search', query);
+    if (categoryId) params.append('categoryId', categoryId);
+    if (keyword) params.append('keyword', keyword);
+    if (city) params.append('city', city);
 
     const queryString = params.toString();
     const endpoint = queryString ? `/products?${queryString}` : '/products';
@@ -53,25 +70,77 @@ export const productsApi = {
     return apiClient.get<Product[]>(endpoint);
   },
 
+
   async getProductById(id: string): Promise<ApiResponse<Product>> {
     return apiClient.get<Product>(`/products/${id}`);
   },
 
   async createProduct(payload: CreateProductPayload): Promise<ApiResponse<Product>> {
-    const categoryId =
-      CATEGORY_UUID_MAP[payload.category] ||
-      (payload.category.length > 20 ? payload.category : '4fb6bfe2-6962-4fca-8667-841f184a9c93');
-
     const dto = {
       title: payload.title,
       description: payload.description,
-      categoryId,
+      categoryId: payload.categoryId,
       condition: mapConditionToEnum(payload.condition),
       price: Number(payload.price) || 0,
       location: parseLocationString(payload.location),
     };
 
     return apiClient.post<Product>('/products', dto);
+  },
+
+  async updateProduct(id: string, payload: UpdateProductPayload): Promise<ApiResponse<Product>> {
+    const dto: Record<string, unknown> = {};
+    if (payload.title !== undefined) dto.title = payload.title;
+    if (payload.description !== undefined) dto.description = payload.description;
+    if (payload.categoryId !== undefined) dto.categoryId = payload.categoryId;
+    if (payload.condition !== undefined) dto.condition = mapConditionToEnum(payload.condition);
+    if (payload.price !== undefined) dto.price = Number(payload.price) || 0;
+    if (payload.location !== undefined) dto.location = parseLocationString(payload.location);
+
+    return apiClient.put<Product>(`/products/${id}`, dto);
+  },
+
+  /**
+   * Uploads one photo (as a data URL) to a listing that already exists:
+   * request a presigned S3 PUT url, upload the bytes directly to S3/MinIO
+   * (bypassing apiClient - this goes straight to storage, not our backend,
+   * and must not carry our Bearer token or a JSON content-type), then
+   * register it against the listing. Returns false (never throws) on any
+   * failure so one bad photo doesn't block the rest from uploading.
+   */
+  async uploadProductImage(productId: string, dataUrl: string, sortOrder: number): Promise<boolean> {
+    try {
+      const { blob, mimeType } = dataUrlToBlob(dataUrl);
+      const ext = mimeType.split('/')[1] || 'jpg';
+      const upRes = await apiClient.post<{ uploadUrl: string; fileKey: string; fileUrl: string }>(
+        `/products/${productId}/images/upload-url`,
+        { fileName: `photo-${sortOrder}.${ext}`, fileType: mimeType },
+      );
+      if (!upRes.success || !upRes.data) return false;
+      const { uploadUrl, fileKey, fileUrl } = upRes.data;
+
+      const putRes = await fetch(uploadUrl, { method: 'PUT', body: blob, headers: { 'Content-Type': mimeType } });
+      if (!putRes.ok) return false;
+
+      const attachRes = await apiClient.post(`/products/${productId}/images`, { fileUrl, fileKey, sortOrder });
+      return attachRes.success;
+    } catch {
+      return false;
+    }
+  },
+
+  /** Uploads a batch of photos sequentially (so one failure is isolated and
+   * we don't hammer the presign endpoint with a burst of parallel requests
+   * for what's normally <=10 images). Never throws. */
+  async uploadProductImages(productId: string, dataUrls: string[]): Promise<{ uploaded: number; failed: number }> {
+    let uploaded = 0;
+    let failed = 0;
+    for (let i = 0; i < dataUrls.length; i++) {
+      const ok = await this.uploadProductImage(productId, dataUrls[i], i);
+      if (ok) uploaded++;
+      else failed++;
+    }
+    return { uploaded, failed };
   },
 
   async getCategories(): Promise<ApiResponse<any[]>> {
@@ -83,7 +152,7 @@ export const productsApi = {
   },
 
   async markAsSold(id: string): Promise<ApiResponse<any>> {
-    return apiClient.patch(`/products/${id}/status`, { status: 'Sold' });
+    return apiClient.patch(`/products/${id}/sold`, {});
   },
 
   async deleteAd(id: string): Promise<ApiResponse<any>> {

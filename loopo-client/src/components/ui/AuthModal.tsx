@@ -74,18 +74,18 @@ export default function AuthModal() {
     e.preventDefault();
     const nameParts = name.trim().split(' ');
     const firstName = nameParts[0] || name || 'User';
-    const lastName = nameParts.slice(1).join(' ') || 'User';
+    const lastName = nameParts.slice(1).join(' ') || '';
 
     const resultAction = await dispatch(registerUserThunk({ email, password, firstName, lastName, phone }));
     if (registerUserThunk.fulfilled.match(resultAction)) {
-      dispatch(setOtpTarget(email || phone));
-      dispatch(setAuthMode('otp'));
-      dispatch(showToast(`Account created! Verification code sent to ${email || phone}`));
+      dispatch(setAuthModalOpen(false));
+      dispatch(showToast(`Account created! Welcome to Loopo 🎉`));
     } else {
       const err = (resultAction.payload as string) || 'Registration failed.';
       dispatch(showToast(err));
     }
   };
+
 
   const handleForgotSubmit = (e: React.FormEvent) => {
     e.preventDefault();

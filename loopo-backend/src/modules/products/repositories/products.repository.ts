@@ -176,6 +176,10 @@ export class ProductsRepository {
         deletedAt: null,
       },
       include: {
+        seller: {
+          select: { id: true, email: true, phone: true, firstName: true, lastName: true },
+        },
+        category: { select: { id: true, name: true, slug: true } },
         location: true,
         images: { orderBy: { sortOrder: 'asc' } },
         statistics: true,

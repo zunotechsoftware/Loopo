@@ -1,12 +1,14 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import ProtectedRoute from '@/routes/ProtectedRoute';
 import { ROUTES } from '@/routes/routes';
 import { Package, CheckCircle, Clock, FileText, CheckSquare, XCircle, Plus } from 'lucide-react';
+import { useAppDispatch } from '@/redux/hooks';
+import { fetchMyAdsThunk } from '@/redux/slices/myAdsSlice';
 
 interface MyListingsLayoutProps {
   children: React.ReactNode;
@@ -14,6 +16,14 @@ interface MyListingsLayoutProps {
 
 export default function MyListingsLayout({ children }: MyListingsLayoutProps) {
   const pathname = usePathname();
+  const dispatch = useAppDispatch();
+
+  // Fetch once here (not in each tab page) so landing directly on any
+  // sub-tab (e.g. a bookmark to /my-listings/active) still has real data,
+  // instead of relying on whatever was already in Redux/localStorage.
+  useEffect(() => {
+    dispatch(fetchMyAdsThunk());
+  }, [dispatch]);
 
   const tabs = [
     { label: 'All', href: ROUTES.MY_LISTINGS, icon: Package },

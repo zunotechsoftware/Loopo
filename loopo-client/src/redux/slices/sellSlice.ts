@@ -2,6 +2,8 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 export interface SellFormData {
   category: string;
+  /** Real backend category UUID - required to actually submit the listing. */
+  categoryId: string;
   subcategory: string;
   title: string;
   description: string;
@@ -26,7 +28,8 @@ interface SellState {
 }
 
 const initialFormData: SellFormData = {
-  category: 'Mobiles',
+  category: '',
+  categoryId: '',
   subcategory: 'Smartphones',
   title: '',
   description: '',

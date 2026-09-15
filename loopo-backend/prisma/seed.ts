@@ -24,14 +24,30 @@ async function main() {
   }
 
   // 2. Seed Permissions
+  // NOTE: this list must stay in sync with every @Permissions(...) string
+  // used anywhere in the app - it previously drifted: 5 admin.*-prefixed
+  // permissions (admin.dashboard.view, admin.notifications.manage,
+  // admin.payments.manage, admin.products.manage, admin.settings.manage)
+  // were checked by real controllers but never seeded, meaning the ADMIN
+  // role (which doesn't bypass permission checks the way SUPER_ADMIN does)
+  // was silently locked out of those endpoints with a 403, forever, since
+  // no role could ever have a permission that doesn't exist in this table.
+  // Also added roles.view, since roles.create/update/delete existed but
+  // there was no permission at all for just listing roles.
   const permissionsList = [
     'users.view',
     'users.create',
     'users.update',
     'users.delete',
+    'roles.view',
     'roles.create',
     'roles.update',
     'roles.delete',
+    'admin.dashboard.view',
+    'admin.notifications.manage',
+    'admin.payments.manage',
+    'admin.products.manage',
+    'admin.settings.manage',
     'categories.view',
     'categories.create',
     'categories.update',

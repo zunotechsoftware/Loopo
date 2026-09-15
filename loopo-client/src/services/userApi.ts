@@ -1,9 +1,13 @@
 import { apiClient, ApiResponse } from './apiClient';
 
+export type KycSlot = 'FRONT' | 'BACK' | 'SELFIE';
+
 export interface SubmitKycPayload {
-  docType: string;
-  docNumber: string;
-  frontPhoto?: string;
+  documentType: 'AADHAAR' | 'PAN' | 'PASSPORT' | 'DRIVING_LICENSE' | 'NATIONAL_ID';
+  documentNumber: string;
+  frontImageId: string;
+  selfieImageId: string;
+  backImageId?: string;
 }
 
 export interface AddressPayload {
@@ -16,12 +20,37 @@ export interface AddressPayload {
 }
 
 export const userApi = {
-  async submitKyc(payload: SubmitKycPayload): Promise<ApiResponse<any>> {
-    return apiClient.post('/kyc/submit', payload);
+  /**
+   * Uploads one KYC document image (as a real File, not a data URL): request
+   * a presigned S3 URL for the given slot, PUT the file directly to it
+   * (bypassing apiClient on purpose - a different origin, no Bearer token,
+   * no JSON content-type), then return the resulting MediaFile id for
+   * submitKyc's frontImageId/backImageId/selfieImageId.
+   */
+  async uploadKycImage(slot: KycSlot, file: File): Promise<string> {
+    const upRes = await apiClient.post<{ uploadUrl: string; fileKey: string; mediaId: string }>('/kyc/upload-url', {
+      slot,
+      fileName: file.name,
+      fileType: file.type,
+      fileSize: file.size,
+    });
+    if (!upRes.success || !upRes.data) {
+      throw new Error(upRes.error || `Could not get an upload URL for ${slot}`);
+    }
+    const putRes = await fetch(upRes.data.uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+    if (!putRes.ok) {
+      throw new Error(`Failed to upload ${slot} image to storage (${putRes.status})`);
+    }
+    return upRes.data.mediaId;
   },
 
-  async getKycStatus(): Promise<ApiResponse<any>> {
-    return apiClient.get('/kyc/status');
+  async submitKyc(payload: SubmitKycPayload, isUpdate = false): Promise<ApiResponse<any>> {
+    const body = { ...payload, submit: true };
+    return isUpdate ? apiClient.put('/kyc', body) : apiClient.post('/kyc', body);
+  },
+
+  async getMyKyc(): Promise<ApiResponse<any>> {
+    return apiClient.get('/kyc/me');
   },
 
   async getAddresses(): Promise<ApiResponse<AddressPayload[]>> {

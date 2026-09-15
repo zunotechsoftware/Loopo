@@ -1,7 +1,8 @@
 import axios from 'axios';
 
-// NestJS backend with global prefix api/v1
-const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000') + '/api/v1';
+const RAW_API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API_URL = RAW_API_URL.replace(/\/api\/v1\/?$/, '').replace(/\/api\/docs\/?$/, '') + '/api/v1';
+
 
 const api = axios.create({
   baseURL: API_URL,

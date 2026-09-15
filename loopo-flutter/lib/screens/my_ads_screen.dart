@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../services/product_service.dart';
-import '../services/auth_session.dart';
 import 'sell/sell_flow_screen.dart';
 import 'product_detail_screen.dart';
 

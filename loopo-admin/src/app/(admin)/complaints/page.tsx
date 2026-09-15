@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-  Box, Typography, Card, CardContent, Grid, Chip,
+  Box, Typography, Card, CardContent, Grid2 as Grid, Chip,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   IconButton, Button, TextField, InputAdornment, Select, MenuItem,
   FormControl, Avatar, Pagination, Stack, Checkbox, Menu, Dialog,
@@ -91,15 +91,18 @@ const statusStyles: Record<string, { bg: string; color: string }> = {
 
 const pieColors = ['#10b981', '#f59e0b', '#3b82f6', '#ef4444'];
 
-const categoriesList = [
-  { name: 'Orders', count: 432, percentage: 34.62, color: '#3b82f6', icon: <CategoryIcon fontSize="small" sx={{ color: '#3b82f6' }} /> },
-  { name: 'Payments', count: 228, percentage: 18.27, color: '#ef4444', icon: <Payment fontSize="small" sx={{ color: '#ef4444' }} /> },
-  { name: 'Refunds', count: 156, percentage: 12.50, color: '#f59e0b', icon: <AccountBalanceWallet fontSize="small" sx={{ color: '#f59e0b' }} /> },
-  { name: 'Technical', count: 150, percentage: 12.02, color: '#10b981', icon: <Build fontSize="small" sx={{ color: '#10b981' }} /> },
-  { name: 'Account', count: 120, percentage: 9.62, color: '#8b5cf6', icon: <Person fontSize="small" sx={{ color: '#8b5cf6' }} /> },
-  { name: 'Sellers', count: 102, percentage: 8.17, color: '#0ea5e9', icon: <Storefront fontSize="small" sx={{ color: '#0ea5e9' }} /> },
-  { name: 'Delivery', count: 60, percentage: 4.81, color: '#f43f5e', icon: <LocalShipping fontSize="small" sx={{ color: '#f43f5e' }} /> },
-];
+// Icon/color lookup only - real counts/percentages come from
+// complaintsService.getCategoriesBreakdown() (see fetchCategoryBreakdown).
+const categoryIconMap: Record<string, { color: string; icon: React.ReactNode }> = {
+  Orders: { color: '#3b82f6', icon: <CategoryIcon fontSize="small" sx={{ color: '#3b82f6' }} /> },
+  Payments: { color: '#ef4444', icon: <Payment fontSize="small" sx={{ color: '#ef4444' }} /> },
+  Refunds: { color: '#f59e0b', icon: <AccountBalanceWallet fontSize="small" sx={{ color: '#f59e0b' }} /> },
+  Technical: { color: '#10b981', icon: <Build fontSize="small" sx={{ color: '#10b981' }} /> },
+  Account: { color: '#8b5cf6', icon: <Person fontSize="small" sx={{ color: '#8b5cf6' }} /> },
+  Sellers: { color: '#0ea5e9', icon: <Storefront fontSize="small" sx={{ color: '#0ea5e9' }} /> },
+  Delivery: { color: '#f43f5e', icon: <LocalShipping fontSize="small" sx={{ color: '#f43f5e' }} /> },
+};
+const defaultCategoryIcon = { color: '#64748b', icon: <CategoryIcon fontSize="small" sx={{ color: '#64748b' }} /> };
 
 export default function ComplaintsPage() {
   const router = useRouter();
@@ -108,15 +111,15 @@ export default function ComplaintsPage() {
   const [complaints, setComplaints] = useState<ComplaintRow[]>(INITIAL_MOCK_COMPLAINTS);
   const [selectedComplaints, setSelectedComplaints] = useState<string[]>([]);
   const [stats, setStats] = useState({
-    total: 1248,
-    open: 342,
-    openPct: '27.40',
-    inProgress: 218,
-    inProgressPct: '17.47',
-    resolved: 638,
-    resolvedPct: '51.12',
-    closed: 50,
-    closedPct: '4.01'
+    total: 0,
+    open: 0,
+    openPct: '0.00',
+    inProgress: 0,
+    inProgressPct: '0.00',
+    resolved: 0,
+    resolvedPct: '0.00',
+    closed: 0,
+    closedPct: '0.00',
   });
 
   // Filters & Search
@@ -216,15 +219,15 @@ export default function ComplaintsPage() {
       if (res.data?.data) {
         const d = res.data.data;
         setStats({
-          total: d.total || 1248,
-          open: d.open || 342,
-          openPct: d.openPercentage ? d.openPercentage.toFixed(2) : '27.40',
-          inProgress: d.inProgress || 218,
-          inProgressPct: d.inProgressPercentage ? d.inProgressPercentage.toFixed(2) : '17.47',
-          resolved: d.resolved || 638,
-          resolvedPct: d.resolvedPercentage ? d.resolvedPercentage.toFixed(2) : '51.12',
-          closed: d.closed || 50,
-          closedPct: d.closedPercentage ? d.closedPercentage.toFixed(2) : '4.01'
+          total: d.total ?? 0,
+          open: d.open ?? 0,
+          openPct: (d.openPercentage ?? 0).toFixed(2),
+          inProgress: d.inProgress ?? 0,
+          inProgressPct: (d.inProgressPercentage ?? 0).toFixed(2),
+          resolved: d.resolved ?? 0,
+          resolvedPct: (d.resolvedPercentage ?? 0).toFixed(2),
+          closed: d.closed ?? 0,
+          closedPct: (d.closedPercentage ?? 0).toFixed(2),
         });
       }
     } catch (e) {
@@ -232,10 +235,23 @@ export default function ComplaintsPage() {
     }
   }, []);
 
+  const [categoryBreakdown, setCategoryBreakdown] = useState<{ name: string; count: number; percentage: number }[]>([]);
+  const fetchCategoryBreakdown = useCallback(async () => {
+    try {
+      const res = await complaintsService.getCategoriesBreakdown();
+      if (Array.isArray(res.data?.data)) {
+        setCategoryBreakdown(res.data.data);
+      }
+    } catch (e) {
+      console.warn('Category breakdown fetch failed:', e);
+    }
+  }, []);
+
   useEffect(() => {
     fetchComplaints();
     fetchStats();
-  }, [fetchComplaints, fetchStats]);
+    fetchCategoryBreakdown();
+  }, [fetchComplaints, fetchStats, fetchCategoryBreakdown]);
 
   // Filtered complaints
   const filteredComplaints = useMemo(() => {
@@ -868,23 +884,28 @@ export default function ComplaintsPage() {
             <CardContent sx={{ p: 2.5 }}>
               <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#0f172a', mb: 2 }}>Complaints by Category</Typography>
               <Stack spacing={2}>
-                {categoriesList.map((cat, idx) => (
-                  <Box 
-                    key={idx} 
-                    onClick={() => { setCategoryFilter(cat.name); setPage(1); }}
-                    sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', p: 0.5, borderRadius: 1.5, '&:hover': { bgcolor: '#f8fafc' } }}
-                  >
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-                      <Box sx={{ p: 0.5, borderRadius: 1, bgcolor: `${cat.color}15`, display: 'flex' }}>
-                        {cat.icon}
+                {categoryBreakdown.length === 0 ? (
+                  <Typography variant="caption" color="text.secondary">No complaints yet.</Typography>
+                ) : categoryBreakdown.map((cat, idx) => {
+                  const style = categoryIconMap[cat.name] || defaultCategoryIcon;
+                  return (
+                    <Box
+                      key={idx}
+                      onClick={() => { setCategoryFilter(cat.name); setPage(1); }}
+                      sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', p: 0.5, borderRadius: 1.5, '&:hover': { bgcolor: '#f8fafc' } }}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+                        <Box sx={{ p: 0.5, borderRadius: 1, bgcolor: `${style.color}15`, display: 'flex' }}>
+                          {style.icon}
+                        </Box>
+                        <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155', fontSize: '0.82rem' }}>{cat.name}</Typography>
                       </Box>
-                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155', fontSize: '0.82rem' }}>{cat.name}</Typography>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#0f172a', fontSize: '0.82rem' }}>
+                        {cat.count} <Typography component="span" variant="caption" sx={{ color: '#64748b' }}>({cat.percentage}%)</Typography>
+                      </Typography>
                     </Box>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#0f172a', fontSize: '0.82rem' }}>
-                      {cat.count} <Typography component="span" variant="caption" sx={{ color: '#64748b' }}>({cat.percentage}%)</Typography>
-                    </Typography>
-                  </Box>
-                ))}
+                  );
+                })}
               </Stack>
             </CardContent>
           </Card>
@@ -1158,21 +1179,24 @@ export default function ComplaintsPage() {
         </DialogTitle>
         <DialogContent sx={{ p: 3 }}>
           <Stack spacing={2}>
-            {categoriesList.map((cat, idx) => (
-              <Box key={idx} sx={{ p: 2, borderRadius: 2, border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Avatar sx={{ bgcolor: `${cat.color}20`, color: cat.color }}>{cat.icon}</Avatar>
-                  <Box>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>{cat.name}</Typography>
-                    <Typography variant="caption" sx={{ color: '#64748b' }}>Active dispute category</Typography>
+            {categoryBreakdown.map((cat, idx) => {
+              const style = categoryIconMap[cat.name] || defaultCategoryIcon;
+              return (
+                <Box key={idx} sx={{ p: 2, borderRadius: 2, border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Avatar sx={{ bgcolor: `${style.color}20`, color: style.color }}>{style.icon}</Avatar>
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>{cat.name}</Typography>
+                      <Typography variant="caption" sx={{ color: '#64748b' }}>Active dispute category</Typography>
+                    </Box>
+                  </Box>
+                  <Box sx={{ textAlign: 'right' }}>
+                    <Typography variant="h6" sx={{ fontWeight: 800, color: '#0f172a' }}>{cat.count}</Typography>
+                    <Typography variant="caption" sx={{ color: '#64748b' }}>{cat.percentage}% of all cases</Typography>
                   </Box>
                 </Box>
-                <Box sx={{ textAlign: 'right' }}>
-                  <Typography variant="h6" sx={{ fontWeight: 800, color: '#0f172a' }}>{cat.count}</Typography>
-                  <Typography variant="caption" sx={{ color: '#64748b' }}>{cat.percentage}% of all cases</Typography>
-                </Box>
-              </Box>
-            ))}
+              );
+            })}
           </Stack>
         </DialogContent>
       </Dialog>

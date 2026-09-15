@@ -1,19 +1,40 @@
 import { Controller, Post, Delete, Body, Param, UseGuards, Request } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
 import { ProductsService } from '../services/products.service';
 import { JwtAuthGuard } from '../../../shared/common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../shared/common/guards/roles.guard';
 import { PermissionsGuard } from '../../../shared/common/guards/permissions.guard';
 import { LogAudit } from '../../../shared/common/decorators/audit-log.decorator';
 
+// The global ValidationPipe runs with { whitelist: true, forbidNonWhitelisted:
+// true } - a DTO class with no class-validator decorators at all has every
+// property stripped/rejected regardless of what the client sends. These two
+// classes had no decorators, so this endpoint 400'd on every real request
+// ("property fileName should not exist") - nothing could ever upload a
+// listing image or video through it.
 export class PresignedUrlRequestDto {
+  @IsNotEmpty()
+  @IsString()
   fileName: string;
+
+  @IsNotEmpty()
+  @IsString()
   fileType: string;
 }
 
 export class AttachMediaDto {
+  @IsNotEmpty()
+  @IsString()
   fileUrl: string;
+
+  @IsNotEmpty()
+  @IsString()
   fileKey: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
   sortOrder?: number;
 }
 

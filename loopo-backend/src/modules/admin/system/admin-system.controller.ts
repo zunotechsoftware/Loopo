@@ -9,7 +9,7 @@ import { Permissions } from '../../../shared/common/decorators/permissions.decor
 @ApiTags('Admin - System')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
-@Controller('api/v1/admin/system')
+@Controller('admin/system')
 export class AdminSystemController {
   constructor(private readonly systemService: AdminSystemService) {}
 

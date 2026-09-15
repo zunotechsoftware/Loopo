@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { MOCK_NOTIFICATIONS, NotificationItem, NotificationType } from '@/mockData/notifications';
+import { NotificationItem, NotificationType } from '@/types';
 import { notificationsApi } from '@/services/notificationsApi';
 
 interface NotificationsState {
@@ -39,27 +39,25 @@ export const fetchNotificationsThunk = createAsyncThunk(
         ? data.items
         : [];
 
-      if (raw.length > 0) {
-        const items: NotificationItem[] = raw.map((n: any) => ({
-          id: n.id || n._id || `notif-${Date.now()}`,
-          type: mapType(n.type || ''),
-          title: n.title || 'Notification',
-          description: n.body || n.description || n.message || '',
-          timestamp: n.createdAt
-            ? new Date(n.createdAt).toLocaleTimeString('en-IN', {
-                hour: '2-digit',
-                minute: '2-digit',
-              })
-            : 'Recently',
-          isRead: Boolean(n.isRead || n.read),
-          image: n.metadata?.image || n.image,
-          targetTab: n.metadata?.targetTab,
-          targetId: n.metadata?.targetId,
-        }));
-        return { items, unreadCount: data?.unreadCount ?? items.filter((i) => !i.isRead).length };
-      }
+      const items: NotificationItem[] = raw.map((n: any) => ({
+        id: n.id || n._id || `notif-${Date.now()}`,
+        type: mapType(n.type || ''),
+        title: n.title || 'Notification',
+        description: n.body || n.description || n.message || '',
+        timestamp: n.createdAt
+          ? new Date(n.createdAt).toLocaleTimeString('en-IN', {
+              hour: '2-digit',
+              minute: '2-digit',
+            })
+          : 'Recently',
+        isRead: Boolean(n.isRead || n.read),
+        image: n.metadata?.image || n.image,
+        targetTab: n.metadata?.targetTab,
+        targetId: n.metadata?.targetId,
+      }));
+      return { items, unreadCount: data?.unreadCount ?? items.filter((i) => !i.isRead).length };
     }
-    return { items: MOCK_NOTIFICATIONS, unreadCount: MOCK_NOTIFICATIONS.filter((n) => !n.isRead).length };
+    return { items: [], unreadCount: 0 };
   }
 );
 
@@ -79,7 +77,6 @@ export const notificationsSlice = createSlice({
         item.isRead = true;
         state.unreadCount = Math.max(0, state.unreadCount - 1);
       }
-      // Fire-and-forget API call
       notificationsApi.markRead(action.payload).catch(() => {});
     },
     markAllAsRead: (state) => {
@@ -109,13 +106,12 @@ export const notificationsSlice = createSlice({
       })
       .addCase(fetchNotificationsThunk.rejected, (state) => {
         state.loading = false;
-        if (state.items.length === 0) {
-          state.items = MOCK_NOTIFICATIONS;
-          state.unreadCount = MOCK_NOTIFICATIONS.filter((n) => !n.isRead).length;
-        }
+        state.items = [];
+        state.unreadCount = 0;
       });
   },
 });
+
 
 export const {
   setNotificationsFilterTab,
