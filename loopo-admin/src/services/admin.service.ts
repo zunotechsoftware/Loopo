@@ -133,6 +133,7 @@ export const notificationsService = {
   update: (id: string, data: Record<string, any>) => api.patch(`/admin/notifications/${id}`, data),
   delete: (id: string) => api.delete(`/admin/notifications/${id}`),
   getStats: () => api.get('/admin/notifications/stats'),
+  getAnalytics: () => api.get('/admin/notifications/analytics'),
 };
 
 // --- Banners Service ---

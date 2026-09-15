@@ -72,6 +72,7 @@ export default function NotificationsPage() {
           title: notif.title,
           message: notif.body,
           audience: notif.type,
+          type: notif.category,
         });
         setSuccessType('update');
       } else {
@@ -80,6 +81,7 @@ export default function NotificationsPage() {
           title: notif.title,
           message: notif.body,
           audience: notif.type,
+          type: notif.category,
         });
         setSuccessType('create');
       }
@@ -222,7 +224,7 @@ export default function NotificationsPage() {
 
         {/* Sidebar Area */}
         <Box sx={{ width: { xs: '100%', xl: 350 }, display: 'flex', flexDirection: 'column', gap: 3, overflowY: 'auto', pr: 1 }}>
-          <NotificationSidebar />
+          <NotificationSidebar onCreateClick={() => { setSelectedNotification(null); setOpenDialog(true); }} />
         </Box>
       </Box>
 

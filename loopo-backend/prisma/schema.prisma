@@ -2242,12 +2242,16 @@ model EmailTemplate {
   subtext   String?
   category  TemplateCategory
   subject   String
+  // The actual email body (HTML) - the template's content, as opposed to
+  // just its metadata. Was missing entirely; every "template" previously
+  // had a name and subject but nowhere to store what the email actually says.
+  body      String           @default("") @db.Text
   language  String           @default("English")
   status    TemplateStatus   @default(ACTIVE)
   used      Int              @default(0)
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
-  
+
   @@map("email_templates")
 }
 
