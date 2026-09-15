@@ -6,6 +6,57 @@ last_verified: 2026-09-13
 
 ## OPEN
 
+### RESOLVED — P0 (user-reported): loopo-admin chat showed "Unknown User" and mis-flagged message senders after starting/sending a new conversation
+User-reported priority: "when I choose a user and message it is sending
+but it is showing as unknown user."
+
+Root cause was entirely in the shared backend chat module, not the admin
+frontend: `chat.service.ts`'s `getConversations()`/`getConversationDetails()`
+populate each participant row's `.user` field from the conversation's
+`buyer`/`seller` relations (Prisma never nests a `.user` object onto
+`ConversationParticipant` by default), and sort participants so the
+current caller is always index 0. **`createConversation()` never did
+either of those two things** - it returned the raw Prisma
+`participants: true` rows (bare `{userId, conversationId, ...}`, no name/
+email/avatar at all) straight from the repository, for both the
+newly-created-conversation path and the find-existing-duplicate path.
+
+`loopo-admin`'s `ChatArea.tsx`/`ConversationsSidebar.tsx` both do
+`conv.participants[1].user` to get "the other party" (correct **only**
+if participants are sorted and populated the way `getConversations`
+does it) - so the conversation object handed back immediately after
+`POST /chat/conversations` (used to render the just-selected chat and to
+optimistically show the just-sent message) had `participants[1].user ===
+undefined`, and the `|| 'Unknown User'` fallback fired. The same
+`recipient.id` being `undefined` also broke `isSentByMe = msg.senderId
+!== recipient.id` - since `undefined` never equals a real sender id, every
+message (including ones from the other user) evaluated as "sent by me".
+This affected `loopo-client`'s real buyer/seller chat too in principle
+(same endpoint), but happened not to surface there because that flow
+always does a full `GET /chat/conversations` refetch before rendering
+(see the buyer/seller mislabel fix earlier this session) rather than
+trusting the raw creation response directly.
+
+**Fixed:** extracted a `mapConversationParticipants(conv, currentUserId)`
+private helper in `chat.service.ts` (identical logic was already
+duplicated verbatim between `getConversations`/`getConversationDetails` -
+now a single source of truth) and applied it to **both** branches of
+`createConversation()` (the existing-conversation-found early return, and
+the newly-created-conversation return). Also added the missing
+`buyer`/`seller` `include`s to `chat.repository.ts`'s `findConversation`
+and `createConversation` (they only selected `participants: true` before,
+so the service had nothing to map from even if it tried).
+
+**Verified live end to end:** admin creates a conversation with a
+brand-new user via the real `POST /chat/conversations` - confirmed via
+direct API call that `participants[0]` is the admin and `participants[1]`
+is the real target user, both with real `firstName`/`lastName`; browser
+test clicking a fresh, never-before-messaged user in the admin panel's
+"Users" tab and sending a message showed the correct name in the chat
+header throughout (never "Unknown User"), and the sent message rendered
+correctly right-aligned/blue as sent-by-me. Backend: 83/83 unit tests
+pass, `tsc --noEmit` clean.
+
 ### RESOLVED — loopo-client: Favourites never persisted server-side; a fully-fake standalone /report page existed alongside the real ReportModal
 Same silent-revert bug class as the earlier My Listings Mark Sold/Delete
 fix: `toggleFavorite` was a plain synchronous Redux reducer that never

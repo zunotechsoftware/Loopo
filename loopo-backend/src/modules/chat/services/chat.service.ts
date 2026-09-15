@@ -92,11 +92,45 @@ export class ChatService {
     // 4. Prevent duplicates: Find existing conversation
     const existing = await this.chatRepo.findConversation(dto.productId || null, userId, sellerId);
     if (existing) {
-      return existing;
+      return this.mapConversationParticipants(existing, userId);
     }
 
     // 5. Create new conversation
-    return this.chatRepo.createConversation(dto.productId || null, userId, sellerId);
+    const created = await this.chatRepo.createConversation(dto.productId || null, userId, sellerId);
+    return this.mapConversationParticipants(created, userId);
+  }
+
+  /** Populates each participant row's `.user` from the conversation's
+   * `buyer`/`seller` relations (never included by default - a caller
+   * relying on the raw Prisma `participants` rows alone gets a bare
+   * `{userId, conversationId, ...}` with no name/avatar, which is what
+   * produced "Unknown User" after starting a new conversation), and sorts
+   * so the current user is always participants[0] - so any caller can
+   * safely treat participants[1] as "the other party". */
+  private mapConversationParticipants(conv: any, currentUserId: string) {
+    const mappedParticipants = conv.participants.map((p: any) => {
+      let userObj = null;
+      if (p.userId === conv.buyerId) {
+        userObj = conv.buyer;
+      } else if (p.userId === conv.sellerId) {
+        userObj = conv.seller;
+      }
+      return {
+        ...p,
+        user: userObj || { id: p.userId, firstName: 'Unknown', lastName: 'User' },
+      };
+    });
+
+    mappedParticipants.sort((a: any, b: any) => {
+      if (a.userId === currentUserId) return -1;
+      if (b.userId === currentUserId) return 1;
+      return 0;
+    });
+
+    return {
+      ...conv,
+      participants: mappedParticipants,
+    };
   }
 
   private async prismaFindProduct(productId: string) {
@@ -110,33 +144,9 @@ export class ChatService {
 
   async getConversations(userId: string) {
     const conversations = await this.chatRepo.findUserConversations(userId);
-    
+
     // Map participants to include the user details from buyer/seller
-    const mappedConversations = conversations.map((conv) => {
-      const mappedParticipants = conv.participants.map((p) => {
-        let userObj = null;
-        if (p.userId === conv.buyerId) {
-          userObj = (conv as any).buyer;
-        } else if (p.userId === conv.sellerId) {
-          userObj = (conv as any).seller;
-        }
-        return {
-          ...p,
-          user: userObj || { id: p.userId, firstName: 'Unknown', lastName: 'User' },
-        };
-      });
-
-      mappedParticipants.sort((a, b) => {
-        if (a.userId === userId) return -1;
-        if (b.userId === userId) return 1;
-        return 0;
-      });
-
-      return {
-        ...conv,
-        participants: mappedParticipants,
-      };
-    });
+    const mappedConversations = conversations.map((conv) => this.mapConversationParticipants(conv, userId));
 
     return Promise.all(
       mappedConversations.map(async (conv) => {
@@ -175,29 +185,7 @@ export class ChatService {
       throw new NotFoundException(`Conversation with ID ${conversationId} not found or access denied`);
     }
 
-    const mappedParticipants = conv.participants.map((p) => {
-      let userObj = null;
-      if (p.userId === conv.buyerId) {
-        userObj = (conv as any).buyer;
-      } else if (p.userId === conv.sellerId) {
-        userObj = (conv as any).seller;
-      }
-      return {
-        ...p,
-        user: userObj || { id: p.userId, firstName: 'Unknown', lastName: 'User' },
-      };
-    });
-
-    mappedParticipants.sort((a, b) => {
-      if (a.userId === userId) return -1;
-      if (b.userId === userId) return 1;
-      return 0;
-    });
-
-    return {
-      ...conv,
-      participants: mappedParticipants,
-    };
+    return this.mapConversationParticipants(conv, userId);
   }
 
   // --- MESSAGES ---
