@@ -18,15 +18,28 @@ import NotificationsIcon from '@mui/icons-material/Notifications';
 import SaveIcon from '@mui/icons-material/Save';
 import SendIcon from '@mui/icons-material/Send';
 
+// Real NotificationType enum values (Prisma schema) - the dialog used to
+// have no way to set this at all, so every notification silently landed on
+// the DTO's default (PROMOTION) regardless of what it actually announced.
+const NOTIFICATION_TYPES = [
+  { value: 'PROMOTION', label: 'Promotion' },
+  { value: 'ORDER_UPDATE', label: 'Order Update' },
+  { value: 'ENGAGEMENT', label: 'Engagement' },
+  { value: 'SECURITY', label: 'Security' },
+  { value: 'CART_REMINDER', label: 'Cart Reminder' },
+  { value: 'UPDATE', label: 'Update' },
+  { value: 'ONBOARDING', label: 'Onboarding' },
+];
+
 interface NotificationDialogProps {
   open: boolean;
   onClose: () => void;
-  onSubmit: (notif: { title: string; body: string; type: string }) => void;
+  onSubmit: (notif: { title: string; body: string; type: string; category: string }) => void;
   notification?: any;
 }
 
 export default function NotificationDialog({ open, onClose, onSubmit, notification }: NotificationDialogProps) {
-  const [newNotif, setNewNotif] = useState({ title: '', body: '', type: 'All' });
+  const [newNotif, setNewNotif] = useState({ title: '', body: '', type: 'All', category: 'PROMOTION' });
 
   useEffect(() => {
     if (notification) {
@@ -34,15 +47,16 @@ export default function NotificationDialog({ open, onClose, onSubmit, notificati
         title: notification.title || '',
         body: notification.message || '',
         type: notification.audience || 'All',
+        category: notification.type || 'PROMOTION',
       });
     } else {
-      setNewNotif({ title: '', body: '', type: 'All' });
+      setNewNotif({ title: '', body: '', type: 'All', category: 'PROMOTION' });
     }
   }, [notification, open]);
 
   const handleSubmitAction = () => {
     onSubmit(newNotif);
-    setNewNotif({ title: '', body: '', type: 'All' });
+    setNewNotif({ title: '', body: '', type: 'All', category: 'PROMOTION' });
     onClose();
   };
 
@@ -72,6 +86,19 @@ export default function NotificationDialog({ open, onClose, onSubmit, notificati
           value={newNotif.body}
           onChange={(e) => setNewNotif((prev) => ({ ...prev, body: e.target.value }))}
         />
+        <FormControl fullWidth>
+          <InputLabel id="notification-category-label">Notification Type</InputLabel>
+          <Select
+            labelId="notification-category-label"
+            value={newNotif.category}
+            label="Notification Type"
+            onChange={(e) => setNewNotif((prev) => ({ ...prev, category: e.target.value }))}
+          >
+            {NOTIFICATION_TYPES.map((t) => (
+              <MenuItem key={t.value} value={t.value}>{t.label}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
         <FormControl fullWidth>
           <InputLabel id="target-audience-label">Target Audience</InputLabel>
           <Select

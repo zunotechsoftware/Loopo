@@ -157,93 +157,28 @@ export default function EmailTemplateSidebar({ template }: EmailTemplateSidebarP
         {tabIndex === 0 && (
           <Card
             sx={{
-              bgcolor: '#f8fafc',
-              border: 'none',
+              bgcolor: '#ffffff',
               borderRadius: 3,
               p: 3,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
               boxShadow: 'none',
               borderStyle: 'solid',
               borderWidth: 1,
-              borderColor: '#e2e8f0'
+              borderColor: '#e2e8f0',
             }}
           >
-            <Typography variant="h5" sx={{ fontWeight: 900, display: 'flex', alignItems: 'center', letterSpacing: -1, mb: 3 }}>
-              <span style={{ color: '#84cc16' }}>L</span>
-              <span style={{ color: '#ef4444' }}>o</span>
-              <span style={{ color: '#f59e0b' }}>o</span>
-              <span style={{ color: '#3b82f6' }}>p</span>
-              <span style={{ color: '#8b5cf6' }}>o</span>
-            </Typography>
-
-            <Typography variant="h6" sx={{ fontWeight: 700, color: '#1e293b', mb: 1, textAlign: 'center' }}>
-              Hi {'{'}user_name{'}'},
-            </Typography>
-
-            <Typography variant="body2" sx={{ color: '#475569', textAlign: 'center', mb: 3, maxWidth: 250 }}>
-              Welcome to Loopo! We're excited to have you on board.
-              You can now buy, sell, reuse and repeat with ease.
-            </Typography>
-
-            <Button
-              variant="contained"
-              sx={{
-                bgcolor: '#1d4ed8',
-                color: 'white',
-                borderRadius: 2,
-                textTransform: 'none',
-                fontWeight: 600,
-                px: 3,
-                mb: 4,
-                boxShadow: 'none',
-                '&:hover': { bgcolor: '#1e40af', boxShadow: 'none' },
-              }}
-            >
-              Explore Now
-            </Button>
-
-            <Grid container spacing={2} sx={{ mb: 3 }}>
-              <Grid item xs={4}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-                  <Box sx={{ p: 1, bgcolor: '#dcfce7', color: '#16a34a', borderRadius: 2 }}>
-                    {/* Mock Icon */}
-                    <Box sx={{ width: 20, height: 20, border: '2px solid currentColor', borderRadius: 1 }} />
-                  </Box>
-                  <Typography variant="caption" sx={{ fontWeight: 600, color: '#1e293b' }}>Buy</Typography>
-                  <Typography variant="caption" sx={{ color: '#64748b', fontSize: '0.65rem', textAlign: 'center' }}>Find great deals</Typography>
-                </Box>
-              </Grid>
-              <Grid item xs={4}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-                  <Box sx={{ p: 1, bgcolor: '#e0f2fe', color: '#0ea5e9', borderRadius: 2 }}>
-                    {/* Mock Icon */}
-                    <Box sx={{ width: 20, height: 20, border: '2px solid currentColor', borderRadius: 1 }} />
-                  </Box>
-                  <Typography variant="caption" sx={{ fontWeight: 600, color: '#1e293b' }}>Sell</Typography>
-                  <Typography variant="caption" sx={{ color: '#64748b', fontSize: '0.65rem', textAlign: 'center' }}>List in minutes</Typography>
-                </Box>
-              </Grid>
-              <Grid item xs={4}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-                  <Box sx={{ p: 1, bgcolor: '#f3e8ff', color: '#a855f7', borderRadius: 2 }}>
-                    {/* Mock Icon */}
-                    <Box sx={{ width: 20, height: 20, border: '2px solid currentColor', borderRadius: '50%' }} />
-                  </Box>
-                  <Typography variant="caption" sx={{ fontWeight: 600, color: '#1e293b' }}>Repeat</Typography>
-                  <Typography variant="caption" sx={{ color: '#64748b', fontSize: '0.65rem', textAlign: 'center' }}>Reuse & save more</Typography>
-                </Box>
-              </Grid>
-            </Grid>
-
-            <Typography variant="caption" sx={{ color: '#64748b', textAlign: 'center', display: 'block', mb: 2 }}>
-              Need help? Contact our <span style={{ color: '#3b82f6', cursor: 'pointer' }}>support team</span>.
-            </Typography>
-
-            <Typography variant="caption" sx={{ color: '#64748b', textAlign: 'center', display: 'block' }}>
-              Thank you,<br />The Loopo Team
-            </Typography>
+            <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block', mb: 1 }}>Subject</Typography>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1e293b', mb: 2 }}>{template.subject}</Typography>
+            <Divider sx={{ mb: 2 }} />
+            {template.body ? (
+              <Box
+                sx={{ color: '#1e293b', fontSize: '0.85rem', lineHeight: 1.6, '& img': { maxWidth: '100%' } }}
+                dangerouslySetInnerHTML={{ __html: template.body }}
+              />
+            ) : (
+              <Typography variant="body2" sx={{ color: '#94a3b8', fontStyle: 'italic' }}>
+                This template has no body content yet. Edit it to add one.
+              </Typography>
+            )}
           </Card>
         )}
       </Box>

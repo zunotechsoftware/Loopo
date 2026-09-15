@@ -37,6 +37,11 @@ export class NotificationsController {
     return this.notificationsService.getStats();
   }
 
+  @Get('analytics')
+  getAnalytics() {
+    return this.notificationsService.getAnalytics();
+  }
+
   @Get()
   findAll(
     @Query('skip') skip?: string,

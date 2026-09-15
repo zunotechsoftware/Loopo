@@ -31,11 +31,12 @@ export default function EmailTemplateDialog({
 }: EmailTemplateDialogProps) {
   const isEdit = Boolean(template);
 
-  const [formData, setFormData] = useState<Partial<EmailTemplate>>({
+  const [formData, setFormData] = useState<Partial<EmailTemplate> & { body?: string }>({
     name: '',
     subtext: '',
     category: 'Marketing',
     subject: '',
+    body: '',
     language: 'English',
     status: 'Active',
   });
@@ -49,6 +50,7 @@ export default function EmailTemplateDialog({
         subtext: '',
         category: 'Marketing',
         subject: '',
+        body: '',
         language: 'English',
         status: 'Active',
       });
@@ -68,6 +70,7 @@ export default function EmailTemplateDialog({
       subtext: formData.subtext || '',
       category: (formData.category as TemplateCategory) || 'Marketing',
       subject: formData.subject || '',
+      body: formData.body || '',
       language: formData.language || 'English',
       status: (formData.status as TemplateStatus) || 'Active',
       used: template ? template.used : 0,
@@ -141,6 +144,19 @@ export default function EmailTemplateDialog({
               onChange={handleChange('subject')}
               size="small"
               required
+            />
+          </Grid>
+          <Grid item xs={12}>
+            <TextField
+              fullWidth
+              label="Email Body (HTML)"
+              value={formData.body || ''}
+              onChange={handleChange('body' as keyof EmailTemplate)}
+              size="small"
+              multiline
+              rows={8}
+              placeholder="<p>Hi {{firstName}}, ...</p>"
+              helperText="The actual content sent in the email. Supports basic HTML."
             />
           </Grid>
           <Grid item xs={6}>

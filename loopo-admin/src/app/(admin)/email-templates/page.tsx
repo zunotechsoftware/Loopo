@@ -96,6 +96,7 @@ export default function EmailTemplatesPage() {
         subtext: template.subtext,
         category: template.category.toUpperCase(),
         subject: template.subject,
+        body: template.body || '',
         language: template.language,
         status: template.status.toUpperCase(),
       };
