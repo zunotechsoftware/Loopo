@@ -6,6 +6,21 @@ last_verified: 2026-09-13
 
 ## OPEN
 
+### RESOLVED — loopo-admin (user-reported priorities #1 & #2): fake admin-identity blocks in page headers; Settings page was 100% mock data; custom roles were unassignable to users
+Three separate findings, all under "not properly aligned with our system":
+
+1. **Fake admin-identity block, duplicated in two page headers.** `ads/components/PageHeader.tsx` and `coupons/components/PageHeader.tsx` each hardcoded a "Admin User / Super Admin" block with a random `pravatar.cc` avatar - not tied to the real logged-in admin at all, and redundant with the real one already in the sidebar (`layouts/Sidebar.tsx`, which correctly reads `user.email`). Removed both blocks per user request ("that section need to remove").
+
+2. **`settings/page.tsx` was entirely `MOCK_AUDIT_LOGS`/`MOCK_BANNERS`/`FEATURE_FLAGS`/`GENERAL_SETTINGS` hardcoded arrays**, with `handleSaveSettings` literally commented `// Call settingsService.update() ... in production` and never calling it - despite the real backend (`AdminSettingsModule`, `AdminFeatureFlagsModule`, both already registered in `admin.module.ts`) and a matching real `admin.service.ts` client (`settingsService`) already existing and working, just never wired to this page. The "Banners" tab was a pure duplicate of the already-real, already-linked-in-the-sidebar `/banners` page. Audit Logs had no backend endpoint at all - `audit-logs` module (`AuditLogsService.getLogs()`) existed and was already being written to by the global `@LogAudit` interceptor on `POST`/`PUT`/`PATCH` routes, but nothing ever exposed it over HTTP, even though `admin.service.ts` already had an `auditLogsService` expecting `GET /admin/audit-logs`.
+   **Fixed:** rewrote the page against real data - General (real `GET/PUT /admin/settings`), Feature Flags (real `GET/PUT /admin/feature-flags`, toggles apply immediately), Audit Logs (new `GET /admin/audit-logs` + `/export` CSV, paginated). Removed the duplicate Banners tab. Seeded 6 real `SystemSetting` rows and 6 real `FeatureFlag` rows (reusing the mock data's realistic values as actual seed data, not fake frontend state) since both tables were completely empty - added `admin.audit-logs.view` to the seeded permission list.
+   **Verified live:** General/Feature Flags tabs show and persist real values; Audit Logs shows 31 real historical entries spanning this whole session's actual actions (CREATE_PRODUCT, APPROVE_PRODUCT, MARK_SOLD_PRODUCT, ADD_FAVORITE, etc.) with real admin names/timestamps/IPs - not mock rows. Cleaned up 2 stray test rows (`test_setting`, `test_flag`) left over from this session's own earlier backend verification.
+
+3. **A custom role created in Roles & Permissions could never actually be assigned to a user.** `users/UserDialog.tsx`'s role dropdown was hardcoded to exactly `USER`/`ADMIN`/`SUPER_ADMIN` - a role like the pre-existing "CUSTOMER" role, or any new one created via the (real, working) Roles & Permissions page, was invisible here even though the backend's `PATCH /admin/users/:id/roles` already accepts any real role name.
+   **Fixed:** the dropdown now fetches the real role list (`rolesService.getAll()`) and renders every role that actually exists.
+   **Verified live:** editing a user now shows SUPER ADMIN / ADMIN / USER / CUSTOMER (the real list) in the dropdown.
+
+Backend: `tsc --noEmit` clean, 83/83 unit tests pass. Frontend: `tsc --noEmit` clean, `next build` succeeds (all pages).
+
 ### RESOLVED — P0 (user-reported): loopo-admin chat showed "Unknown User" and mis-flagged message senders after starting/sending a new conversation
 User-reported priority: "when I choose a user and message it is sending
 but it is showing as unknown user."
