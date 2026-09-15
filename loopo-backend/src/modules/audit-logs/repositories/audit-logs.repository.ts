@@ -57,4 +57,8 @@ export class AuditLogsRepository {
       },
     });
   }
+
+  async count(where: any = {}) {
+    return this.prisma.auditLog.count({ where: { ...where, deletedAt: null } });
+  }
 }

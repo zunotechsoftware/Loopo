@@ -14,6 +14,7 @@ import { AdminSellersModule } from './sellers/admin-sellers.module';
 import { AdminAdvertisementsModule } from './advertisements/admin-advertisements.module';
 import { AdminCouponsModule } from './coupons/admin-coupons.module';
 import { AdminRolesModule } from './roles/admin-roles.module';
+import { AdminAuditLogsModule } from './audit-logs/admin-audit-logs.module';
 
 // Admin reviews/reports management deliberately does NOT have its own
 // modules here: ./reviews and ./reports used to exist as fully separate
@@ -45,6 +46,7 @@ import { AdminRolesModule } from './roles/admin-roles.module';
     AdminAdvertisementsModule,
     AdminCouponsModule,
     AdminRolesModule,
+    AdminAuditLogsModule,
   ],
   controllers: [],
   providers: [],

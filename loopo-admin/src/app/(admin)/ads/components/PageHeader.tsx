@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Box, Typography, Button, TextField, InputAdornment, IconButton, Badge, Avatar } from '@mui/material';
+import { Box, Typography, Button, TextField, InputAdornment, IconButton, Badge } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import AddIcon from '@mui/icons-material/Add';
 import NotificationsNoneOutlinedIcon from '@mui/icons-material/NotificationsNoneOutlined';
@@ -68,21 +68,6 @@ export default function PageHeader({ onCreateClick, searchQuery, onSearchChange 
             <NotificationsNoneOutlinedIcon sx={{ color: '#64748b' }} />
           </Badge>
         </IconButton>
-
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, ml: 1, borderLeft: '1px solid #e2e8f0', pl: 3 }}>
-          <Avatar 
-            src="https://i.pravatar.cc/150?u=admin" 
-            sx={{ width: 40, height: 40, border: '2px solid #ffffff', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
-          />
-          <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#1e293b', lineHeight: 1.2 }}>
-              Admin User
-            </Typography>
-            <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 500 }}>
-              Super Admin
-            </Typography>
-          </Box>
-        </Box>
 
         <Button
           variant="contained"
