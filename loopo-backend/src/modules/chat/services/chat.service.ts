@@ -265,7 +265,15 @@ export class ChatService {
       type: dto.type,
     });
 
-    return this.signAttachments(message);
+    const signed = await this.signAttachments(message);
+    // Exposed so the controller can also notify the recipient's personal
+    // socket room (`user:${recipientId}`, joined by every connected client
+    // on handleConnection) - not just the conversation room, which the
+    // recipient has only joined if they've actually opened this
+    // conversation before. Without this, a brand-new conversation (or one
+    // the recipient currently has closed) never live-updates their inbox;
+    // they'd only see it after a manual refresh.
+    return { ...signed, recipientId };
   }
 
   async getMessages(conversationId: string, userId: string, limit = 50, offset = 0) {

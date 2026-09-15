@@ -15,8 +15,18 @@ export const chatApi = {
     return apiClient.post<{ id: string }>('/chat/conversations', { productId });
   },
 
-  async sendMessage(conversationId: string, text: string): Promise<ApiResponse<any>> {
-    return apiClient.post('/chat/messages', { conversationId, text });
+  /** Real backend fields are {conversationId, content, type} - this used
+   * to send {conversationId, text}, which the real SendMessageDto doesn't
+   * even declare a field for (content was silently never set). */
+  async sendMessage(conversationId: string, content: string): Promise<ApiResponse<any>> {
+    return apiClient.post('/chat/messages', { conversationId, content, type: 'TEXT' });
+  },
+
+  /** Full message history for one conversation - the conversations list
+   * endpoint only ever returns each conversation's single latest message
+   * (a preview), never the full thread. */
+  async getMessages(conversationId: string, limit = 50, offset = 0): Promise<ApiResponse<any[]>> {
+    return apiClient.get<any[]>(`/chat/conversations/${conversationId}/messages?limit=${limit}&offset=${offset}`);
   },
 
   async updateOfferStatus(

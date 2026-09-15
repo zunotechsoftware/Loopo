@@ -56,6 +56,13 @@ export interface ChatMessage {
   isOffer?: boolean;
   offerAmount?: number;
   offerStatus?: 'Accepted' | 'Declined' | 'Pending';
+  /** True while an optimistically-appended message hasn't been confirmed
+   * by the server yet (still in flight). */
+  pending?: boolean;
+  /** True if the send request failed - the optimistic message stays
+   * visible but flagged so the UI can offer a retry instead of silently
+   * discarding what the user typed. */
+  failed?: boolean;
 }
 
 
@@ -74,6 +81,10 @@ export interface Conversation {
   lastTime: string;
   unreadCount: number;
   messages: ChatMessage[];
+  /** Whether the full message history has been fetched yet - the
+   * conversation-list endpoint only ever returns each conversation's
+   * single latest message as a preview, not the full thread. */
+  messagesLoaded?: boolean;
 }
 
 export type NotificationType =
@@ -129,4 +140,7 @@ export interface MyAdItem {
    * (Drafts/Pending/Rejected/Sold) filter on this, not on `status`, since
    * `status` collapses several distinct backend states together. */
   rawStatus: string;
+  /** Set when rawStatus is REJECTED - the moderator's real reason, so the
+   * seller can see why and correct it before resubmitting. */
+  rejectionReason?: string;
 }

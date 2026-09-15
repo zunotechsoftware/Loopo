@@ -352,6 +352,7 @@ export default function KycDetailsPage() {
 
   const [kyc, setKyc] = useState<KycDocument | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [remarks, setRemarks] = useState('');
   
   // Modals Open/Close States
@@ -389,15 +390,16 @@ export default function KycDetailsPage() {
   const fetchKycDetail = useCallback(async () => {
     try {
       setLoading(true);
+      setFetchError(null);
       const res = await kycService.getById(id);
       const resData = res.data?.data;
-      
-      let selectedKyc: KycDocument;
-      if (resData) {
-        selectedKyc = resData;
-      } else {
-        selectedKyc = (MOCK_KYC_DETAILS[id] || MOCK_KYC_DETAILS['U-100245']) as KycDocument;
+
+      if (!resData) {
+        setKyc(null);
+        setFetchError('KYC application not found.');
+        return;
       }
+      const selectedKyc: KycDocument = resData;
 
       setKyc(selectedKyc);
       setRemarks(selectedKyc.remarks || '');
@@ -456,29 +458,14 @@ export default function KycDetailsPage() {
 
       setVerificationTimeline(initialTimeline);
 
-    } catch (err) {
-      console.warn('Backend API unreachable. Loading local mockup details.', err);
-      const fallback = (MOCK_KYC_DETAILS[id] || MOCK_KYC_DETAILS['U-100245']) as KycDocument;
-      setKyc(fallback);
-      setRemarks(fallback.remarks || '');
-      
-      const initialTimeline = [
-        { date: '21 Aug 2026, 10:42 PM', title: 'KYC Submitted by user', subtitle: 'Documents uploaded successfully.', iconColor: '#3b82f6' },
-        { date: '21 Aug 2026, 11:05 PM', title: 'Under Review', subtitle: 'Review assigned to Admin.', iconColor: '#94a3b8' }
-      ];
-
-      if (fallback.status === 'APPROVED') {
-        initialTimeline.push({ date: '21 Aug 2026, 11:30 PM', title: 'Verified & Approved by Admin', subtitle: 'Checks successfully verified.', iconColor: '#10b981' });
-        setScannedItems({ nameMatched: 'passed', dobMatched: 'passed', documentReadable: 'passed', selfieMatched: 'passed', duplicateKyc: 'passed' });
-        setAutoState('completed');
-      } else if (fallback.status === 'REJECTED') {
-        initialTimeline.push({ date: '21 Aug 2026, 11:45 PM', title: 'Rejected by Admin', subtitle: fallback.remarks || 'Document unclear', iconColor: '#ef4444' });
-        setScannedItems({ nameMatched: 'failed', dobMatched: 'failed', documentReadable: 'passed', selfieMatched: 'failed', duplicateKyc: 'passed' });
-        setAutoState('completed');
-      } else {
-        setAutoState('scanning');
-      }
-      setVerificationTimeline(initialTimeline);
+    } catch (err: any) {
+      // Real error - do not fabricate a fake KYC record to review. An
+      // admin approving/rejecting fake data (previously shown here as a
+      // "local mockup") would have looked successful while never touching
+      // the real applicant's actual record at all.
+      console.error('Failed to load KYC application:', err);
+      setKyc(null);
+      setFetchError(err?.response?.data?.message || 'Could not load this KYC application. Is the backend reachable?');
     } finally {
       setLoading(false);
     }
@@ -574,26 +561,23 @@ export default function KycDetailsPage() {
     try {
       setLoading(true);
       await kycService.approve(kyc.id);
+      // Re-fetch the real record instead of hand-editing local state, so
+      // what's shown always matches what's actually in the database.
+      await fetchKycDetail();
       setSnackbar({ open: true, message: 'KYC Application approved successfully', severity: 'success' });
-      setKyc(prev => prev ? { ...prev, status: 'APPROVED' } : null);
-      
+
       const now = new Date();
       const timeStr = now.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) + ', ' + now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
       setVerificationTimeline(prev => [
         ...prev,
         { date: timeStr, title: 'Verified & Approved by Admin', subtitle: 'Approved from details portal.', iconColor: '#10b981' }
       ]);
-    } catch (err) {
-      console.warn('Backend API approve failed, simulating local success.', err);
-      setSnackbar({ open: true, message: 'KYC Approved successfully (Local Simulation)', severity: 'success' });
-      setKyc(prev => prev ? { ...prev, status: 'APPROVED' } : null);
-      
-      const now = new Date();
-      const timeStr = now.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) + ', ' + now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-      setVerificationTimeline(prev => [
-        ...prev,
-        { date: timeStr, title: 'Verified & Approved by Admin', subtitle: 'Approved from details portal.', iconColor: '#10b981' }
-      ]);
+    } catch (err: any) {
+      // A failed approval must look like a failure - silently pretending
+      // it worked left the applicant's real record untouched while the
+      // admin believed it had been approved.
+      console.error('Failed to approve KYC application:', err);
+      setSnackbar({ open: true, message: err?.response?.data?.message || 'Failed to approve this application. Please try again.', severity: 'error' });
     } finally {
       setLoading(false);
     }
@@ -610,26 +594,18 @@ export default function KycDetailsPage() {
     try {
       setLoading(true);
       await kycService.reject(kyc.id, finalReason);
+      await fetchKycDetail();
       setSnackbar({ open: true, message: `KYC Application rejected. Reason: ${finalReason}`, severity: 'success' });
-      setKyc(prev => prev ? { ...prev, status: 'REJECTED', remarks: finalReason } : null);
-      
+
       const now = new Date();
       const timeStr = now.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) + ', ' + now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
       setVerificationTimeline(prev => [
         ...prev,
         { date: timeStr, title: 'Rejected by Admin', subtitle: `Reason: ${finalReason}`, iconColor: '#ef4444' }
       ]);
-    } catch (err) {
-      console.warn('Backend API reject failed, simulating local success.', err);
-      setSnackbar({ open: true, message: `KYC Rejected successfully: ${finalReason} (Local Simulation)`, severity: 'success' });
-      setKyc(prev => prev ? { ...prev, status: 'REJECTED', remarks: finalReason } : null);
-      
-      const now = new Date();
-      const timeStr = now.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) + ', ' + now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-      setVerificationTimeline(prev => [
-        ...prev,
-        { date: timeStr, title: 'Rejected by Admin', subtitle: `Reason: ${finalReason}`, iconColor: '#ef4444' }
-      ]);
+    } catch (err: any) {
+      console.error('Failed to reject KYC application:', err);
+      setSnackbar({ open: true, message: err?.response?.data?.message || 'Failed to reject this application. Please try again.', severity: 'error' });
     } finally {
       setLoading(false);
     }
@@ -678,6 +654,15 @@ export default function KycDetailsPage() {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
         <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (!loading && !kyc) {
+    return (
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
+        <Typography variant="h6" color="text.secondary">{fetchError || 'KYC application not found.'}</Typography>
+        <Button variant="outlined" onClick={fetchKycDetail}>Retry</Button>
       </Box>
     );
   }

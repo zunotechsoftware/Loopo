@@ -37,6 +37,11 @@ export default function RejectedListingsPage() {
               </div>
               <div className="text-base font-black text-slate-500">{ad.price}</div>
               <div className="text-xs text-slate-400 font-medium">{ad.postedDate}</div>
+              {ad.rejectionReason && (
+                <div className="text-xs font-semibold text-red-600 bg-red-50 border border-red-100 rounded-lg px-2.5 py-1 mt-1 max-w-md">
+                  Reason: {ad.rejectionReason}
+                </div>
+              )}
             </div>
           </div>
 

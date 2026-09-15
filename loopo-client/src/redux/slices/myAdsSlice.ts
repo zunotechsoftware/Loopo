@@ -84,6 +84,7 @@ function normaliseDbItem(p: any): MyAdItem {
     image: mainImage,
     status: mapStatus(p.status || 'Active'),
     rawStatus: (p.status || p.rawStatus || 'DRAFT').toUpperCase(),
+    rejectionReason: p.rejectionReason || undefined,
   };
 }
 

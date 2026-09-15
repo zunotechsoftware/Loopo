@@ -6,6 +6,154 @@ last_verified: 2026-09-13
 
 ## OPEN
 
+### RESOLVED — P0: real-time chat never worked at all, in either app - Socket.IO was never actually attached to the real HTTP server
+User-reported: "when a user sends a message, the message is saved but
+does not appear immediately. It only appears after refreshing the page."
+
+The true root cause was infrastructural, not a frontend bug:
+**`RedisIoAdapter` (`shared/redis/redis-io.adapter.ts`) called `super()`
+with no arguments**, so `AbstractWsAdapter` never got the Nest application
+reference it needs to find the app's real, already-listening HTTP server.
+`IoAdapter.createIOServer` falls back to `new Server(port, options)` - a
+brand-new, fully disconnected Socket.IO instance, never routed to by the
+actual server answering every REST request on port 5000. Confirmed with a
+raw `curl` handshake: `GET /socket.io/?EIO=4&transport=polling` returned a
+plain Express **404** (with Helmet's security headers on it, proving it
+came from Nest's own router, not a network-level failure) - nothing was
+ever listening on that path at all, on any port a browser could reach.
+**Every** socket.io connection attempt from any client, in either app, has
+always silently failed - this predates this session entirely.
+
+**Fixed:** pass the Nest `app` through: `new RedisIoAdapter(app,
+configService)` in `main.ts`, `constructor(app: INestApplicationContext,
+...) { super(app); }` in the adapter. Verified: the same curl handshake
+now returns `200 OK`.
+
+**Compounding, now-moot-but-still-fixed frontend bugs found on top of this:**
+- `loopo-admin`'s `useChatSocket.ts` read the token from `localStorage
+  'token'`, a key nothing in the app ever sets (`AuthProvider.tsx` uses
+  `'accessToken'`) - the socket's auth handshake never even had a token to
+  send, so it would have failed regardless of the backend bug.
+- `loopo-client` had **no Socket.IO integration at all** (not even the
+  package installed) - real-time delivery there was never attempted, and
+  separately, `sendMessage` was a **local-only synchronous Redux reducer
+  that never called the send-message API at all** (a message "sent" from
+  the client only ever existed in that tab's memory; a refresh made it
+  vanish rather than reappear). `chatApi.ts`'s methods also didn't match
+  the real backend contract (`{conversationId, text}` instead of
+  `{conversationId, content, type}`; no `getMessages` method existed at
+  all, so a conversation's full history was never loadable - only ever the
+  single latest-message preview the conversation-list endpoint returns).
+
+**Rebuilt for real:** added `socket.io-client` + a `useChatSocket` hook to
+loopo-client (mirrors the admin one); fixed `chatApi.sendMessage`/added
+`chatApi.getMessages`; rewrote `chatSlice.ts` with `fetchMessagesThunk`
+(full history, loaded once per conversation), `sendMessageThunk` +
+`addOptimisticMessage` (append immediately, reconcile with the real
+response, drop the optimistic copy without duplicating if the socket echo
+already arrived first), `receiveMessage`/`applyConversationUpdate`
+(live-update from the socket, with unread-count bumped only for
+conversations not currently open); fixed message `sender` derivation to
+compare the message's real `senderId` against the current user's id
+(previously compared against a `m.sender` string field the backend never
+sends - every message silently rendered as "sent by me" regardless of who
+sent it). Also had the backend controller additionally broadcast
+`conversation_updated` to the recipient's personal `user:${id}` room (every
+client already joins this on connect) so a brand-new conversation, or one
+the recipient currently has closed, still live-updates their inbox instead
+of only conversations they've actively opened before.
+
+**Verified live, two real separate browser sessions (seller + buyer), not
+simulated:** a message sent by one appears on the other's screen with zero
+page reload; confirmed no duplicate rendering of the sender's own message
+(optimistic-vs-socket-echo reconciliation works); replies flow back the
+same way. Backend: 83/83 unit tests pass, `tsc --noEmit` clean. Both apps:
+`tsc --noEmit` clean, builds succeed.
+
+### RESOLVED — Block / Unblock / Report were unreachable from inside the messaging UI itself
+`MessagesView.tsx` had a "Report" button but no way to block a user at all
+from within a chat - `blocked-users/page.tsx` and the seller-profile page
+already had real block/unblock (fixed earlier this session), but nothing
+inside the actual chat screen. Added a Block/Unblock button to the chat
+header with a real confirmation dialog (loading spinner, real
+success/error toast), a red banner when the open conversation's other
+party is blocked, and disabled message input/attach/send while blocked
+(the backend already 403s a blocked send; this adds the same rule
+client-side for immediate feedback). A failed send now shows inline with a
+tap-to-retry action instead of silently vanishing.
+
+**Verified live:** blocking via the chat header persists for real (`GET
+/users/blocked` reflects it immediately), the input visibly disables with
+"Unblock to send a message...", and unblocking via the dedicated
+`/blocked-users` page correctly clears it. Reports already flow into the
+real admin `/reports` workflow (fixed earlier this session) - the chat's
+Report button reuses the same real modal, now scoped to `targetType:
+'USER'` with the real `otherPartyId`.
+
+### RESOLVED — Admin KYC review page: a failed approve/reject silently pretended to succeed, and a failed fetch loaded fabricated data for a different (mock) applicant
+Found while verifying KYC admin→client sync. `kyc/[id]/page.tsx` had two
+dangerous fallback-on-error blocks, both pre-existing (not introduced this
+session):
+- `handleApproveConfirm`/`handleRejectConfirm`'s `catch` blocks showed a
+  fake **"...successfully (Local Simulation)"** toast and flipped the
+  local `kyc.status` to APPROVED/REJECTED **even though the real API call
+  had just failed** - the actual database record was never touched, but
+  the admin had no way to tell their action hadn't worked.
+- `fetchKycDetail`'s `catch` block (and even a branch of its success path,
+  if `resData` was falsy) substituted a hardcoded `MOCK_KYC_DETAILS` record
+  for a **different, fictional applicant** ("Venkatesh") - an admin could
+  end up reviewing and then "approving" fabricated content while believing
+  it belonged to the real application they'd opened, since the approve
+  button would then fire against that fake `id`.
+
+**Fixed:** both catch blocks now show a real error toast and change
+nothing locally; approve/reject now re-fetch the real record via
+`fetchKycDetail()` on success instead of hand-editing local state, so
+what's displayed always matches the database. The fetch failure path (and
+the missing-`resData` branch) now sets `kyc: null` with a real error
+message, and a proper "not found / couldn't load, Retry" screen was added
+(previously nothing guarded `!kyc` outside the initial loading spinner, so
+this path would have thrown reaching into a null `kyc` deeper in the
+render). Left as dead code rather than risk touching more of this ~1500-
+line file under time pressure: the now-fully-unused `MOCK_KYC_DETAILS`
+constant, and a still-present but no-longer-reachable-via-fallback
+"auto-verification simulator" (`scannedItems`/`autoState`) that, when a
+*real* record loads via the normal success path, still runs a purely
+decorative ~2.7s timer that always ends in every check "passed" - it
+doesn't inspect the actual document images at all and isn't wired to
+anything the admin's approve/reject decision depends on. Flagging clearly
+here rather than leaving it looking like real automated verification: **it
+is not**, and should either be removed or connected to a real
+document-verification vendor in a future pass.
+
+**Verified live end to end:** client submits KYC (SUBMITTED) → admin
+approves via the real `PATCH /admin/kyc/:id/approve` → client's next
+`GET /kyc/me` immediately reflects APPROVED. Admin KYC list page renders
+real applications with real stats (5 total, 4 pending, 1 approved, 1
+rejected in the verification run) with zero console errors.
+
+### RESOLVED — Rejected listings never showed the seller *why* - the data existed, nothing displayed it
+Part of verifying the selling-lifecycle sync ("Admin rejects → seller sees
+rejection/reason"). The real `rejectionReason` field was already being set
+by the backend on rejection and was already present in every
+`GET /products/my` response (the repository uses `include`, which returns
+all scalar fields) - `myAdsSlice.ts`'s `normaliseDbItem` just never copied
+it onto the frontend `MyAdItem`, and `my-listings/rejected/page.tsx` never
+rendered it. Added `rejectionReason` to the `MyAdItem` type, the
+normalizer, and the rejected-listings page (shown as a real reason chip
+under each rejected listing). The admin-side reject dialog already
+correctly required and sent a real reason - only the client display side
+was missing.
+
+### Verified, no change needed — sold-product and moderation-status sync
+Checked as part of the same sync pass: the public listings endpoint only
+ever returns `APPROVED` products (a `SOLD` item is never publicly
+browsable once marked sold - by construction, not a special case), the
+admin listings page already has a real "Sold" filter and a real
+`productsService.getStats()`-driven sold count, and the client's Mark Sold
+flow (fixed earlier this session) persists a real status change all three
+surfaces read from the same table. No gap found here.
+
 ### RESOLVED — loopo-admin (user-reported priority #3): Notifications and Email Templates were largely fake/incomplete
 1. **Notifications**: the main list/create/edit/stats flow was already real (`admin.service.ts`'s `notificationsService` correctly hitting `/admin/notifications`), but:
    - The Create/Edit dialog had no way to set the real `type` field (Promotion/Order Update/Engagement/Security/Cart Reminder/Update/Onboarding) - every notification silently defaulted to PROMOTION. Added a real Type selector.
