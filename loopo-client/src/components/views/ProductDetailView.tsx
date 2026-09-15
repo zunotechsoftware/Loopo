@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { setActiveTab } from '@/redux/slices/navigationSlice';
-import { toggleFavorite } from '@/redux/slices/productsSlice';
+import { toggleFavoriteThunk } from '@/redux/slices/productsSlice';
 import {
   setOfferModalOpen,
   openReportModal,
@@ -131,7 +131,7 @@ export default function ProductDetailView() {
       dispatch(showToast('Please log in to save favorites'));
       return;
     }
-    if (product.id) dispatch(toggleFavorite(product.id));
+    if (product.id) dispatch(toggleFavoriteThunk({ productId: product.id, isFavorited: isFavorite }));
   };
 
 

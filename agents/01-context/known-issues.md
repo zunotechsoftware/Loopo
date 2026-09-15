@@ -6,6 +6,36 @@ last_verified: 2026-09-13
 
 ## OPEN
 
+### RESOLVED — loopo-client: Favourites never persisted server-side; a fully-fake standalone /report page existed alongside the real ReportModal
+Same silent-revert bug class as the earlier My Listings Mark Sold/Delete
+fix: `toggleFavorite` was a plain synchronous Redux reducer that never
+called the real, already-existing `GET/POST/DELETE /favorites` backend -
+toggling a heart looked instant but was pure in-memory state, gone on the
+next real fetch or page reload, and never synced across devices/sessions.
+
+**Fixed:** added `interactionsApi.getFavorites/addFavorite/removeFavorite`;
+added `fetchFavoritesThunk` (populates both the favorited ids and the full
+product objects, so the Favourites page has real data) and
+`toggleFavoriteThunk` (calls the real API first, flips local state only on
+success) to `productsSlice.ts`; updated both heart-button call sites
+(`ProductCard.tsx`, `ProductDetailView.tsx`); `MainLayout.tsx` now loads
+real favorites once authenticated, so heart icons are correct everywhere
+in the app, not just on a page that happens to re-fetch them.
+
+**Verified live:** real product favorited via the actual heart button,
+confirmed via `GET /favorites` (real row), then a **full fresh page load**
+of `/favourites` (not just Redux memory) correctly showed the item with
+the sidebar badge - the same persistence check that caught the Mark Sold
+bug.
+
+**Also deleted:** `app/report/page.tsx`, a second, fully independent,
+100%-fake report page (`?targetType=&targetId=` query params, hardcoded
+reason codes that didn't even match the seeded `ReportReason` codes, a
+submit handler that just flipped `submitted=true` with no API call) -
+confirmed unreachable from anywhere in the UI (nothing ever linked to
+`ROUTES.REPORT`) and fully superseded by `ReportModal.tsx`, fixed for real
+earlier this session.
+
 ### RESOLVED — loopo-client: seller profile page, "Contact Seller"/report/block, and a buyer↔seller chat mislabeling bug (found in the pre-demo sweep)
 Found while investigating the fake "Block Seller" button. This turned into
 five compounding bugs, all in the same neighbourhood:
