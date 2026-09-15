@@ -62,6 +62,7 @@ export interface ChatMessage {
 export interface Conversation {
   id: string;
   type: 'buying' | 'selling';
+  otherPartyId: string;
   otherPartyName: string;
   otherPartyAvatar: string;
   otherPartyRole: 'Buyer' | 'Seller';

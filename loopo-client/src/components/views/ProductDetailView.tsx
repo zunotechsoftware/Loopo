@@ -19,10 +19,10 @@ import {
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { setActiveTab } from '@/redux/slices/navigationSlice';
-import { toggleFavorite } from '@/redux/slices/productsSlice';
+import { toggleFavoriteThunk } from '@/redux/slices/productsSlice';
 import {
   setOfferModalOpen,
-  setReportModalOpen,
+  openReportModal,
   setReviewModalOpen,
   setAuthModalOpen,
   showToast,
@@ -32,6 +32,7 @@ import { setActiveConversation } from '@/redux/slices/chatSlice';
 import ProductCard from '../ui/ProductCard';
 
 import { productsApi } from '@/services/productsApi';
+import { chatApi } from '@/services/chatApi';
 
 export default function ProductDetailView() {
   const dispatch = useAppDispatch();
@@ -107,15 +108,20 @@ export default function ProductDetailView() {
     maximumFractionDigits: 0,
   }).format(priceNum);
 
-  const handleStartChat = () => {
+  const handleStartChat = async () => {
     if (!isAuthenticated) {
       dispatch(setAuthModalOpen(true));
       dispatch(showToast('Please log in to chat with the seller'));
       return;
     }
-    dispatch(setActiveConversation('conv-buy-1'));
+    if (!product.id) return;
+    const res = await chatApi.startConversationForProduct(product.id);
+    if (!res.success || !res.data?.id) {
+      dispatch(showToast(res.error || 'Could not start a conversation with this seller'));
+      return;
+    }
+    dispatch(setActiveConversation(res.data.id));
     dispatch(setActiveTab('messages'));
-    dispatch(showToast(`Opening chat conversation with ${product.seller?.name || 'Seller'}...`));
     router.push('/chats');
   };
 
@@ -125,7 +131,7 @@ export default function ProductDetailView() {
       dispatch(showToast('Please log in to save favorites'));
       return;
     }
-    if (product.id) dispatch(toggleFavorite(product.id));
+    if (product.id) dispatch(toggleFavoriteThunk({ productId: product.id, isFavorited: isFavorite }));
   };
 
 
@@ -202,7 +208,12 @@ export default function ProductDetailView() {
               </h1>
               <div className="flex items-center gap-1">
                 <button
-                  onClick={() => dispatch(showToast('Share link copied!'))}
+                  onClick={() => {
+                    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                      navigator.clipboard.writeText(window.location.href).catch(() => {});
+                    }
+                    dispatch(showToast('Share link copied!'));
+                  }}
                   className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 transition-colors"
                   title="Share"
                 >
@@ -216,7 +227,7 @@ export default function ProductDetailView() {
                       dispatch(showToast('Please log in to report a listing'));
                       return;
                     }
-                    dispatch(setReportModalOpen(true));
+                    dispatch(openReportModal({ targetType: 'LISTING', targetId: product.id, label: product.title }));
                   }}
                   className="p-2 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
                   title="Report Listing"

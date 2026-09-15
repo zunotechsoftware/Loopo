@@ -18,6 +18,7 @@ import AuthModal from '@/components/ui/AuthModal';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { clearToast } from '@/redux/slices/uiSlice';
 import { initAuthThunk } from '@/redux/slices/authSlice';
+import { fetchFavoritesThunk } from '@/redux/slices/productsSlice';
 import { X, Sparkles } from 'lucide-react';
 import { ROUTES } from '@/routes/routes';
 
@@ -29,11 +30,21 @@ export default function MainLayout({ children }: MainLayoutProps) {
   const dispatch = useAppDispatch();
   const pathname = usePathname();
   const toastMessage = useAppSelector((state) => state.ui.toastMessage);
+  const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
 
   // Initialize auth state from stored token on mount
   useEffect(() => {
     dispatch(initAuthThunk());
   }, [dispatch]);
+
+  // Load real favorites once logged in, so heart icons everywhere reflect
+  // the real backend state instead of only whatever this session has
+  // toggled locally.
+  useEffect(() => {
+    if (isAuthenticated) {
+      dispatch(fetchFavoritesThunk());
+    }
+  }, [isAuthenticated, dispatch]);
 
   useEffect(() => {
     if (toastMessage) {

@@ -6,6 +6,197 @@ last_verified: 2026-09-13
 
 ## OPEN
 
+### RESOLVED — P0 (user-reported): loopo-admin chat showed "Unknown User" and mis-flagged message senders after starting/sending a new conversation
+User-reported priority: "when I choose a user and message it is sending
+but it is showing as unknown user."
+
+Root cause was entirely in the shared backend chat module, not the admin
+frontend: `chat.service.ts`'s `getConversations()`/`getConversationDetails()`
+populate each participant row's `.user` field from the conversation's
+`buyer`/`seller` relations (Prisma never nests a `.user` object onto
+`ConversationParticipant` by default), and sort participants so the
+current caller is always index 0. **`createConversation()` never did
+either of those two things** - it returned the raw Prisma
+`participants: true` rows (bare `{userId, conversationId, ...}`, no name/
+email/avatar at all) straight from the repository, for both the
+newly-created-conversation path and the find-existing-duplicate path.
+
+`loopo-admin`'s `ChatArea.tsx`/`ConversationsSidebar.tsx` both do
+`conv.participants[1].user` to get "the other party" (correct **only**
+if participants are sorted and populated the way `getConversations`
+does it) - so the conversation object handed back immediately after
+`POST /chat/conversations` (used to render the just-selected chat and to
+optimistically show the just-sent message) had `participants[1].user ===
+undefined`, and the `|| 'Unknown User'` fallback fired. The same
+`recipient.id` being `undefined` also broke `isSentByMe = msg.senderId
+!== recipient.id` - since `undefined` never equals a real sender id, every
+message (including ones from the other user) evaluated as "sent by me".
+This affected `loopo-client`'s real buyer/seller chat too in principle
+(same endpoint), but happened not to surface there because that flow
+always does a full `GET /chat/conversations` refetch before rendering
+(see the buyer/seller mislabel fix earlier this session) rather than
+trusting the raw creation response directly.
+
+**Fixed:** extracted a `mapConversationParticipants(conv, currentUserId)`
+private helper in `chat.service.ts` (identical logic was already
+duplicated verbatim between `getConversations`/`getConversationDetails` -
+now a single source of truth) and applied it to **both** branches of
+`createConversation()` (the existing-conversation-found early return, and
+the newly-created-conversation return). Also added the missing
+`buyer`/`seller` `include`s to `chat.repository.ts`'s `findConversation`
+and `createConversation` (they only selected `participants: true` before,
+so the service had nothing to map from even if it tried).
+
+**Verified live end to end:** admin creates a conversation with a
+brand-new user via the real `POST /chat/conversations` - confirmed via
+direct API call that `participants[0]` is the admin and `participants[1]`
+is the real target user, both with real `firstName`/`lastName`; browser
+test clicking a fresh, never-before-messaged user in the admin panel's
+"Users" tab and sending a message showed the correct name in the chat
+header throughout (never "Unknown User"), and the sent message rendered
+correctly right-aligned/blue as sent-by-me. Backend: 83/83 unit tests
+pass, `tsc --noEmit` clean.
+
+### RESOLVED — loopo-client: Favourites never persisted server-side; a fully-fake standalone /report page existed alongside the real ReportModal
+Same silent-revert bug class as the earlier My Listings Mark Sold/Delete
+fix: `toggleFavorite` was a plain synchronous Redux reducer that never
+called the real, already-existing `GET/POST/DELETE /favorites` backend -
+toggling a heart looked instant but was pure in-memory state, gone on the
+next real fetch or page reload, and never synced across devices/sessions.
+
+**Fixed:** added `interactionsApi.getFavorites/addFavorite/removeFavorite`;
+added `fetchFavoritesThunk` (populates both the favorited ids and the full
+product objects, so the Favourites page has real data) and
+`toggleFavoriteThunk` (calls the real API first, flips local state only on
+success) to `productsSlice.ts`; updated both heart-button call sites
+(`ProductCard.tsx`, `ProductDetailView.tsx`); `MainLayout.tsx` now loads
+real favorites once authenticated, so heart icons are correct everywhere
+in the app, not just on a page that happens to re-fetch them.
+
+**Verified live:** real product favorited via the actual heart button,
+confirmed via `GET /favorites` (real row), then a **full fresh page load**
+of `/favourites` (not just Redux memory) correctly showed the item with
+the sidebar badge - the same persistence check that caught the Mark Sold
+bug.
+
+**Also deleted:** `app/report/page.tsx`, a second, fully independent,
+100%-fake report page (`?targetType=&targetId=` query params, hardcoded
+reason codes that didn't even match the seeded `ReportReason` codes, a
+submit handler that just flipped `submitted=true` with no API call) -
+confirmed unreachable from anywhere in the UI (nothing ever linked to
+`ROUTES.REPORT`) and fully superseded by `ReportModal.tsx`, fixed for real
+earlier this session.
+
+### RESOLVED — loopo-client: seller profile page, "Contact Seller"/report/block, and a buyer↔seller chat mislabeling bug (found in the pre-demo sweep)
+Found while investigating the fake "Block Seller" button. This turned into
+five compounding bugs, all in the same neighbourhood:
+
+1. **`seller/[userId]/page.tsx` was 100% fake** and never called any real
+   API: the "seller name" was `userId.replace(/-/g, ' ')` (a UUID with
+   dashes turned into spaces - genuinely nonsensical for a real user id), a
+   hardcoded stock photo, hardcoded "Bangalore, Karnataka" / "Member since
+   2023" / "4.9 (48 reviews)", and **"Listings by this seller" rendered
+   `state.products.items` unfiltered** - i.e. whatever products happened to
+   already be loaded in Redux from browsing elsewhere, not this seller's
+   actual listings. Also unreachable from anywhere in the UI (no page ever
+   linked to it).
+2. **Backend `getPublicProfile()` had hardcoded mock stats**
+   (`sellerRating: 4.8`, `totalListings: 12`, `completedSales: 5`,
+   `averageResponseTime: 'Within 1 hour'` - all fake, for every seller).
+3. **`ReportModal.tsx` never called `POST /reports`** - `handleSubmit` just
+   closed the modal and showed a hard-coded-success toast. Its 3 openers
+   (`ProductDetailView`, `MessagesView`, seller profile) also didn't tell it
+   *what* was being reported - it derived a "product" from whatever
+   `selectedProductId` happened to be, which doesn't apply to reporting a
+   seller or a chat at all. Separately, `interactionsApi.ts`'s
+   `ReportPayload` shape (`{targetId, reason, details?}`) didn't match the
+   real `CreateReportDto` (`targetType`, `targetId`, `reasonCode`,
+   `details` required) - it had never actually been exercised through a
+   real UI component.
+4. **"Block Seller" was `dispatch(showToast('Blocked ...'))`** with no API
+   call, on both the seller profile and `blocked-users/page.tsx` (which
+   showed two permanently-hardcoded fake blocked users - "Spam Seller 99",
+   "Fake Buyer" - for every account, including a brand-new one). The
+   `BlockedUser` Prisma model existed but had zero list endpoint anywhere -
+   though a working `POST/DELETE /chat/block/:userId` already existed
+   (Redis-cached, actually consulted when starting/sending chats).
+5. **"Contact Seller"/"Chat with Seller" from a product page always opened
+   a hardcoded fake conversation id (`'conv-buy-1'`)**, not a real
+   conversation about that specific product/seller - this is likely the
+   single most demo-visible bug found this session (any "message the
+   seller" click was fake).
+6. **Found while verifying fix #5**: every conversation's "other party" was
+   computed as `c.buyer || c.seller || c.otherUser` - always preferring the
+   buyer object regardless of who the current user actually is. For a
+   buyer's own conversation, this showed **their own name/avatar as if it
+   were the seller's**. Compounded by `type: c.type === 'selling' ? ... :
+   'buying'` - the backend never sets `c.type` at all, so every
+   conversation was permanently tagged "buying" and the "Selling" chat tab
+   was always empty even for a real seller with real buyer messages.
+
+**Fixed, all six:**
+- Added `sellerId` to `ListingSearchQueryDto`/`findPublicListings` (public,
+  safe - "other listings by this seller").
+- `getPublicProfile()` now computes real aggregates: `totalListings`
+  (`COUNT WHERE status=APPROVED`), `completedSales` (`COUNT WHERE
+  status=SOLD`), `sellerRating`/`reviewCount` (`AVG`/`COUNT` over
+  `ReviewRating.overall` for reviews targeting that user). Dropped
+  `averageResponseTime` outright rather than inventing another fake number
+  - no real data source exists for it.
+- Rewrote `seller/[userId]/page.tsx`: fetches the real profile, dispatches
+  `fetchProductsThunk({sellerId})` and filters `state.products.items` by
+  `seller.id === userId` for the listings grid, initial-letter avatar
+  fallback, real "No reviews yet" state, wired Block/Report to the real
+  endpoints below.
+- Rewrote `ReportModal.tsx` to call the real `POST /reports` with the
+  correct DTO shape; added a `reportTarget: {targetType, targetId, label}`
+  slice of `uiSlice` (new `openReportModal` action) so its three openers
+  can say what's actually being reported instead of guessing a product.
+- **Block/unblock: did not duplicate the existing `/chat/block/:userId`.**
+  Added only the genuinely-missing list endpoint (`GET /users/blocked`,
+  registered before `GET /users/:id` - same route-order lesson as
+  elsewhere this session), and pointed the frontend's block/unblock calls
+  at the real `/chat/block/:userId`. (A first pass had added a competing
+  `POST/DELETE /users/:id/block` on the same `BlockedUser` table before
+  this was noticed - removed before it shipped.) Rewrote
+  `blocked-users/page.tsx` to list/unblock for real.
+- `handleStartChat` now calls a new `chatApi.startConversationForProduct`
+  (`POST /chat/conversations {productId}`), which the backend already
+  supported (derives the seller, dedupes, blocks blocked users) but nothing
+  called correctly before.
+- Added `otherPartyId` to the `Conversation` type; `normaliseConversation`
+  now takes `currentUserId` (read from `state.auth.user.id` inside the
+  thunk) and compares it against the conversation's real `buyerId`/
+  `sellerId` to pick the correct "other party" and compute a real
+  `type`/`otherPartyRole`, instead of guessing.
+- Also fixed two small adjacent fakes noticed along the way:
+  `ProductDetailView`'s "Share" button now actually copies the link
+  (`navigator.clipboard.writeText`) instead of just claiming to; the chat
+  header's "Call" button no longer fabricates a phone number
+  (`+91 98765 43210`, the same fake number reused in `ProfileView.tsx`'s
+  hardcoded addresses) - it now says calling isn't available yet, since no
+  real phone number is available in the conversation data.
+
+**Verified live, full round trip:** real seller + real buyer accounts,
+real approved listing, `GET /users/public/:id` returning real aggregates,
+`GET /products?sellerId=X` returning only that seller's listing,
+`POST /chat/conversations {productId}` creating a real conversation,
+`POST /reports` with `targetType: USER`, `POST/DELETE /chat/block/:userId`
++ `GET /users/blocked` all round-tripping correctly. Browser: seller
+profile page renders the real name/avatar/stats/listing (screenshot
+confirmed - no more UUID-as-name); clicking "Chat with Seller" on a real
+listing landed on `/chats` showing the correct conversation with the
+correct other-party name and message-input placeholder (screenshot
+confirmed before/after the buyer↔seller mislabel fix). Zero console
+errors throughout. Backend: 83/83 unit tests pass, `tsc --noEmit` clean.
+Frontend: `tsc --noEmit` clean, `next build` succeeds.
+
+Noted but not fixed (separate, deferred): `ProfileView.tsx`'s
+`savedAddresses` array and "4.9 (48 rating)" are still hardcoded (flagged
+earlier this session); the "Make Offer" flow (`PATCH /chat/offers`) has no
+matching backend route and is downstream of the already-documented
+missing-Offers-schema gap - not touched.
+
 ### RESOLVED — loopo-client: "Mark Sold" / "Delete" on My Listings never actually persisted server-side, and 5 backend listing-lifecycle endpoints were silent no-ops
 Found while doing the pre-demo loopo-client sweep. Two independent bugs
 stacked on top of each other:

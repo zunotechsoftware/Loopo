@@ -18,6 +18,8 @@ export class ChatRepository {
       },
       include: {
         participants: true,
+        buyer: { select: { id: true, firstName: true, lastName: true, profileImage: true, status: true, lastLoginAt: true } },
+        seller: { select: { id: true, firstName: true, lastName: true, profileImage: true, status: true, lastLoginAt: true } },
       },
     });
   }
@@ -52,6 +54,8 @@ export class ChatRepository {
         where: { id: conversation.id },
         include: {
           participants: true,
+          buyer: { select: { id: true, firstName: true, lastName: true, profileImage: true, status: true, lastLoginAt: true } },
+          seller: { select: { id: true, firstName: true, lastName: true, profileImage: true, status: true, lastLoginAt: true } },
         },
       });
     });

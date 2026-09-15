@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { Product } from '@/types';
 import { productsApi, CreateProductPayload, UpdateProductPayload } from '@/services/productsApi';
+import { interactionsApi } from '@/services/interactionsApi';
 
 interface FilterState {
   searchQuery: string;
@@ -84,9 +85,9 @@ function normaliseProduct(p: any): Product {
 export const fetchProductsThunk = createAsyncThunk(
   'products/fetchProducts',
   /** @param args.categoryId - real backend category UUID, not a display name */
-  async (args?: { categoryId?: string; query?: string; city?: string }) => {
-    const { categoryId, query, city } = args || {};
-    const res = await productsApi.getProducts(categoryId, query, city);
+  async (args?: { categoryId?: string; query?: string; city?: string; sellerId?: string }) => {
+    const { categoryId, query, city, sellerId } = args || {};
+    const res = await productsApi.getProducts(categoryId, query, city, sellerId);
 
     if (res.success) {
       const data = res.data as any;
@@ -124,6 +125,36 @@ export const fetchProductByIdThunk = createAsyncThunk(
       return normaliseProduct(res.data);
     }
     return rejectWithValue(res.error || 'Failed to load listing');
+  }
+);
+
+/** Fetches the real favorites list (GET /favorites) and returns both the
+ * favorited product ids and the full product objects, so the Favourites
+ * page has real data instead of just ids with nothing to look up. */
+export const fetchFavoritesThunk = createAsyncThunk('products/fetchFavorites', async () => {
+  const res = await interactionsApi.getFavorites();
+  if (res.success && Array.isArray(res.data)) {
+    const products = res.data
+      .map((row: any) => row.product || row)
+      .filter(Boolean)
+      .map(normaliseProduct);
+    return { ids: products.map((p) => p.id), products };
+  }
+  return { ids: [], products: [] };
+});
+
+/** Toggling a favorite calls the real API first (POST/DELETE
+ * /favorites/:productId) and only flips local state on success - unlike
+ * the old synchronous `toggleFavorite` reducer, which never called the API
+ * at all and silently reverted on the next fetchFavoritesThunk. */
+export const toggleFavoriteThunk = createAsyncThunk(
+  'products/toggleFavorite',
+  async ({ productId, isFavorited }: { productId: string; isFavorited: boolean }, { rejectWithValue }) => {
+    const res = isFavorited
+      ? await interactionsApi.removeFavorite(productId)
+      : await interactionsApi.addFavorite(productId);
+    if (res.success) return { productId, isFavorited: !isFavorited };
+    return rejectWithValue(res.error || 'Failed to update favorites');
   }
 );
 
@@ -194,6 +225,25 @@ export const productsSlice = createSlice({
       })
       .addCase(createProductThunk.fulfilled, (state, action) => {
         state.items.unshift(action.payload);
+      })
+      .addCase(fetchFavoritesThunk.fulfilled, (state, action) => {
+        state.favorites = action.payload.ids;
+        const fetchedMap = new Map<string, Product>();
+        action.payload.products.forEach((item) => fetchedMap.set(item.id, item));
+        state.items.forEach((existing) => {
+          if (!fetchedMap.has(existing.id)) {
+            fetchedMap.set(existing.id, existing);
+          }
+        });
+        state.items = Array.from(fetchedMap.values());
+      })
+      .addCase(toggleFavoriteThunk.fulfilled, (state, action) => {
+        const { productId, isFavorited } = action.payload;
+        if (isFavorited) {
+          if (!state.favorites.includes(productId)) state.favorites.push(productId);
+        } else {
+          state.favorites = state.favorites.filter((id) => id !== productId);
+        }
       })
       .addCase(fetchProductByIdThunk.fulfilled, (state, action) => {
         const idx = state.items.findIndex((p) => p.id === action.payload.id);

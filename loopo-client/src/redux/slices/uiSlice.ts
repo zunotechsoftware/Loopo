@@ -23,11 +23,19 @@ function saveLocation(loc: LocationData) {
   try { localStorage.setItem('loopo_location', JSON.stringify(loc)); } catch { /* ignore */ }
 }
 
+export interface ReportTarget {
+  targetType: 'LISTING' | 'USER' | 'CHAT_MESSAGE';
+  targetId: string;
+  /** Display-only label shown in the modal ("this listing" / a seller's name / etc). */
+  label: string;
+}
+
 interface UiState {
   isDarkMode: boolean;
   isOfferModalOpen: boolean;
   isSellModalOpen: boolean;
   isReportModalOpen: boolean;
+  reportTarget: ReportTarget | null;
   isReviewModalOpen: boolean;
   isAddressModalOpen: boolean;
   isAuthModalOpen: boolean;
@@ -44,6 +52,7 @@ const initialState: UiState = {
   isOfferModalOpen: false,
   isSellModalOpen: false,
   isReportModalOpen: false,
+  reportTarget: null,
   isReviewModalOpen: false,
   isAddressModalOpen: false,
   isAuthModalOpen: false,
@@ -68,6 +77,11 @@ export const uiSlice = createSlice({
     },
     setReportModalOpen: (state, action: PayloadAction<boolean>) => {
       state.isReportModalOpen = action.payload;
+      if (!action.payload) state.reportTarget = null;
+    },
+    openReportModal: (state, action: PayloadAction<ReportTarget>) => {
+      state.isReportModalOpen = true;
+      state.reportTarget = action.payload;
     },
     setReviewModalOpen: (state, action: PayloadAction<boolean>) => {
       state.isReviewModalOpen = action.payload;
@@ -106,6 +120,7 @@ export const {
   setOfferModalOpen,
   setSellModalOpen,
   setReportModalOpen,
+  openReportModal,
   setReviewModalOpen,
   setAddressModalOpen,
   setAuthModalOpen,

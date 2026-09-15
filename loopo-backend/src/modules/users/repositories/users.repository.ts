@@ -221,4 +221,48 @@ export class UsersRepository {
       },
     });
   }
+
+  // --- Seller public-profile stats (real aggregates, not mock numbers) ---
+  async countApprovedListings(sellerId: string) {
+    return this.prisma.product.count({
+      where: { sellerId, status: 'APPROVED', deletedAt: null },
+    });
+  }
+
+  async countSoldListings(sellerId: string) {
+    return this.prisma.product.count({
+      where: { sellerId, status: 'SOLD', deletedAt: null },
+    });
+  }
+
+  async getSellerRatingSummary(sellerId: string) {
+    const agg = await this.prisma.reviewRating.aggregate({
+      where: {
+        review: { targetUserId: sellerId, isVisible: true, deletedAt: null },
+      },
+      _avg: { overall: true },
+      _count: true,
+    });
+    return { average: agg._avg.overall || 0, count: agg._count };
+  }
+
+  // --- Blocked Users ---
+  // Block/unblock writes happen in chat.repository.ts against the same
+  // BlockedUser table - this is read-only, for the "who have I blocked" list.
+  async getBlockedUsers(blockerId: string) {
+    return this.prisma.blockedUser.findMany({
+      where: { blockerId },
+      include: {
+        blocked: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            profile: { select: { displayName: true, profileImage: { select: { fileUrl: true } } } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
 }

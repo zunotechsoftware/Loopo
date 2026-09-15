@@ -6,7 +6,7 @@ import { Heart, MapPin, Clock } from 'lucide-react';
 import { Product } from '@/types';
 
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
-import { toggleFavorite } from '@/redux/slices/productsSlice';
+import { toggleFavoriteThunk } from '@/redux/slices/productsSlice';
 import { openProductDetail } from '@/redux/slices/navigationSlice';
 
 import { setAuthModalOpen, showToast } from '@/redux/slices/uiSlice';
@@ -75,7 +75,7 @@ export default function ProductCard({ product }: ProductCardProps) {
                 dispatch(showToast('Please log in to save favorites'));
                 return;
               }
-              if (product?.id) dispatch(toggleFavorite(product.id));
+              if (product?.id) dispatch(toggleFavoriteThunk({ productId: product.id, isFavorited: isFavorite }));
             }}
             className={`absolute top-2.5 right-2.5 w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-md transition-all duration-200 ${
               isFavorite
