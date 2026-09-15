@@ -152,7 +152,7 @@ export const productsApi = {
   },
 
   async markAsSold(id: string): Promise<ApiResponse<any>> {
-    return apiClient.patch(`/products/${id}/status`, { status: 'Sold' });
+    return apiClient.patch(`/products/${id}/sold`, {});
   },
 
   async deleteAd(id: string): Promise<ApiResponse<any>> {

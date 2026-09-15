@@ -3,14 +3,16 @@
 import React from 'react';
 import Link from 'next/link';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
-import { deleteAd, updateAdStatus } from '@/redux/slices/myAdsSlice';
+import { markAsSoldThunk, deleteAdThunk } from '@/redux/slices/myAdsSlice';
 import { showToast } from '@/redux/slices/uiSlice';
 import { ROUTES } from '@/routes/routes';
 import { Edit3, Trash2, CheckCircle, Eye, Pause } from 'lucide-react';
 
 export default function ActiveListingsPage() {
   const dispatch = useAppDispatch();
-  const ads = useAppSelector((state) => state.myAds.ads).filter((a) => a.status === 'Active');
+  // "Active" = actually live/published, not just "not sold" - a Draft or
+  // Pending-review listing must not show up here as if it were live.
+  const ads = useAppSelector((state) => state.myAds.ads).filter((a) => a.rawStatus === 'APPROVED');
 
   return (
     <div className="space-y-3">
@@ -41,9 +43,13 @@ export default function ActiveListingsPage() {
                 <Edit3 className="w-4 h-4" />
               </Link>
               <button
-                onClick={() => {
-                  dispatch(updateAdStatus({ id: ad.id, status: 'Sold' }));
-                  dispatch(showToast('Marked as Sold!'));
+                onClick={async () => {
+                  try {
+                    await dispatch(markAsSoldThunk(ad.id)).unwrap();
+                    dispatch(showToast('Marked as Sold!'));
+                  } catch (err: any) {
+                    dispatch(showToast(err || 'Failed to mark as sold'));
+                  }
                 }}
                 className="flex items-center gap-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-xs font-bold px-3 py-2 rounded-xl"
               >
@@ -51,9 +57,13 @@ export default function ActiveListingsPage() {
                 <span>Mark Sold</span>
               </button>
               <button
-                onClick={() => {
-                  dispatch(deleteAd(ad.id));
-                  dispatch(showToast('Listing deleted'));
+                onClick={async () => {
+                  try {
+                    await dispatch(deleteAdThunk(ad.id)).unwrap();
+                    dispatch(showToast('Listing deleted'));
+                  } catch (err: any) {
+                    dispatch(showToast(err || 'Failed to delete listing'));
+                  }
                 }}
                 className="p-2 text-red-500 hover:bg-red-50 rounded-xl"
               >

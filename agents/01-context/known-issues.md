@@ -6,6 +6,76 @@ last_verified: 2026-09-13
 
 ## OPEN
 
+### RESOLVED — loopo-client: "Mark Sold" / "Delete" on My Listings never actually persisted server-side, and 5 backend listing-lifecycle endpoints were silent no-ops
+Found while doing the pre-demo loopo-client sweep. Two independent bugs
+stacked on top of each other:
+
+**Frontend (`myAdsSlice.ts`):** `updateAdStatus`/`deleteAd` were plain
+synchronous Redux reducers that mutated local state + `localStorage` only -
+neither ever called an API. `productsApi.ts` already had real
+`markAsSold`/`deleteAd` methods, but nothing called them. Clicking "Mark
+Sold" looked like it worked (badge turned blue) but on the next
+`fetchMyAdsThunk()` (e.g. any page refresh), the `fulfilled` merge logic
+let the freshly-fetched backend value win over the stale local one, so the
+change silently reverted - the exact bug this session already fixed once
+for the KYC flow, recurring in a different feature.
+
+**Backend (`products.service.ts::updateProduct`):** even after wiring the
+frontend to the real `productsApi.markAsSold`, the call would have been a
+no-op anyway - `updateProduct` builds its Prisma update payload from a
+fixed field list that never reads `dto.status`. This silently broke *five*
+existing controller endpoints that all rely on passing `{ status } as any`
+internally: `:id/publish`, `:id/archive`, `:id/pause`, `:id/resume`,
+`:id/renew`. None of them ever actually changed a listing's status; they
+returned 200 and quietly did nothing beyond whatever the unrelated
+"editing an approved listing reverts it to Pending" side-effect did. There
+was also no `:id/sold` route at all - `ProductStatus.SOLD` existed in the
+schema but nothing could ever reach it via the API.
+
+**Fixed:**
+- `updateProduct` now honors an explicit `dto.status` override (safe: it's
+  not part of the public `UpdateProductDto` shape, so the global
+  `ValidationPipe` strips it from any real client `PUT :id` request before
+  this method ever runs - only the five internal lifecycle actions can set
+  it), recording a status-history row same as the existing revert case.
+  This fixes publish/archive/pause/resume/renew as a side effect.
+- Added `PATCH /products/:id/sold` (mirrors the other five).
+- `productsApi.ts`'s `markAsSold` now calls the real route (was guessing
+  at a nonexistent `/products/:id/status`).
+- `myAdsSlice.ts`: replaced the local-only reducers with `markAsSoldThunk`/
+  `deleteAdThunk`, which call the real API first and only touch local
+  state on success; pages show a real error toast on failure instead of a
+  guaranteed-success fake one.
+- `MyAdItem` gained a `rawStatus` field (the real backend `ProductStatus`
+  enum) alongside the existing coarse `status` bucket, because
+  Active/Pending/Draft/Rejected were all being collapsed into one
+  "Active"-or-not label. Rewired `my-listings/{active,drafts,pending,
+  rejected}` to filter on `rawStatus` instead - previously `drafts`,
+  `pending`, and `rejected` were **100% hardcoded static "No X found"**
+  placeholders that never checked real data at all (a Draft/Pending/
+  Rejected listing would never appear on its own tab), and `active`
+  wrongly included Draft/Pending listings alongside truly-live ones.
+  Moved the ads fetch into the shared `my-listings/layout.tsx` so landing
+  directly on any sub-tab still has real data.
+- Deleted dead `components/views/MyAdsView.tsx` (unused, same broken
+  local-only-mutation pattern, zero importers).
+
+**Verified live end to end, not simulated:** created a real product via
+the API, approved it, clicked "Mark Sold" in an actual browser - watched
+the real `PATCH /products/:id/sold` (200, `status: "SOLD"` in the
+response), a real success toast, the item leaving the Active tab. Then did
+a **hard page reload** (fresh `fetchMyAdsThunk`, not just Redux memory) and
+confirmed the item correctly stayed under Sold and correctly stopped
+appearing under Active - the exact scenario that silently reverted before
+this fix. Backend: `tsc --noEmit` clean, all 83 unit tests still pass.
+Frontend: `tsc --noEmit` clean, `next build` succeeds (51/51 pages).
+
+Note: the currently-running backend process turned out to be a stale
+`node dist/src/main` build, not `--watch` mode, so it had to be manually
+rebuilt (`npm run build`) and restarted before the new `:id/sold` route
+took effect - worth knowing if a backend change ever "doesn't seem to
+work" locally.
+
 ### RESOLVED — loopo-client: the entire Seller Verification (KYC) flow was fake UI hitting endpoints that don't exist
 Same class of bug as the Flutter KYC screen fixed earlier this session, on
 the web client. All three pages were disconnected from any real backend:

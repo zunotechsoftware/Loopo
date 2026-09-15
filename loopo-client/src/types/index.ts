@@ -121,5 +121,11 @@ export interface MyAdItem {
   price: string;
   postedDate: string;
   image: string;
+  /** Coarse display bucket used for the "All" tab's badge colour. */
   status: 'Active' | 'Sold' | 'Inactive';
+  /** Real backend ProductStatus enum value (DRAFT/PENDING/UNDER_REVIEW/
+   * APPROVED/REJECTED/EXPIRED/ARCHIVED/PAUSED/SOLD) - the per-status tabs
+   * (Drafts/Pending/Rejected/Sold) filter on this, not on `status`, since
+   * `status` collapses several distinct backend states together. */
+  rawStatus: string;
 }

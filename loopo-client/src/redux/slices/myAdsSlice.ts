@@ -83,6 +83,7 @@ function normaliseDbItem(p: any): MyAdItem {
     postedDate: formatDate(p.createdAt || p.postedDate),
     image: mainImage,
     status: mapStatus(p.status || 'Active'),
+    rawStatus: (p.status || p.rawStatus || 'DRAFT').toUpperCase(),
   };
 }
 
@@ -107,6 +108,30 @@ export const fetchMyAdsThunk = createAsyncThunk('myAds/fetchMyAds', async () => 
   return [];
 });
 
+/** Marks a listing sold on the backend (PATCH /products/:id/sold) first,
+ * and only reflects it in local state once that succeeds - the old
+ * `updateAdStatus` reducer mutated local state directly and never called
+ * the API at all, so the change silently reverted on the next fetch. */
+export const markAsSoldThunk = createAsyncThunk(
+  'myAds/markAsSold',
+  async (id: string, { rejectWithValue }) => {
+    const res = await productsApi.markAsSold(id);
+    if (res.success) return id;
+    return rejectWithValue(res.error || 'Failed to mark listing as sold');
+  }
+);
+
+/** Deletes a listing on the backend (DELETE /products/:id) first, and only
+ * removes it from local state once that succeeds - see markAsSoldThunk. */
+export const deleteAdThunk = createAsyncThunk(
+  'myAds/deleteAdRemote',
+  async (id: string, { rejectWithValue }) => {
+    const res = await productsApi.deleteAd(id);
+    if (res.success) return id;
+    return rejectWithValue(res.error || 'Failed to delete listing');
+  }
+);
+
 export const myAdsSlice = createSlice({
   name: 'myAds',
   initialState,
@@ -117,20 +142,6 @@ export const myAdsSlice = createSlice({
     addMyAd: (state, action: PayloadAction<MyAdItem>) => {
       state.ads.unshift(action.payload);
       state.activeFilter = 'Active';
-      saveLocalAds(state.ads);
-    },
-    updateAdStatus: (
-      state,
-      action: PayloadAction<{ id: string; status: 'Active' | 'Sold' | 'Inactive' }>
-    ) => {
-      const ad = state.ads.find((a) => a.id === action.payload.id);
-      if (ad) {
-        ad.status = action.payload.status;
-      }
-      saveLocalAds(state.ads);
-    },
-    deleteAd: (state, action: PayloadAction<string>) => {
-      state.ads = state.ads.filter((a) => a.id !== action.payload);
       saveLocalAds(state.ads);
     },
   },
@@ -154,6 +165,18 @@ export const myAdsSlice = createSlice({
       .addCase(fetchMyAdsThunk.rejected, (state) => {
         state.loading = false;
       })
+      .addCase(markAsSoldThunk.fulfilled, (state, action) => {
+        const ad = state.ads.find((a) => a.id === action.payload);
+        if (ad) {
+          ad.status = 'Sold';
+          ad.rawStatus = 'SOLD';
+        }
+        saveLocalAds(state.ads);
+      })
+      .addCase(deleteAdThunk.fulfilled, (state, action) => {
+        state.ads = state.ads.filter((a) => a.id !== action.payload);
+        saveLocalAds(state.ads);
+      })
       .addCase(createProductThunk.fulfilled, (state, action) => {
         const p = action.payload as any;
         const newAd = normaliseDbItem(p);
@@ -170,5 +193,5 @@ export const myAdsSlice = createSlice({
 });
 
 
-export const { setAdsFilter, addMyAd, updateAdStatus, deleteAd } = myAdsSlice.actions;
+export const { setAdsFilter, addMyAd } = myAdsSlice.actions;
 export default myAdsSlice.reducer;
