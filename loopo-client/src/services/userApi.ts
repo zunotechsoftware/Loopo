@@ -19,6 +19,25 @@ export interface AddressPayload {
   type: 'Home' | 'Work';
 }
 
+export interface PublicSellerProfile {
+  id: string;
+  displayName: string;
+  profilePicture: string | null;
+  sellerRating: number;
+  reviewCount: number;
+  memberSince: string;
+  verifiedBadge: boolean;
+  totalListings: number;
+  completedSales: number;
+}
+
+export interface BlockedUser {
+  id: string;
+  name: string;
+  avatar: string | null;
+  blockedAt: string;
+}
+
 export const userApi = {
   /**
    * Uploads one KYC document image (as a real File, not a data URL): request
@@ -63,5 +82,24 @@ export const userApi = {
 
   async updateNotificationSettings(settings: Record<string, boolean>): Promise<ApiResponse<any>> {
     return apiClient.put('/notification-settings', settings);
+  },
+
+  async getPublicProfile(userId: string): Promise<ApiResponse<PublicSellerProfile>> {
+    return apiClient.get<PublicSellerProfile>(`/users/public/${userId}`);
+  },
+
+  async getBlockedUsers(): Promise<ApiResponse<BlockedUser[]>> {
+    return apiClient.get<BlockedUser[]>('/users/blocked');
+  },
+
+  // Block/unblock themselves live under /chat - that's the real,
+  // already-in-use implementation (checked when sending messages), not a
+  // separate /users endpoint.
+  async blockUser(userId: string): Promise<ApiResponse<any>> {
+    return apiClient.post(`/chat/block/${userId}`, {});
+  },
+
+  async unblockUser(userId: string): Promise<ApiResponse<any>> {
+    return apiClient.delete(`/chat/block/${userId}`);
   },
 };

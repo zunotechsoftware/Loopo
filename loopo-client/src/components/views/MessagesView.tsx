@@ -25,7 +25,7 @@ import {
 } from '@/redux/slices/chatSlice';
 import {
   setOfferModalOpen,
-  setReportModalOpen,
+  openReportModal,
   setReviewModalOpen,
   showToast,
 } from '@/redux/slices/uiSlice';
@@ -222,7 +222,7 @@ export default function MessagesView() {
             {/* Action Buttons */}
             <div className="flex items-center gap-2 shrink-0">
               <button
-                onClick={() => dispatch(showToast(`Calling ${activeConv.otherPartyName} at +91 98765 43210`))}
+                onClick={() => dispatch(showToast('Calling isn\'t available yet - message the seller instead.'))}
                 className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-2 rounded-xl transition-all"
               >
                 <Phone className="w-3.5 h-3.5" />
@@ -238,7 +238,7 @@ export default function MessagesView() {
               </button>
 
               <button
-                onClick={() => dispatch(setReportModalOpen(true))}
+                onClick={() => dispatch(openReportModal({ targetType: 'USER', targetId: activeConv.otherPartyId, label: activeConv.otherPartyName }))}
                 className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 transition-colors"
                 title="Report User"
               >

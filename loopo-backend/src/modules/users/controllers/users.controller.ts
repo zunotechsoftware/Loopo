@@ -44,6 +44,25 @@ export class UsersController {
     return { message: 'Profile updated successfully', data: profile };
   }
 
+  // NOTE: must be registered before Get(':id') below - otherwise ':id' would
+  // swallow the literal 'blocked' segment as a user ID (same route-order
+  // lesson as the products/payments controllers elsewhere in this codebase).
+  // Block/unblock themselves already exist as POST/DELETE /chat/block/:userId
+  // (chat.controller.ts) - that one is the real, Redis-cache-integrated
+  // implementation actually consulted when sending messages, so this module
+  // only adds the list endpoint that was missing everywhere, rather than a
+  // second competing block/unblock action on the same BlockedUser table.
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+  @Get('blocked')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'USER')
+  @ApiOperation({ summary: "List users the current user has blocked" })
+  @ApiResponse({ status: 200, description: 'List of blocked users.' })
+  async getBlockedUsers(@Request() req: any) {
+    const data = await this.usersService.getBlockedUsers(req.user.id);
+    return { message: 'Blocked users retrieved successfully', data };
+  }
+
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Get(':id')

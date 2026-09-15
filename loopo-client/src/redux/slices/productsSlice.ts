@@ -84,9 +84,9 @@ function normaliseProduct(p: any): Product {
 export const fetchProductsThunk = createAsyncThunk(
   'products/fetchProducts',
   /** @param args.categoryId - real backend category UUID, not a display name */
-  async (args?: { categoryId?: string; query?: string; city?: string }) => {
-    const { categoryId, query, city } = args || {};
-    const res = await productsApi.getProducts(categoryId, query, city);
+  async (args?: { categoryId?: string; query?: string; city?: string; sellerId?: string }) => {
+    const { categoryId, query, city, sellerId } = args || {};
+    const res = await productsApi.getProducts(categoryId, query, city, sellerId);
 
     if (res.success) {
       const data = res.data as any;

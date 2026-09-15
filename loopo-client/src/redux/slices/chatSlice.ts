@@ -16,9 +16,19 @@ const initialState: ChatState = {
   loading: false,
 };
 
-/** Normalise a backend conversation to the frontend Conversation shape */
-function normaliseConversation(c: any): Conversation {
-  const other = c.buyer || c.seller || c.otherUser || {};
+/** Normalise a backend conversation to the frontend Conversation shape.
+ * `currentUserId` is required to correctly pick which side (buyer/seller)
+ * is "me" vs "the other party" - every conversation has both a real buyer
+ * and a real seller object, so guessing (e.g. "always prefer buyer") gets
+ * it backwards whenever the current user IS the buyer. */
+function normaliseConversation(c: any, currentUserId?: string): Conversation {
+  const iAmBuyer = !!currentUserId && c.buyerId === currentUserId;
+  const iAmSeller = !!currentUserId && c.sellerId === currentUserId;
+  const other = iAmBuyer
+    ? (c.seller || c.otherUser || {})
+    : iAmSeller
+    ? (c.buyer || c.otherUser || {})
+    : (c.buyer || c.seller || c.otherUser || {});
   const product = c.product || c.listing || {};
   const messages = Array.isArray(c.messages)
     ? c.messages.map((m: any) => ({
@@ -39,13 +49,14 @@ function normaliseConversation(c: any): Conversation {
 
   return {
     id: c.id || c._id || `conv-${Date.now()}`,
-    type: c.type === 'selling' ? 'selling' : 'buying',
+    type: iAmSeller ? 'selling' : 'buying',
+    otherPartyId: other.id || other._id || '',
     otherPartyName: otherName,
     otherPartyAvatar:
       other.profile?.avatarUrl ||
       other.avatarUrl ||
       '',
-    otherPartyRole: c.type === 'selling' ? 'Buyer' : 'Seller',
+    otherPartyRole: iAmSeller ? 'Buyer' : 'Seller',
     itemTitle: product.title || c.productTitle || 'Item',
     itemPrice: product.price ? `₹${product.price.toLocaleString('en-IN')}` : '',
     itemImage:
@@ -63,7 +74,7 @@ function normaliseConversation(c: any): Conversation {
 
 export const fetchConversationsThunk = createAsyncThunk(
   'chat/fetchConversations',
-  async (type?: 'buying' | 'selling') => {
+  async (type: 'buying' | 'selling' | undefined, { getState }) => {
     const res = await chatApi.getConversations(type);
     if (res.success) {
       const data = res.data as any;
@@ -72,7 +83,8 @@ export const fetchConversationsThunk = createAsyncThunk(
         : Array.isArray(data?.items)
         ? data.items
         : [];
-      return raw.map(normaliseConversation);
+      const currentUserId = (getState() as any).auth?.user?.id;
+      return raw.map((c) => normaliseConversation(c, currentUserId));
     }
     return [];
   }

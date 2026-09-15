@@ -293,16 +293,39 @@ export class UsersService {
 
     const { profile } = user;
 
+    const [totalListings, completedSales, ratingSummary] = await Promise.all([
+      this.usersRepository.countApprovedListings(userId),
+      this.usersRepository.countSoldListings(userId),
+      this.usersRepository.getSellerRatingSummary(userId),
+    ]);
+
     return {
+      id: user.id,
       displayName: profile.displayName || 'Seller',
       profilePicture: profile.profileImage?.fileUrl || null,
-      sellerRating: 4.8, // Mock seller rating
+      sellerRating: Math.round(ratingSummary.average * 10) / 10,
+      reviewCount: ratingSummary.count,
       memberSince: user.createdAt,
       verifiedBadge: profile.verifiedBadge,
-      totalListings: 12, // Mock count
-      completedSales: 5, // Mock count
-      averageResponseTime: 'Within 1 hour', // Mock average
+      totalListings,
+      completedSales,
     };
+  }
+
+  // --- Blocked Users ---
+  // Block/unblock actions live in chat.service.ts (POST/DELETE
+  // /chat/block/:userId) - the real, already-consulted implementation.
+  // This only reads the same BlockedUser table for a list view.
+  async getBlockedUsers(blockerId: string) {
+    const rows = await this.usersRepository.getBlockedUsers(blockerId);
+    return rows.map((row: any) => ({
+      id: row.blocked.id,
+      name: row.blocked.profile?.displayName
+        || [row.blocked.firstName, row.blocked.lastName].filter(Boolean).join(' ')
+        || 'User',
+      avatar: row.blocked.profile?.profileImage?.fileUrl || null,
+      blockedAt: row.createdAt,
+    }));
   }
 
   // --- Helpers ---

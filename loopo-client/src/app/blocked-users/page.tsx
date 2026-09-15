@@ -1,23 +1,37 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import ProtectedRoute from '@/routes/ProtectedRoute';
-import { UserX, ShieldCheck, Trash2 } from 'lucide-react';
+import { UserX, Loader2 } from 'lucide-react';
 import { useAppDispatch } from '@/redux/hooks';
 import { showToast } from '@/redux/slices/uiSlice';
+import { userApi, BlockedUser } from '@/services/userApi';
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
 
 export default function BlockedUsersPage() {
   const dispatch = useAppDispatch();
+  const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const [blockedUsers, setBlockedUsers] = useState([
-    { id: 'b-1', name: 'Spam Seller 99', reason: 'Repeated spam messages', blockedDate: '10 days ago' },
-    { id: 'b-2', name: 'Fake Buyer', reason: 'Unreasonable lowball harassment', blockedDate: '1 month ago' },
-  ]);
+  useEffect(() => {
+    userApi.getBlockedUsers().then((res) => {
+      setBlockedUsers(res.success && res.data ? res.data : []);
+      setLoading(false);
+    });
+  }, []);
 
-  const handleUnblock = (id: string, name: string) => {
-    setBlockedUsers((prev) => prev.filter((u) => u.id !== id));
-    dispatch(showToast(`Unblocked ${name}`));
+  const handleUnblock = async (id: string, name: string) => {
+    const res = await userApi.unblockUser(id);
+    if (res.success) {
+      setBlockedUsers((prev) => prev.filter((u) => u.id !== id));
+      dispatch(showToast(`Unblocked ${name}`));
+    } else {
+      dispatch(showToast(res.error || 'Failed to unblock user'));
+    }
   };
 
   return (
@@ -37,7 +51,11 @@ export default function BlockedUsersPage() {
           </div>
 
           <div className="space-y-3">
-            {blockedUsers.length === 0 ? (
+            {loading ? (
+              <div className="bg-white rounded-3xl p-12 text-center border border-slate-100">
+                <Loader2 className="w-6 h-6 animate-spin text-emerald-500 mx-auto" />
+              </div>
+            ) : blockedUsers.length === 0 ? (
               <div className="bg-white rounded-3xl p-12 text-center border border-slate-100 text-slate-400 font-medium text-sm">
                 You have no blocked users.
               </div>
@@ -47,10 +65,17 @@ export default function BlockedUsersPage() {
                   key={user.id}
                   className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between gap-4"
                 >
-                  <div>
-                    <h3 className="font-extrabold text-slate-900 text-sm">{user.name}</h3>
-                    <div className="text-xs text-slate-400 font-medium">
-                      Reason: {user.reason} • Blocked {user.blockedDate}
+                  <div className="flex items-center gap-3">
+                    {user.avatar ? (
+                      <img src={user.avatar} alt={user.name} className="w-10 h-10 rounded-2xl object-cover" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-2xl bg-slate-100 text-slate-500 flex items-center justify-center font-bold text-sm">
+                        {user.name.trim().charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div>
+                      <h3 className="font-extrabold text-slate-900 text-sm">{user.name}</h3>
+                      <div className="text-xs text-slate-400 font-medium">Blocked on {formatDate(user.blockedAt)}</div>
                     </div>
                   </div>
 

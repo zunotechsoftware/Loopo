@@ -308,6 +308,9 @@ export class ProductsService {
       status: statusOverride || ProductStatus.APPROVED,
     };
 
+    if (query.sellerId) {
+      where.sellerId = query.sellerId;
+    }
     if (query.categoryId) {
       where.categoryId = query.categoryId;
     }

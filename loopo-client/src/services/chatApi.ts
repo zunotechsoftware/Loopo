@@ -8,6 +8,13 @@ export const chatApi = {
     return apiClient.get<Conversation[]>(endpoint);
   },
 
+  /** Starts (or finds the existing) conversation for a product listing -
+   * the backend derives the seller from the product and dedupes against
+   * any conversation the two of you already have for it. */
+  async startConversationForProduct(productId: string): Promise<ApiResponse<{ id: string }>> {
+    return apiClient.post<{ id: string }>('/chat/conversations', { productId });
+  },
+
   async sendMessage(conversationId: string, text: string): Promise<ApiResponse<any>> {
     return apiClient.post('/chat/messages', { conversationId, text });
   },

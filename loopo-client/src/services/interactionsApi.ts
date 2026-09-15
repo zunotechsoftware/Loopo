@@ -1,9 +1,13 @@
 import { apiClient, ApiResponse } from './apiClient';
 
+export type ReportTargetType = 'LISTING' | 'USER' | 'CHAT_MESSAGE' | 'CATEGORY' | 'SYSTEM';
+
 export interface ReportPayload {
+  targetType: ReportTargetType;
   targetId: string;
-  reason: string;
-  details?: string;
+  reasonCode: string;
+  customReason?: string;
+  details: string;
 }
 
 export interface ReviewPayload {

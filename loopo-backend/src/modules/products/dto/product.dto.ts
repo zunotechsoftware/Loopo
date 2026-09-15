@@ -222,6 +222,11 @@ export class ListingSearchQueryDto {
   @IsString()
   keyword?: string;
 
+  @ApiPropertyOptional({ description: 'Filter by seller UUID - used for a seller\'s public profile page ("Other listings by this seller")', example: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a14' })
+  @IsOptional()
+  @IsUUID()
+  sellerId?: string;
+
   @ApiPropertyOptional({ description: 'Filter by category UUID', example: 'a5cbe71e-01fc-4043-9828-98f5a653ccfe' })
   @IsOptional()
   @IsUUID()

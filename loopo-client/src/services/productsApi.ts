@@ -58,11 +58,12 @@ function dataUrlToBlob(dataUrl: string): { blob: Blob; mimeType: string } {
 
 export const productsApi = {
   /** @param categoryId - real backend category UUID, not a display name (see useCategories()) */
-  async getProducts(categoryId?: string, keyword?: string, city?: string): Promise<ApiResponse<Product[]>> {
+  async getProducts(categoryId?: string, keyword?: string, city?: string, sellerId?: string): Promise<ApiResponse<Product[]>> {
     const params = new URLSearchParams();
     if (categoryId) params.append('categoryId', categoryId);
     if (keyword) params.append('keyword', keyword);
     if (city) params.append('city', city);
+    if (sellerId) params.append('sellerId', sellerId);
 
     const queryString = params.toString();
     const endpoint = queryString ? `/products?${queryString}` : '/products';
