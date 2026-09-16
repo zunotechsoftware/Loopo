@@ -87,16 +87,37 @@ the old fake timer would have completed. The full submit → admin-approve
 separately, two real browser sessions, zero console errors on either
 side).
 
-**Not fixed, flagged for a future pass (lower severity - static text, not
-an active real-time false claim):** the Verification History timeline
-still pushes hardcoded fake timestamps ("21 Aug 2026, 11:05 PM" for
-"Under Review", etc.) for the initial-load synthetic entries, rather than
-reflecting real audit-log timestamps. The now-fully-dead
-`MOCK_KYC_DETAILS` constant (already unreachable after the earlier fake-
-fallback fix) is also still present as dead code. Both are cosmetic/
-historical-display issues rather than something that could change a real
-approve/reject decision, and were left alone rather than risk further
-edits to this ~1500-line file under time pressure.
+**Update - the "flagged for a future pass" items above turned out to be
+far more serious than cosmetic, and are now fully fixed too.** Revisiting
+this file for cleanup found the document-preview panel itself was still
+actively fabricating evidence: it special-cased any real applicant whose
+first name plainly matched "Kumar" or "Venkatesh" (a string compare, not
+an id check) and substituted a fully fake CSS-rendered passport mockup
+(invented parents' names, a fake address, a fake passport number) and a
+swapped-in stock selfie/PAN-card image in place of their real uploaded
+documents - while the rest of the page still looked like it was showing
+that real person's real submission. Every other applicant's missing
+front/back/selfie image silently fell back to the same static demo
+Aadhaar/selfie files instead of an honest "no image uploaded" state, and
+a failed download on the fake-passport path generated a text file with a
+hardcoded fake DOB/passport number. Approved/rejected applications also
+always displayed a synthesized all-"passed" (or a fixed pass/fail
+pattern) per-check verification breakdown that no real check had ever
+produced. **Fixed:** removed all name-based branching and every
+fake/mock document, avatar, and text fallback (document previews now
+show only the real uploaded image or an honest "No image uploaded"
+placeholder); the Verification History timeline is now built entirely
+from the record's real `submittedAt`/`approvedAt`/`rejectedAt` fields
+(which already existed and were simply never used); the per-check
+checklist stays honestly 'pending' unless an admin manually marks it via
+the pre-existing `toggleChecklistItem`. Also deleted the now-fully-dead
+`MOCK_KYC_DETAILS`/`MOCK_PAN_DOC`/`PassportFrontPreview`/
+`PassportBackPreview` code and the unreachable auto-verification scan
+timer/banner that backed all of this. Verified: `tsc --noEmit` clean,
+`next build` succeeds (30/30 pages); cross-checked the real shape of
+`GET /admin/kyc/:id` against a live submitted application (real name,
+real signed image URLs, real timestamps) to confirm the new logic
+matches what the backend actually returns.
 
 ### RESOLVED — Sell wizard: every listing's city/state were silently swapped/wrong, and the negotiable checkbox never reached the backend
 Found while re-verifying the full sell flow end to end (user request: "check
