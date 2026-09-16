@@ -115,7 +115,17 @@ export default function DashboardPage() {
     setLoading(true);
     setError(null);
     try {
-      const [summaryRes, growthRes, productStatsRes, sellersRes, categoriesRes, complaintStatsRes, kycRes] = await Promise.all([
+      // Each widget's data comes from a separately-permissioned admin
+      // endpoint (e.g. KYC needs kyc.review, products needs
+      // admin.products.manage) - a non-super-admin role commonly has some
+      // of these permissions but not all. Promise.all would reject the
+      // whole page the instant a single section 403'd, which then showed
+      // "Is the backend reachable?" for what was actually a permissions
+      // gap on one widget - a misleading message for a real, working
+      // backend. Promise.allSettled lets every section render with
+      // whatever it could load, and only the sections a role actually
+      // lacks access to are called out.
+      const results = await Promise.allSettled([
         analyticsService.getSummary({}),
         analyticsService.getUserMetrics({}),
         productsService.getStats(),
@@ -124,22 +134,41 @@ export default function DashboardPage() {
         complaintsService.getStats(),
         kycService.getAll({ take: 100 }),
       ]);
+      const [summaryRes, growthRes, productStatsRes, sellersRes, categoriesRes, complaintStatsRes, kycRes] =
+        results.map((r) => (r.status === 'fulfilled' ? r.value : null));
 
-      const summary = summaryRes.data?.data ?? {};
+      const deniedCount = results.filter(
+        (r) => r.status === 'rejected' && (r.reason as any)?.response?.status === 403,
+      ).length;
+      const otherFailureCount = results.filter(
+        (r) => r.status === 'rejected' && (r.reason as any)?.response?.status !== 403,
+      ).length;
+
+      if (results.every((r) => r.status === 'rejected')) {
+        const allDenied = deniedCount === results.length;
+        setError(
+          allDenied
+            ? "You don't have permission to view the dashboard. Contact a Super Admin to grant access."
+            : 'Could not load dashboard data. Is the backend reachable?',
+        );
+        return;
+      }
+
+      const summary = summaryRes?.data?.data ?? {};
       // /admin/products/stats wraps its payload one level deeper than most
       // endpoints ({ data: { data: {...} } }, since the controller itself
       // already returns { data: stats } before the global envelope wraps it
       // again) - unwrap that shape first, same as the listings page does.
-      const productStatsRaw = productStatsRes.data?.data;
+      const productStatsRaw = productStatsRes?.data?.data;
       const productStats = productStatsRaw?.data ?? productStatsRaw ?? {};
-      const categoriesRaw = categoriesRes.data?.data;
+      const categoriesRaw = categoriesRes?.data?.data;
       const categoriesList: any[] = Array.isArray(categoriesRaw) ? categoriesRaw : Array.isArray(categoriesRaw?.data) ? categoriesRaw.data : [];
-      const kycRaw = kycRes.data?.data;
+      const kycRaw = kycRes?.data?.data;
       const kycList: any[] = Array.isArray(kycRaw) ? kycRaw : Array.isArray(kycRaw?.data) ? kycRaw.data : [];
 
       setData({
         totalUsers: summary.totalUsers ?? 0,
-        totalSellers: sellersRes.data?.data?.total ?? 0,
+        totalSellers: sellersRes?.data?.data?.total ?? 0,
         totalListings: productStats.total ?? 0,
         activeListings: productStats.active ?? summary.activeListings ?? 0,
         monthlyRevenue: summary.monthlyRevenue ?? 0,
@@ -147,15 +176,23 @@ export default function DashboardPage() {
         rejectedListings: productStats.rejected ?? 0,
         soldListings: productStats.sold ?? 0,
         expiredListings: productStats.expired ?? 0,
-        userGrowth: growthRes.data?.data?.series ?? [],
+        userGrowth: growthRes?.data?.data?.series ?? [],
         topCategories: categoriesList
           .map((c) => ({ name: c.name, count: c._count?.products ?? 0 }))
           .filter((c) => c.count > 0)
           .sort((a, b) => b.count - a.count)
           .slice(0, 6),
         pendingKyc: kycList.filter((k) => k.status === 'SUBMITTED' || k.status === 'UNDER_REVIEW').length,
-        openComplaints: complaintStatsRes.data?.data?.open ?? 0,
+        openComplaints: complaintStatsRes?.data?.data?.open ?? 0,
       });
+
+      if (deniedCount > 0) {
+        setError(
+          `${deniedCount} dashboard section${deniedCount > 1 ? 's are' : ' is'} hidden because your role lacks permission to view ${deniedCount > 1 ? 'them' : 'it'}. Numbers below only reflect what you have access to.`,
+        );
+      } else if (otherFailureCount > 0) {
+        setError(`${otherFailureCount} dashboard section${otherFailureCount > 1 ? 's' : ''} failed to load. Showing what did load.`);
+      }
     } catch (err) {
       console.error('Failed to load dashboard data', err);
       setError('Could not load dashboard data. Is the backend reachable?');
@@ -371,7 +408,7 @@ export default function DashboardPage() {
 
       </Grid>
 
-      {error && <Alert severity="warning">{error} (showing last successfully loaded data)</Alert>}
+      {error && <Alert severity="warning">{error}</Alert>}
     </Box>
   );
 }

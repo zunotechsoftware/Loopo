@@ -6,6 +6,35 @@ last_verified: 2026-09-13
 
 ## OPEN
 
+### RESOLVED — loopo-admin: dashboard showed "Is the backend reachable?" for any non-super-admin missing even one permission
+User-reported: "When a non-super admin logged into admin panel I am getting
+'Could not load dashboard data. Is the backend reachable?'". The backend was
+never actually down - `dashboard/page.tsx` fires 7 parallel calls
+(`Promise.all`) to separately-permissioned admin endpoints (analytics
+summary/users need role ADMIN/SUPER_ADMIN; products stats need
+`admin.products.manage`; sellers need `users.view`; categories/complaints/kyc
+have their own gates). Any real admin role that has *some* but not *all* of
+these - which is the entire point of the Roles & Permissions feature - got
+exactly one 403 among the seven, `Promise.all` rejected the whole batch, and
+the page showed a generic "is the backend reachable?" message that had
+nothing to do with the real cause.
+
+Reproduced live, not just by reading code: created a real custom role via
+`POST /admin/roles` with only `kyc.review` granted, assigned it to a real
+test user via `PATCH /admin/users/:id/roles`, logged in as that user, and
+confirmed 6 of the 7 dashboard sub-endpoints returned real 403s (only
+`admin/complaints/stats`, which has no permission gate, returned 200).
+
+**Fixed:** switched to `Promise.allSettled` so one denied section no longer
+blocks the rest - the page now renders every widget it has data for. Denied
+(403) vs. other failures are counted separately; a partial-denial banner
+("N dashboard sections are hidden because your role lacks permission to view
+them") replaces the misleading connectivity message, and the full-page error
+only fires when literally everything failed (with an honest
+permission-vs-connectivity distinction there too). Verified against the live
+repro above; `tsc --noEmit` clean, `next build` succeeds (30/30 pages). Test
+role/user cleaned up afterward.
+
 ### RESOLVED — P0, user-reported: "Publish Listing Now" silently failed for a real user - description was under the backend's minimum length, with no client-side warning until the very last step
 User's own live test: typed a title ("aksjka") and a short description
 ("sjajsjah", 8 characters), clicked through to Preview, clicked "Publish
