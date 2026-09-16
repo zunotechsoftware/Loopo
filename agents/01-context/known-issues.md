@@ -6,6 +6,35 @@ last_verified: 2026-09-13
 
 ## OPEN
 
+### RESOLVED — loopo-admin: dashboard showed "Is the backend reachable?" for any non-super-admin missing even one permission
+User-reported: "When a non-super admin logged into admin panel I am getting
+'Could not load dashboard data. Is the backend reachable?'". The backend was
+never actually down - `dashboard/page.tsx` fires 7 parallel calls
+(`Promise.all`) to separately-permissioned admin endpoints (analytics
+summary/users need role ADMIN/SUPER_ADMIN; products stats need
+`admin.products.manage`; sellers need `users.view`; categories/complaints/kyc
+have their own gates). Any real admin role that has *some* but not *all* of
+these - which is the entire point of the Roles & Permissions feature - got
+exactly one 403 among the seven, `Promise.all` rejected the whole batch, and
+the page showed a generic "is the backend reachable?" message that had
+nothing to do with the real cause.
+
+Reproduced live, not just by reading code: created a real custom role via
+`POST /admin/roles` with only `kyc.review` granted, assigned it to a real
+test user via `PATCH /admin/users/:id/roles`, logged in as that user, and
+confirmed 6 of the 7 dashboard sub-endpoints returned real 403s (only
+`admin/complaints/stats`, which has no permission gate, returned 200).
+
+**Fixed:** switched to `Promise.allSettled` so one denied section no longer
+blocks the rest - the page now renders every widget it has data for. Denied
+(403) vs. other failures are counted separately; a partial-denial banner
+("N dashboard sections are hidden because your role lacks permission to view
+them") replaces the misleading connectivity message, and the full-page error
+only fires when literally everything failed (with an honest
+permission-vs-connectivity distinction there too). Verified against the live
+repro above; `tsc --noEmit` clean, `next build` succeeds (30/30 pages). Test
+role/user cleaned up afterward.
+
 ### RESOLVED — P0, user-reported: "Publish Listing Now" silently failed for a real user - description was under the backend's minimum length, with no client-side warning until the very last step
 User's own live test: typed a title ("aksjka") and a short description
 ("sjajsjah", 8 characters), clicked through to Preview, clicked "Publish
@@ -87,16 +116,37 @@ the old fake timer would have completed. The full submit → admin-approve
 separately, two real browser sessions, zero console errors on either
 side).
 
-**Not fixed, flagged for a future pass (lower severity - static text, not
-an active real-time false claim):** the Verification History timeline
-still pushes hardcoded fake timestamps ("21 Aug 2026, 11:05 PM" for
-"Under Review", etc.) for the initial-load synthetic entries, rather than
-reflecting real audit-log timestamps. The now-fully-dead
-`MOCK_KYC_DETAILS` constant (already unreachable after the earlier fake-
-fallback fix) is also still present as dead code. Both are cosmetic/
-historical-display issues rather than something that could change a real
-approve/reject decision, and were left alone rather than risk further
-edits to this ~1500-line file under time pressure.
+**Update - the "flagged for a future pass" items above turned out to be
+far more serious than cosmetic, and are now fully fixed too.** Revisiting
+this file for cleanup found the document-preview panel itself was still
+actively fabricating evidence: it special-cased any real applicant whose
+first name plainly matched "Kumar" or "Venkatesh" (a string compare, not
+an id check) and substituted a fully fake CSS-rendered passport mockup
+(invented parents' names, a fake address, a fake passport number) and a
+swapped-in stock selfie/PAN-card image in place of their real uploaded
+documents - while the rest of the page still looked like it was showing
+that real person's real submission. Every other applicant's missing
+front/back/selfie image silently fell back to the same static demo
+Aadhaar/selfie files instead of an honest "no image uploaded" state, and
+a failed download on the fake-passport path generated a text file with a
+hardcoded fake DOB/passport number. Approved/rejected applications also
+always displayed a synthesized all-"passed" (or a fixed pass/fail
+pattern) per-check verification breakdown that no real check had ever
+produced. **Fixed:** removed all name-based branching and every
+fake/mock document, avatar, and text fallback (document previews now
+show only the real uploaded image or an honest "No image uploaded"
+placeholder); the Verification History timeline is now built entirely
+from the record's real `submittedAt`/`approvedAt`/`rejectedAt` fields
+(which already existed and were simply never used); the per-check
+checklist stays honestly 'pending' unless an admin manually marks it via
+the pre-existing `toggleChecklistItem`. Also deleted the now-fully-dead
+`MOCK_KYC_DETAILS`/`MOCK_PAN_DOC`/`PassportFrontPreview`/
+`PassportBackPreview` code and the unreachable auto-verification scan
+timer/banner that backed all of this. Verified: `tsc --noEmit` clean,
+`next build` succeeds (30/30 pages); cross-checked the real shape of
+`GET /admin/kyc/:id` against a live submitted application (real name,
+real signed image URLs, real timestamps) to confirm the new logic
+matches what the backend actually returns.
 
 ### RESOLVED — Sell wizard: every listing's city/state were silently swapped/wrong, and the negotiable checkbox never reached the backend
 Found while re-verifying the full sell flow end to end (user request: "check
