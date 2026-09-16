@@ -6,6 +6,53 @@ last_verified: 2026-09-13
 
 ## OPEN
 
+### RESOLVED — Sell wizard: every listing's city/state were silently swapped/wrong, and the negotiable checkbox never reached the backend
+Found while re-verifying the full sell flow end to end (user request: "check
+seller flow works properly"). Two real bugs, confirmed live:
+
+1. **`negotiable` was never sent at all.** `sell/preview/page.tsx` built the
+   `createProductThunk` payload without a `negotiable` field, even though
+   the Details step's "Price is Negotiable" checkbox (bound to real state,
+   defaulting to `true`) implied it would be. `CreateProductPayload`/
+   `productsApi.createProduct` didn't have the field either, despite the
+   backend already fully supporting it. Every listing silently published as
+   non-negotiable regardless of what the seller chose.
+2. **City/state were being swapped for every listing published through the
+   wizard.** The wizard has real, separate `city`/`area`/`pincode` fields
+   from its Location step, but `preview/page.tsx` collapsed them into a
+   single opaque string `"${area}, ${city}"` (e.g. "Indiranagar,
+   Bangalore") and `productsApi.ts`'s `parseLocationString` assumed a
+   *different* convention (`"City, State"`) when splitting it back apart -
+   so `city` ended up storing the area ("Indiranagar") and `state` ended up
+   storing the city name ("Bangalore"); the listing's real state
+   (Karnataka) was never captured anywhere. Confirmed via a captured
+   network request body. This would have broken any real city/state-based
+   search or filtering, and shown wrong location data to buyers.
+
+**Fixed:** added a `negotiable` field to `CreateProductPayload`, threaded
+through to the DTO. Added a `locationDetails` structured field to
+`CreateProductPayload` (`{city, area, state?, zipCode?}`) that
+`productsApi.createProduct` uses directly when a caller already has the
+real fields separately - no more encode-then-guess-how-to-decode. The sell
+wizard's preview page now passes this instead of concatenating a string.
+Also rewrote `parseLocationString` (still used by `SellFlowView.tsx`'s
+free-text edit-listing field, which has no separate fields and must parse
+a string) to correctly handle 1/2/3-comma-separated-part input by actual
+part count, plus a `CITY_STATE_MAP` (matching the location step's fixed
+city dropdown) to fill in a real state whenever only a city is known,
+instead of hardcoding `'Karnataka'`/`'Bangalore'` regardless of what the
+seller actually picked.
+
+**Verified live, full wizard walkthrough (category → details → photos →
+location → preview → publish), not simulated:** real photo upload and
+registration (`imageCount: 1` on the created listing), `negotiable: true`
+correctly persisted without touching the checkbox (its real default),
+switching the Location step's city to Mumbai correctly produced
+`{city: "Mumbai", state: "Maharashtra"}` on the real created record (was
+previously always wrong regardless of city chosen) - confirmed both via
+direct API read and visually in the real admin Pending Approval list,
+zero console errors. Client: `tsc --noEmit` clean, `next build` succeeds.
+
 ### RESOLVED — P0: real-time chat never worked at all, in either app - Socket.IO was never actually attached to the real HTTP server
 User-reported: "when a user sends a message, the message is saved but
 does not appear immediately. It only appears after refreshing the page."

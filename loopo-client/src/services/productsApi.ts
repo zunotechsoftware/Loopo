@@ -9,9 +9,20 @@ export interface CreateProductPayload {
   description: string;
   price: number;
   condition: string;
+  /** Human display string, e.g. "Indiranagar, Bangalore, Karnataka" - only
+   * used to build the location DTO when `locationDetails` isn't given.
+   * Ambiguous to parse back apart (is "X, Y" area+city or city+state?),
+   * so any caller that already has the real fields separately should pass
+   * `locationDetails` instead rather than round-tripping through a string. */
   location: string;
+  /** Structured location - preferred over parsing `location` back apart
+   * when the caller already has real, separate fields (e.g. the sell
+   * wizard, which has real city/area/pincode inputs, not a single
+   * free-text field). */
+  locationDetails?: { city: string; area?: string; state?: string; zipCode?: string };
   images: string[];
   specs?: Record<string, string>;
+  negotiable?: boolean;
 }
 
 /** All fields optional - only what's provided gets sent to PUT /products/:id. */
@@ -32,13 +43,42 @@ function mapConditionToEnum(cond: string): 'NEW' | 'LIKE_NEW' | 'GOOD' | 'FAIR' 
   return 'GOOD';
 }
 
+/** Matches the fixed city dropdown in sell/location/page.tsx - used to
+ * fill in a real state whenever a caller only supplies a city name. */
+const CITY_STATE_MAP: Record<string, string> = {
+  Bangalore: 'Karnataka',
+  Mumbai: 'Maharashtra',
+  Delhi: 'NCR',
+  Hyderabad: 'Telangana',
+  Chennai: 'Tamil Nadu',
+  Pune: 'Maharashtra',
+};
+
+/** Parses a free-text "Area, City, State" (or shorter) display string back
+ * into its parts. Ambiguous by nature - prefer passing structured fields
+ * directly (see CreateProductPayload.locationDetails) whenever the caller
+ * already has them, rather than round-tripping through a string like this. */
 function parseLocationString(locStr: string) {
   const parts = (locStr || '').split(',').map((p) => p.trim()).filter(Boolean);
+  let area: string | undefined;
+  let city: string;
+  let state: string | undefined;
+
+  if (parts.length >= 3) {
+    [area, city, state] = parts;
+  } else if (parts.length === 2) {
+    [city, state] = parts;
+  } else if (parts.length === 1) {
+    [city] = parts;
+  } else {
+    city = 'Bangalore';
+  }
+
   return {
     country: 'India',
-    state: parts[1] || 'Karnataka',
-    city: parts[1] ? parts[0] : 'Bangalore',
-    area: parts[0] || 'Indiranagar',
+    state: state || CITY_STATE_MAP[city] || 'Karnataka',
+    city,
+    area: area || 'Indiranagar',
     zipCode: '560038',
   };
 }
@@ -77,13 +117,24 @@ export const productsApi = {
   },
 
   async createProduct(payload: CreateProductPayload): Promise<ApiResponse<Product>> {
+    const location = payload.locationDetails
+      ? {
+          country: 'India',
+          city: payload.locationDetails.city,
+          state: payload.locationDetails.state || CITY_STATE_MAP[payload.locationDetails.city] || 'Karnataka',
+          area: payload.locationDetails.area || 'Indiranagar',
+          zipCode: payload.locationDetails.zipCode || '560038',
+        }
+      : parseLocationString(payload.location);
+
     const dto = {
       title: payload.title,
       description: payload.description,
       categoryId: payload.categoryId,
       condition: mapConditionToEnum(payload.condition),
       price: Number(payload.price) || 0,
-      location: parseLocationString(payload.location),
+      location,
+      negotiable: payload.negotiable ?? false,
     };
 
     return apiClient.post<Product>('/products', dto);
