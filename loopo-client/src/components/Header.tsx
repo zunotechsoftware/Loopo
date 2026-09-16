@@ -29,7 +29,7 @@ import { setSearchQuery } from '@/redux/slices/productsSlice';
 import { setLocation, setLocationData, showToast, setAuthModalOpen } from '@/redux/slices/uiSlice';
 
 
-import { logout } from '@/redux/slices/authSlice';
+import { logout, isAdminRole } from '@/redux/slices/authSlice';
 import { useDebounce } from '@/hooks/useDebounce';
 import { ROUTES } from '@/routes/routes';
 
@@ -44,13 +44,12 @@ export default function Header() {
   const products = useAppSelector((state) => state.products.items);
   const { isAuthenticated, user } = useAppSelector((state) => state.auth);
 
-  const isAdmin =
-    isAuthenticated &&
-    user &&
-    ((user as any).role === 'ADMIN' ||
-      (user as any).role === 'SUPER_ADMIN' ||
-      user.email?.includes('admin') ||
-      user.email === 'admin@loopo.com');
+  // Only a real ADMIN/SUPER_ADMIN role should ever show this - the
+  // previous check also matched any email containing the substring
+  // "admin" (or the literal admin@loopo.com), which meant a completely
+  // unprivileged account could get the Admin nav link just by choosing an
+  // email like "myadmin123@gmail.com".
+  const isAdmin = isAuthenticated && isAdminRole(user?.roles);
 
   const totalUnreadChats = conversations.reduce((acc, c) => acc + c.unreadCount, 0);
   const totalUnreadNotifs = notifications.filter((n) => !n.isRead).length;

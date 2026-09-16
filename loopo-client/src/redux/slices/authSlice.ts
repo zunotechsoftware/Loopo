@@ -25,7 +25,10 @@ function buildProfile(u: any): UserProfile | null {
     memberSince: u.createdAt
       ? new Date(u.createdAt).getFullYear().toString()
       : new Date().getFullYear().toString(),
-    role: u.role || 'USER',
+    // The real API returns `roles: string[]`, never a singular `role` -
+    // reading `u.role` here always fell through to the 'USER' fallback
+    // for every account, including real ADMIN/SUPER_ADMIN ones.
+    roles: Array.isArray(u.roles) ? u.roles : ['USER'],
   };
 }
 
@@ -135,7 +138,7 @@ export const authSlice = createSlice({
         avatar: action.payload.avatar || '',
         isVerified: true,
         memberSince: new Date().getFullYear().toString(),
-        role: 'USER',
+        roles: ['USER'],
       };
       saveLocalUser(state.user);
     },
@@ -184,7 +187,7 @@ export const authSlice = createSlice({
           avatar: '',
           isVerified: true,
           memberSince: new Date().getFullYear().toString(),
-          role: 'USER',
+          roles: ['USER'],
         };
         state.isAuthenticated = true;
         state.user = profile;
@@ -212,7 +215,7 @@ export const authSlice = createSlice({
           avatar: '',
           isVerified: true,
           memberSince: new Date().getFullYear().toString(),
-          role: 'USER',
+          roles: ['USER'],
         };
         state.isAuthenticated = true;
         state.user = profile;
@@ -227,6 +230,14 @@ export const authSlice = createSlice({
 
 export const { setAuthMode, setOtpTarget, clearAuthError, loginSuccess, logoutUser, logoutUser: logout } =
   authSlice.actions;
+
+/** True only for a real ADMIN/SUPER_ADMIN role - used to gate the
+ * client's own /admin panel and the header's Admin nav link. Never infer
+ * this from an email address; only the backend-issued roles array is
+ * trustworthy. */
+export function isAdminRole(roles?: string[] | null): boolean {
+  return !!roles?.some((r) => r === 'ADMIN' || r === 'SUPER_ADMIN');
+}
 
 export default authSlice.reducer;
 
