@@ -6,6 +6,7 @@ import 'package:loopo/screens/otp_screen.dart';
 import '../theme/app_colors.dart';
 import '../widgets/form_input.dart';
 import '../widgets/primary_button.dart';
+import '../services/auth_service.dart';
 
 class _CountryOption {
   final String flag;
@@ -125,29 +126,43 @@ class _LoginMobileState extends State<LoginMobile> {
       builder: (context) => const Center(child: CircularProgressIndicator()),
     );
 
-    // Simulate network latency for OTP generation
-    await Future.delayed(const Duration(milliseconds: 800));
+    final phone = '${_selectedCountry.dialCode}${_mobileController.text.trim()}';
 
-    if (!mounted) return;
-    Navigator.pop(context); // Close dialog
+    try {
+      // Requests a real, per-phone-number OTP from the backend (queued for
+      // SMS delivery) - this used to just fake a network delay and tell
+      // the user to type a hardcoded universal code, with no request ever
+      // reaching the backend.
+      await AuthService().sendPhoneLoginOtp(phone: phone);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Verification code sent! Use code 123456 to verify.'),
-        backgroundColor: AppColors.appGreen,
-        duration: Duration(seconds: 4),
-      ),
-    );
+      if (!mounted) return;
+      Navigator.pop(context); // Close dialog
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => OtpScreen(
-          dialCode: _selectedCountry.dialCode,
-          mobileNumber: _mobileController.text.trim(),
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Verification code sent!'),
+          backgroundColor: AppColors.appGreen,
+          duration: Duration(seconds: 3),
         ),
-      ),
-    );
+      );
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => OtpScreen(
+            dialCode: _selectedCountry.dialCode,
+            mobileNumber: _mobileController.text.trim(),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context); // Close dialog
+      final message = e.toString().replaceFirst('Exception: ', '');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.red),
+      );
+    }
   }
 
   @override

@@ -4,10 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:loopo/screens/location_screen.dart';
 
-// TODO: [Backend Integration] Send phone OTP via POST /api/v1/auth/send-otp
-// TODO: [Backend Integration] Verify 6-digit phone OTP via POST /api/v1/auth/verify-otp
-
-
 import '../config/debug_config.dart';
 import '../theme/app_colors.dart';
 import '../widgets/primary_button.dart';
@@ -115,16 +111,37 @@ class _OtpScreenState extends State<OtpScreen> {
     setState(() {});
   }
 
-  void _handleResend() {
+  void _handleResend() async {
     if (_secondsRemaining > 0) return;
     for (final controller in _otpControllers) {
       controller.clear();
     }
     _focusNodes.first.requestFocus();
     _startTimer();
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('OTP resent successfully')));
+
+    if (DebugConfig.isBypassAuth || DebugConfig.isActive) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('OTP resent successfully')),
+      );
+      return;
+    }
+
+    try {
+      final phone = '${widget.dialCode}${widget.mobileNumber}';
+      await AuthService().sendPhoneLoginOtp(phone: phone);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('OTP resent successfully')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        final message = e.toString().replaceFirst('Exception: ', '');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   void _handleVerify() async {
@@ -144,16 +161,6 @@ class _OtpScreenState extends State<OtpScreen> {
       return;
     }
 
-    if (_enteredOtp != '123456') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Invalid verification code. Please try again with code 123456.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -162,13 +169,10 @@ class _OtpScreenState extends State<OtpScreen> {
 
     try {
       final phone = '${widget.dialCode}${widget.mobileNumber}';
-      final result = await AuthService().loginOrRegisterPhone(phone: phone);
-
-      final data = result['data'] ?? result;
-      final token = data['token'] ?? data['accessToken'] ?? result['accessToken'];
-      if (token != null) {
-        AuthSession.setToken(token.toString());
-      }
+      // Verifies against the real, per-request OTP the backend generated
+      // and queued for SMS delivery - there is no hardcoded/universal code
+      // that works for every phone number anymore.
+      await AuthService().verifyPhoneLoginOtp(phone: phone, otp: _enteredOtp);
 
       if (mounted) {
         Navigator.pop(context); // Close loading dialog
