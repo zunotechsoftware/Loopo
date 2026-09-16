@@ -45,6 +45,8 @@ class ApiConfig {
   // ── API Endpoints ─────────────────────────────────────────────────────────
   static const String loginEndpoint = '/api/v1/auth/login';
   static const String registerEndpoint = '/api/v1/auth/register';
+  static const String sendPhoneLoginOtpEndpoint = '/api/v1/auth/phone/send-otp';
+  static const String verifyPhoneLoginOtpEndpoint = '/api/v1/auth/phone/verify-otp';
   static const String forgotPasswordEndpoint = '/api/v1/auth/forgot-password';
   static const String resetPasswordEndpoint = '/api/v1/auth/reset-password';
   static const String refreshTokenEndpoint = '/api/v1/auth/refresh';
@@ -74,6 +76,8 @@ class ApiConfig {
   // ── Full URLs ─────────────────────────────────────────────────────────────
   static String get loginUrl => '$baseUrl$loginEndpoint';
   static String get registerUrl => '$baseUrl$registerEndpoint';
+  static String get sendPhoneLoginOtpUrl => '$baseUrl$sendPhoneLoginOtpEndpoint';
+  static String get verifyPhoneLoginOtpUrl => '$baseUrl$verifyPhoneLoginOtpEndpoint';
   static String get forgotPasswordUrl => '$baseUrl$forgotPasswordEndpoint';
   static String get resetPasswordUrl => '$baseUrl$resetPasswordEndpoint';
   static String get refreshTokenUrl => '$baseUrl$refreshTokenEndpoint';

@@ -124,7 +124,9 @@ export interface UserProfile {
   avatar: string;
   isVerified: boolean;
   memberSince: string;
-  role?: string;
+  /** The real backend login/profile response returns `roles: string[]`
+   * (a user can hold more than one) - there is no singular `role` field. */
+  roles?: string[];
 }
 
 export interface MyAdItem {

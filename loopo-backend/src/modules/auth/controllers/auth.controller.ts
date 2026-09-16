@@ -18,6 +18,7 @@ import { ResetPasswordDto } from '../dto/reset-password.dto';
 import { RefreshTokenDto } from '../dto/refresh-token.dto';
 import { VerifyEmailDto } from '../dto/verify-email.dto';
 import { VerifyOtpDto } from '../dto/verify-otp.dto';
+import { SendPhoneLoginOtpDto } from '../dto/send-phone-login-otp.dto';
 import { LocalAuthGuard } from '../../../shared/common/guards/local-auth.guard';
 import { JwtAuthGuard } from '../../../shared/common/guards/jwt-auth.guard';
 import { RefreshTokenGuard } from '../../../shared/common/guards/refresh-token.guard';
@@ -141,6 +142,27 @@ export class AuthController {
   @ApiResponse({ status: 400, description: 'Invalid/expired OTP' })
   async verifyPhoneOtp(@CurrentUser() user: any, @Body() verifyOtpDto: VerifyOtpDto) {
     return this.authService.verifyPhoneOtp(user.id, verifyOtpDto.phone, verifyOtpDto.otp);
+  }
+
+  @Public()
+  @Post('phone/send-otp')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Send a login OTP to a phone number (logs in or auto-registers on verify)' })
+  @ApiResponse({ status: 200, description: 'OTP queued and sent' })
+  async sendPhoneLoginOtp(@Body() dto: SendPhoneLoginOtpDto) {
+    return this.authService.sendPhoneLoginOtp(dto.phone);
+  }
+
+  @Public()
+  @Post('phone/verify-otp')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verify a phone login OTP and receive real session tokens' })
+  @ApiResponse({ status: 200, description: 'Login successful' })
+  @ApiResponse({ status: 400, description: 'Invalid/expired OTP' })
+  async verifyPhoneLoginOtp(@Body() dto: VerifyOtpDto, @Req() req: Request) {
+    const ip = req.ip || req.socket.remoteAddress;
+    const userAgent = req.headers['user-agent'];
+    return this.authService.verifyPhoneLoginOtp(dto.phone, dto.otp, ip, userAgent);
   }
 
   @Public()

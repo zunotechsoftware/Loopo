@@ -15,6 +15,7 @@ import {
 import { Visibility, VisibilityOff, AdminPanelSettings } from '@mui/icons-material';
 import { useAuth } from '@/hooks/useAuth';
 import { authService } from '@/services/auth.service';
+import { isAdminRole } from '@/types/auth';
 import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
@@ -34,6 +35,16 @@ export default function LoginPage() {
 
     try {
       const response = await authService.login({ email, password });
+      // /auth/login is shared with the public client/flutter apps - it
+      // authenticates any registered account, not just admins. Without
+      // this check, any buyer/seller could sign into the admin portal
+      // with their own real credentials and see the full admin UI shell
+      // (every guarded API call would 403, but the navigation, layout and
+      // page structure were all still fully exposed).
+      if (!isAdminRole(response.user.roles)) {
+        setError("This account doesn't have access to the admin portal.");
+        return;
+      }
       login(response.accessToken, response.user);
       router.push('/dashboard');
     } catch (err: any) {
