@@ -6,6 +6,293 @@ last_verified: 2026-09-13
 
 ## OPEN
 
+### RESOLVED — P0, user-reported: "Publish Listing Now" silently failed for a real user - description was under the backend's minimum length, with no client-side warning until the very last step
+User's own live test: typed a title ("aksjka") and a short description
+("sjajsjah", 8 characters), clicked through to Preview, clicked "Publish
+Listing Now", and the listing never appeared anywhere - not in their own
+My Listings, not in admin. Confirmed via a direct database query: no such
+product was ever created.
+
+Root cause: the backend's `CreateProductDto.description` requires
+`@MinLength(10)` (and is `@IsNotEmpty()`), but `sell/details/page.tsx`'s
+`handleSubmit` only validated `title`/`price`, never `description` length
+- and the label read "Description" with no `*`, implying (incorrectly)
+that it was optional. A user could sail through all 5 steps and only
+discover the problem at the very last one, as a raw backend validation
+message in a toast that's easy to miss entirely (which is exactly what
+happened here).
+
+**Fixed:** `handleSubmit` now validates title (3-100 chars) and
+description (10-2000 chars) client-side, matching the backend exactly;
+marked the label required (`Description *`); added a live character
+counter that turns red below the 10-character minimum. A user now gets a
+clear, immediate, un-missable block at the step where the problem
+actually is, instead of a silent failure three steps later.
+
+**Verified live:** re-ran the user's exact input ("aksjka" / "sjajsjah")
+- clicking Next now correctly stays on the Details step with the counter
+showing "8/10" in red; fixing the description correctly proceeds. The
+underlying create → admin-pending → approve → public-visible pipeline
+itself was already confirmed fully working in a separate full wizard
+walkthrough (see the city/state/negotiable fix entry above) - this was
+purely a missing-validation gap that made a bad input look like a broken
+integration.
+
+### RESOLVED — Admin KYC review page fabricated a person's date of birth, gender, and home address, and ran a fake "auto-verification" that always passed every check
+Found while re-verifying the KYC flow end to end (user request: "check
+... kyc"). Two related, serious issues on `kyc/[id]/page.tsx`, both
+pre-existing (not introduced this session):
+
+1. **Fabricated identity fields.** The "Identity Information" panel fell
+   back to a specific, detailed fake person whenever a field was missing
+   from the real profile (which is always, currently - nothing in this
+   app collects date of birth, gender, or a home address yet):
+   `dateOfBirth` → hardcoded `"15 Aug 1995"`, `gender` → hardcoded
+   `"Male"`, `address` → hardcoded `"1/23, South Street, Hosur,
+   Krishnagiri, Tamil Nadu - 635109"` (with an extra special case
+   appending that exact street address whenever a real profile's city
+   happened to be "Hosur"). An admin reviewing a real person's real
+   Aadhaar/PAN submission was shown someone else's fabricated personal
+   details right next to it, with no visual distinction from real data.
+2. **Fake automated verification.** For any PENDING/SUBMITTED
+   application, the page ran a ~3-second timer that animated through
+   "Scanning uploaded documents and running facial matching checks..."
+   and always ended with every check (name match, DOB match, document
+   readable, selfie match, duplicate KYC) marked green "Matched" /
+   "Passed" - regardless of the actual document contents. There is no
+   real document-verification integration anywhere in this codebase; this
+   was pure animation. An admin could reasonably (and wrongly) treat a
+   wall of green checkmarks as a real signal.
+
+**Fixed:** the three identity fields now show `"Not provided"` when the
+real profile field is genuinely empty, instead of a fabricated value.
+Removed the trigger that started the fake auto-scan timer for
+PENDING/SUBMITTED applications - `scannedItems` now stays at its real
+`'pending'` default, and the existing (already-built, just previously
+pre-empted by the fake timer) `toggleChecklistItem` mechanism is the only
+way any check becomes "Matched"/"Passed" now: an admin manually marking
+it after actually looking at the documents shown right next to it. This
+is the only real verification available without integrating a document-
+verification vendor.
+
+**Verified live end to end, not simulated:** a real client submission
+(real document number, real front/selfie image upload) reviewed on the
+real admin KYC detail page shows "Not provided" for DOB/gender/address
+(previously always a fabricated Aug-1995/Male/Hosur record) and every
+verification check honestly at "Pending" (previously all green after
+~3s, every time) - confirmed via screenshot after waiting well past where
+the old fake timer would have completed. The full submit → admin-approve
+(via the real Approve button + confirmation dialog, not the API directly)
+→ client-reflects-APPROVED chain still works correctly (verified
+separately, two real browser sessions, zero console errors on either
+side).
+
+**Not fixed, flagged for a future pass (lower severity - static text, not
+an active real-time false claim):** the Verification History timeline
+still pushes hardcoded fake timestamps ("21 Aug 2026, 11:05 PM" for
+"Under Review", etc.) for the initial-load synthetic entries, rather than
+reflecting real audit-log timestamps. The now-fully-dead
+`MOCK_KYC_DETAILS` constant (already unreachable after the earlier fake-
+fallback fix) is also still present as dead code. Both are cosmetic/
+historical-display issues rather than something that could change a real
+approve/reject decision, and were left alone rather than risk further
+edits to this ~1500-line file under time pressure.
+
+### RESOLVED — Sell wizard: every listing's city/state were silently swapped/wrong, and the negotiable checkbox never reached the backend
+Found while re-verifying the full sell flow end to end (user request: "check
+seller flow works properly"). Two real bugs, confirmed live:
+
+1. **`negotiable` was never sent at all.** `sell/preview/page.tsx` built the
+   `createProductThunk` payload without a `negotiable` field, even though
+   the Details step's "Price is Negotiable" checkbox (bound to real state,
+   defaulting to `true`) implied it would be. `CreateProductPayload`/
+   `productsApi.createProduct` didn't have the field either, despite the
+   backend already fully supporting it. Every listing silently published as
+   non-negotiable regardless of what the seller chose.
+2. **City/state were being swapped for every listing published through the
+   wizard.** The wizard has real, separate `city`/`area`/`pincode` fields
+   from its Location step, but `preview/page.tsx` collapsed them into a
+   single opaque string `"${area}, ${city}"` (e.g. "Indiranagar,
+   Bangalore") and `productsApi.ts`'s `parseLocationString` assumed a
+   *different* convention (`"City, State"`) when splitting it back apart -
+   so `city` ended up storing the area ("Indiranagar") and `state` ended up
+   storing the city name ("Bangalore"); the listing's real state
+   (Karnataka) was never captured anywhere. Confirmed via a captured
+   network request body. This would have broken any real city/state-based
+   search or filtering, and shown wrong location data to buyers.
+
+**Fixed:** added a `negotiable` field to `CreateProductPayload`, threaded
+through to the DTO. Added a `locationDetails` structured field to
+`CreateProductPayload` (`{city, area, state?, zipCode?}`) that
+`productsApi.createProduct` uses directly when a caller already has the
+real fields separately - no more encode-then-guess-how-to-decode. The sell
+wizard's preview page now passes this instead of concatenating a string.
+Also rewrote `parseLocationString` (still used by `SellFlowView.tsx`'s
+free-text edit-listing field, which has no separate fields and must parse
+a string) to correctly handle 1/2/3-comma-separated-part input by actual
+part count, plus a `CITY_STATE_MAP` (matching the location step's fixed
+city dropdown) to fill in a real state whenever only a city is known,
+instead of hardcoding `'Karnataka'`/`'Bangalore'` regardless of what the
+seller actually picked.
+
+**Verified live, full wizard walkthrough (category → details → photos →
+location → preview → publish), not simulated:** real photo upload and
+registration (`imageCount: 1` on the created listing), `negotiable: true`
+correctly persisted without touching the checkbox (its real default),
+switching the Location step's city to Mumbai correctly produced
+`{city: "Mumbai", state: "Maharashtra"}` on the real created record (was
+previously always wrong regardless of city chosen) - confirmed both via
+direct API read and visually in the real admin Pending Approval list,
+zero console errors. Client: `tsc --noEmit` clean, `next build` succeeds.
+
+### RESOLVED — P0: real-time chat never worked at all, in either app - Socket.IO was never actually attached to the real HTTP server
+User-reported: "when a user sends a message, the message is saved but
+does not appear immediately. It only appears after refreshing the page."
+
+The true root cause was infrastructural, not a frontend bug:
+**`RedisIoAdapter` (`shared/redis/redis-io.adapter.ts`) called `super()`
+with no arguments**, so `AbstractWsAdapter` never got the Nest application
+reference it needs to find the app's real, already-listening HTTP server.
+`IoAdapter.createIOServer` falls back to `new Server(port, options)` - a
+brand-new, fully disconnected Socket.IO instance, never routed to by the
+actual server answering every REST request on port 5000. Confirmed with a
+raw `curl` handshake: `GET /socket.io/?EIO=4&transport=polling` returned a
+plain Express **404** (with Helmet's security headers on it, proving it
+came from Nest's own router, not a network-level failure) - nothing was
+ever listening on that path at all, on any port a browser could reach.
+**Every** socket.io connection attempt from any client, in either app, has
+always silently failed - this predates this session entirely.
+
+**Fixed:** pass the Nest `app` through: `new RedisIoAdapter(app,
+configService)` in `main.ts`, `constructor(app: INestApplicationContext,
+...) { super(app); }` in the adapter. Verified: the same curl handshake
+now returns `200 OK`.
+
+**Compounding, now-moot-but-still-fixed frontend bugs found on top of this:**
+- `loopo-admin`'s `useChatSocket.ts` read the token from `localStorage
+  'token'`, a key nothing in the app ever sets (`AuthProvider.tsx` uses
+  `'accessToken'`) - the socket's auth handshake never even had a token to
+  send, so it would have failed regardless of the backend bug.
+- `loopo-client` had **no Socket.IO integration at all** (not even the
+  package installed) - real-time delivery there was never attempted, and
+  separately, `sendMessage` was a **local-only synchronous Redux reducer
+  that never called the send-message API at all** (a message "sent" from
+  the client only ever existed in that tab's memory; a refresh made it
+  vanish rather than reappear). `chatApi.ts`'s methods also didn't match
+  the real backend contract (`{conversationId, text}` instead of
+  `{conversationId, content, type}`; no `getMessages` method existed at
+  all, so a conversation's full history was never loadable - only ever the
+  single latest-message preview the conversation-list endpoint returns).
+
+**Rebuilt for real:** added `socket.io-client` + a `useChatSocket` hook to
+loopo-client (mirrors the admin one); fixed `chatApi.sendMessage`/added
+`chatApi.getMessages`; rewrote `chatSlice.ts` with `fetchMessagesThunk`
+(full history, loaded once per conversation), `sendMessageThunk` +
+`addOptimisticMessage` (append immediately, reconcile with the real
+response, drop the optimistic copy without duplicating if the socket echo
+already arrived first), `receiveMessage`/`applyConversationUpdate`
+(live-update from the socket, with unread-count bumped only for
+conversations not currently open); fixed message `sender` derivation to
+compare the message's real `senderId` against the current user's id
+(previously compared against a `m.sender` string field the backend never
+sends - every message silently rendered as "sent by me" regardless of who
+sent it). Also had the backend controller additionally broadcast
+`conversation_updated` to the recipient's personal `user:${id}` room (every
+client already joins this on connect) so a brand-new conversation, or one
+the recipient currently has closed, still live-updates their inbox instead
+of only conversations they've actively opened before.
+
+**Verified live, two real separate browser sessions (seller + buyer), not
+simulated:** a message sent by one appears on the other's screen with zero
+page reload; confirmed no duplicate rendering of the sender's own message
+(optimistic-vs-socket-echo reconciliation works); replies flow back the
+same way. Backend: 83/83 unit tests pass, `tsc --noEmit` clean. Both apps:
+`tsc --noEmit` clean, builds succeed.
+
+### RESOLVED — Block / Unblock / Report were unreachable from inside the messaging UI itself
+`MessagesView.tsx` had a "Report" button but no way to block a user at all
+from within a chat - `blocked-users/page.tsx` and the seller-profile page
+already had real block/unblock (fixed earlier this session), but nothing
+inside the actual chat screen. Added a Block/Unblock button to the chat
+header with a real confirmation dialog (loading spinner, real
+success/error toast), a red banner when the open conversation's other
+party is blocked, and disabled message input/attach/send while blocked
+(the backend already 403s a blocked send; this adds the same rule
+client-side for immediate feedback). A failed send now shows inline with a
+tap-to-retry action instead of silently vanishing.
+
+**Verified live:** blocking via the chat header persists for real (`GET
+/users/blocked` reflects it immediately), the input visibly disables with
+"Unblock to send a message...", and unblocking via the dedicated
+`/blocked-users` page correctly clears it. Reports already flow into the
+real admin `/reports` workflow (fixed earlier this session) - the chat's
+Report button reuses the same real modal, now scoped to `targetType:
+'USER'` with the real `otherPartyId`.
+
+### RESOLVED — Admin KYC review page: a failed approve/reject silently pretended to succeed, and a failed fetch loaded fabricated data for a different (mock) applicant
+Found while verifying KYC admin→client sync. `kyc/[id]/page.tsx` had two
+dangerous fallback-on-error blocks, both pre-existing (not introduced this
+session):
+- `handleApproveConfirm`/`handleRejectConfirm`'s `catch` blocks showed a
+  fake **"...successfully (Local Simulation)"** toast and flipped the
+  local `kyc.status` to APPROVED/REJECTED **even though the real API call
+  had just failed** - the actual database record was never touched, but
+  the admin had no way to tell their action hadn't worked.
+- `fetchKycDetail`'s `catch` block (and even a branch of its success path,
+  if `resData` was falsy) substituted a hardcoded `MOCK_KYC_DETAILS` record
+  for a **different, fictional applicant** ("Venkatesh") - an admin could
+  end up reviewing and then "approving" fabricated content while believing
+  it belonged to the real application they'd opened, since the approve
+  button would then fire against that fake `id`.
+
+**Fixed:** both catch blocks now show a real error toast and change
+nothing locally; approve/reject now re-fetch the real record via
+`fetchKycDetail()` on success instead of hand-editing local state, so
+what's displayed always matches the database. The fetch failure path (and
+the missing-`resData` branch) now sets `kyc: null` with a real error
+message, and a proper "not found / couldn't load, Retry" screen was added
+(previously nothing guarded `!kyc` outside the initial loading spinner, so
+this path would have thrown reaching into a null `kyc` deeper in the
+render). Left as dead code rather than risk touching more of this ~1500-
+line file under time pressure: the now-fully-unused `MOCK_KYC_DETAILS`
+constant, and a still-present but no-longer-reachable-via-fallback
+"auto-verification simulator" (`scannedItems`/`autoState`) that, when a
+*real* record loads via the normal success path, still runs a purely
+decorative ~2.7s timer that always ends in every check "passed" - it
+doesn't inspect the actual document images at all and isn't wired to
+anything the admin's approve/reject decision depends on. Flagging clearly
+here rather than leaving it looking like real automated verification: **it
+is not**, and should either be removed or connected to a real
+document-verification vendor in a future pass.
+
+**Verified live end to end:** client submits KYC (SUBMITTED) → admin
+approves via the real `PATCH /admin/kyc/:id/approve` → client's next
+`GET /kyc/me` immediately reflects APPROVED. Admin KYC list page renders
+real applications with real stats (5 total, 4 pending, 1 approved, 1
+rejected in the verification run) with zero console errors.
+
+### RESOLVED — Rejected listings never showed the seller *why* - the data existed, nothing displayed it
+Part of verifying the selling-lifecycle sync ("Admin rejects → seller sees
+rejection/reason"). The real `rejectionReason` field was already being set
+by the backend on rejection and was already present in every
+`GET /products/my` response (the repository uses `include`, which returns
+all scalar fields) - `myAdsSlice.ts`'s `normaliseDbItem` just never copied
+it onto the frontend `MyAdItem`, and `my-listings/rejected/page.tsx` never
+rendered it. Added `rejectionReason` to the `MyAdItem` type, the
+normalizer, and the rejected-listings page (shown as a real reason chip
+under each rejected listing). The admin-side reject dialog already
+correctly required and sent a real reason - only the client display side
+was missing.
+
+### Verified, no change needed — sold-product and moderation-status sync
+Checked as part of the same sync pass: the public listings endpoint only
+ever returns `APPROVED` products (a `SOLD` item is never publicly
+browsable once marked sold - by construction, not a special case), the
+admin listings page already has a real "Sold" filter and a real
+`productsService.getStats()`-driven sold count, and the client's Mark Sold
+flow (fixed earlier this session) persists a real status change all three
+surfaces read from the same table. No gap found here.
+
 ### RESOLVED — loopo-admin (user-reported priority #3): Notifications and Email Templates were largely fake/incomplete
 1. **Notifications**: the main list/create/edit/stats flow was already real (`admin.service.ts`'s `notificationsService` correctly hitting `/admin/notifications`), but:
    - The Create/Edit dialog had no way to set the real `type` field (Promotion/Order Update/Engagement/Security/Cart Reminder/Update/Onboarding) - every notification silently defaulted to PROMOTION. Added a real Type selector.

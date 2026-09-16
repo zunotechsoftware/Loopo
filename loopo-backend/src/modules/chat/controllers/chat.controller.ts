@@ -138,14 +138,26 @@ export class ChatController {
   @ApiResponse({ status: 201, type: MessageEntity })
   async sendMessage(@Body() dto: SendMessageDto, @Request() req: any) {
     const userId = req.user.id;
-    const message = await this.chatService.sendMessage(userId, dto);
-    
-    // Broadcast message to room
+    const message: any = await this.chatService.sendMessage(userId, dto);
+
+    // Broadcast message to whoever has this conversation open right now.
     this.chatGateway.server.to(`conversation:${dto.conversationId}`).emit('receive_message', message);
     this.chatGateway.server.to(`conversation:${dto.conversationId}`).emit('conversation_updated', {
       conversationId: dto.conversationId,
       lastMessage: message,
     });
+
+    // Also notify the recipient's personal room - every connected client
+    // joins `user:${their id}` on connect (see ChatGateway.handleConnection),
+    // regardless of which (if any) conversation they currently have open.
+    // Without this, a brand-new conversation, or a message on a thread the
+    // recipient isn't currently viewing, never updates their inbox live.
+    if (message.recipientId) {
+      this.chatGateway.server.to(`user:${message.recipientId}`).emit('conversation_updated', {
+        conversationId: dto.conversationId,
+        lastMessage: message,
+      });
+    }
 
     return { message: 'Message sent successfully', data: message };
   }

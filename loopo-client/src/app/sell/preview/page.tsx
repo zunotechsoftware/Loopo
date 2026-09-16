@@ -34,7 +34,17 @@ export default function SellPreviewPage() {
           categoryId: formData.categoryId,
           condition: formData.condition || 'Like New',
           location: `${formData.area || 'Indiranagar'}, ${formData.city || 'Bangalore'}`,
+          // The real, separate fields the location step actually collected -
+          // avoids re-parsing the ambiguous display string above apart,
+          // which previously swapped city/area (every listing published
+          // through this wizard stored the locality as its "city").
+          locationDetails: {
+            city: formData.city || 'Bangalore',
+            area: formData.area || 'Indiranagar',
+            zipCode: formData.pincode || '560038',
+          },
           images: formData.images.length > 0 ? formData.images : [primaryImage],
+          negotiable: formData.isNegotiable,
         })
       );
 

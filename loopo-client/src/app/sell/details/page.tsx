@@ -13,14 +13,33 @@ export default function SellDetailsPage() {
   const dispatch = useAppDispatch();
   const formData = useAppSelector((state) => state.sell.formData);
 
+  // Mirrors the backend's real CreateProductDto constraints - previously
+  // only title/price were checked here, so a listing could sail through
+  // every step and only fail at the very last one (Publish) with a raw
+  // backend validation message (e.g. description too short), which is
+  // easy to miss and gives no indication of what to actually fix.
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.title.trim()) {
-      dispatch(showToast('Please enter a product title'));
+    const title = formData.title.trim();
+    if (title.length < 3) {
+      dispatch(showToast('Product title must be at least 3 characters.'));
       return;
     }
-    if (!formData.price.trim()) {
-      dispatch(showToast('Please enter price'));
+    if (title.length > 100) {
+      dispatch(showToast('Product title must be under 100 characters.'));
+      return;
+    }
+    if (!formData.price.trim() || Number(formData.price) <= 0) {
+      dispatch(showToast('Please enter a valid price.'));
+      return;
+    }
+    const description = formData.description.trim();
+    if (description.length < 10) {
+      dispatch(showToast('Description must be at least 10 characters - describe the item a bit more.'));
+      return;
+    }
+    if (description.length > 2000) {
+      dispatch(showToast('Description must be under 2000 characters.'));
       return;
     }
     router.push(ROUTES.SELL_PHOTOS);
@@ -78,13 +97,16 @@ export default function SellDetailsPage() {
 
         {/* Description */}
         <div className="space-y-1">
-          <label className="text-xs font-bold text-slate-700">Description</label>
+          <label className="text-xs font-bold text-slate-700">Description *</label>
           <textarea
             value={formData.description}
             onChange={(e) => dispatch(updateSellForm({ description: e.target.value }))}
             placeholder="Describe the condition, usage, accessories included, reason for selling..."
             className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:border-emerald-500 transition-all h-28 resize-none"
           />
+          <p className={`text-[10px] font-medium ${formData.description.trim().length > 0 && formData.description.trim().length < 10 ? 'text-red-500' : 'text-slate-400'}`}>
+            Minimum 10 characters ({formData.description.trim().length}/10)
+          </p>
         </div>
 
         {/* Toggle options */}

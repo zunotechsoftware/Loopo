@@ -1,21 +1,24 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { getAuthToken } from '@/services/apiClient';
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:5000';
+// Same host as the REST API, minus the /api/v1 suffix - the Socket.IO
+// gateway is mounted on the root of the Nest app, not under that prefix.
+const SOCKET_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/api/v1').replace(/\/api\/v1\/?$/, '');
 
 interface ChatSocketOptions {
   onConversationUpdated?: (conversation: any) => void;
   onReceiveMessage?: (message: any) => void;
-  onMessageRead?: (data: { conversationId: string; messageId: string; userId: string }) => void;
+  onMessageRead?: (data: { conversationId: string; messageId?: string; userId: string }) => void;
   onTypingStarted?: (data: { conversationId: string; userId: string }) => void;
   onTypingStopped?: (data: { conversationId: string; userId: string }) => void;
   onMessageEdited?: (data: { conversationId: string; message: any }) => void;
   onMessageDeleted?: (data: { conversationId: string; messageId: string }) => void;
-  onMessageReaction?: (data: { conversationId: string; messageId: string; userId: string; emoji: string; action: 'added' | 'removed' }) => void;
 }
 
+/** Mirrors loopo-admin's useChatSocket - same backend gateway, same event
+ * names - just pointed at loopo-client's own token storage/env var. */
 export const useChatSocket = (options?: ChatSocketOptions) => {
-  const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const socketRef = useRef<Socket | null>(null);
 
@@ -25,13 +28,7 @@ export const useChatSocket = (options?: ChatSocketOptions) => {
   }, [options]);
 
   useEffect(() => {
-    // Real key: AuthProvider.tsx stores the admin's session token under
-    // 'accessToken' - this used to read a 'token' key that's never set
-    // anywhere in the app, so `token` was always empty and the socket
-    // silently never connected at all. That's why sent messages never
-    // appeared live: no client was ever actually listening.
-    const token = localStorage.getItem('accessToken');
-
+    const token = getAuthToken();
     if (!token) return;
 
     const socketInstance = io(SOCKET_URL, {
@@ -41,17 +38,8 @@ export const useChatSocket = (options?: ChatSocketOptions) => {
 
     socketRef.current = socketInstance;
 
-    socketInstance.on('connect', () => {
-      console.log('Chat socket connected');
-      setIsConnected(true);
-      setSocket(socketInstance);
-    });
-
-    socketInstance.on('disconnect', () => {
-      console.log('Chat socket disconnected');
-      setIsConnected(false);
-      setSocket(null);
-    });
+    socketInstance.on('connect', () => setIsConnected(true));
+    socketInstance.on('disconnect', () => setIsConnected(false));
 
     socketInstance.on('conversation_updated', (data) => optionsRef.current?.onConversationUpdated?.(data));
     socketInstance.on('receive_message', (data) => optionsRef.current?.onReceiveMessage?.(data));
@@ -60,7 +48,6 @@ export const useChatSocket = (options?: ChatSocketOptions) => {
     socketInstance.on('typing_stopped', (data) => optionsRef.current?.onTypingStopped?.(data));
     socketInstance.on('message_edited', (data) => optionsRef.current?.onMessageEdited?.(data));
     socketInstance.on('message_deleted', (data) => optionsRef.current?.onMessageDeleted?.(data));
-    socketInstance.on('message_reaction', (data) => optionsRef.current?.onMessageReaction?.(data));
 
     return () => {
       socketInstance.disconnect();
@@ -91,19 +78,11 @@ export const useChatSocket = (options?: ChatSocketOptions) => {
     }
   }, []);
 
-  const markMessageRead = useCallback((conversationId: string, messageId: string) => {
-    if (socketRef.current?.connected) {
-      socketRef.current.emit('message_read', { conversationId, messageId });
-    }
-  }, []);
-
   return {
-    socket,
     isConnected,
     joinConversation,
     leaveConversation,
     sendTypingStart,
     sendTypingStop,
-    markMessageRead,
   };
 };
