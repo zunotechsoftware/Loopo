@@ -47,126 +47,19 @@ import {
   Cancel,
   Upload,
   Warning,
-  Security,
-  Autorenew,
-  DoneAll
+  Security
 } from '@mui/icons-material';
 import { useRouter, useParams } from 'next/navigation';
 import { kycService } from '@/services/admin.service';
 import { KycDocument } from '@/types';
 
-// Dynamic fallback mock data matching the list exactly
-const MOCK_KYC_DETAILS: Record<string, Partial<KycDocument>> = {
-  'U-100245': {
-    id: 'U-100245',
-    userId: 'venkatesh-id',
-    documentType: 'AADHAAR', // Aadhaar + PAN
-    documentNumber: '1234 5678 9012',
-    status: 'SUBMITTED',
-    submittedAt: '2026-08-21T17:12:00.000Z', // Aug 21, 2026
-    remarks: '',
-    user: {
-      id: 'venkatesh-id',
-      email: 'venkatesh@gmail.com',
-      phone: '+91 81234 56789',
-      firstName: 'Venkatesh',
-      lastName: 'Sekar',
-      profile: {
-        firstName: 'Venkatesh',
-        lastName: 'Sekar',
-        displayName: 'Venkatesh Sekar',
-        dateOfBirth: '1995-08-15T00:00:00.000Z',
-        gender: 'Male',
-        city: 'Hosur',
-        state: 'Tamil Nadu',
-        country: 'India',
-        zipCode: '635109'
-      }
-    },
-    frontImage: { id: 'img-aadhaar-front', fileUrl: '/images/aadhaar_front.jpg', fileName: 'aadhaar_front.jpg', fileSize: 624929, mimeType: 'image/jpeg' },
-    backImage: { id: 'img-aadhaar-back', fileUrl: '/images/aadhaar_back.jpg', fileName: 'aadhaar_back.jpg', fileSize: 670382, mimeType: 'image/jpeg' },
-    selfieImage: { id: 'img-selfie', fileUrl: '/images/selfie.jpg', fileName: 'selfie.jpg', fileSize: 680605, mimeType: 'image/jpeg' }
-  },
-  'U-100249': {
-    id: 'U-100249',
-    userId: 'kumar-id',
-    documentType: 'NATIONAL_ID', // Passport
-    documentNumber: 'A1234567',
-    status: 'APPROVED',
-    submittedAt: '2026-08-20T08:30:00.000Z', // Aug 20, 2026
-    remarks: '',
-    user: {
-      id: 'kumar-id',
-      email: 'kumar@example.com',
-      phone: '+91 98765 12345',
-      firstName: 'Kumar',
-      lastName: 'S',
-      profile: {
-        firstName: 'Kumar',
-        lastName: 'S',
-        displayName: 'Kumar S',
-        dateOfBirth: '1991-03-12T00:00:00.000Z',
-        gender: 'Male',
-        city: 'Chennai',
-        state: 'Tamil Nadu',
-        country: 'India',
-        zipCode: '600002'
-      }
-    },
-    frontImage: { id: 'img-passport-front', fileUrl: '', fileName: 'passport_front.jpg', fileSize: 504000, mimeType: 'image/jpeg' },
-    backImage: { id: 'img-passport-back', fileUrl: '', fileName: 'passport_back.jpg', fileSize: 512000, mimeType: 'image/jpeg' },
-    selfieImage: { id: 'img-selfie', fileUrl: '/images/selfie.jpg', fileName: 'selfie.jpg', fileSize: 680605, mimeType: 'image/jpeg' }
-  },
-  'U-100250': {
-    id: 'U-100250',
-    userId: 'arun-id',
-    documentType: 'AADHAAR', // Aadhaar + PAN
-    documentNumber: '5678 1234 9012',
-    status: 'REJECTED',
-    submittedAt: '2026-08-19T11:15:00.000Z', // Aug 19, 2026
-    remarks: 'Document unclear',
-    user: {
-      id: 'arun-id',
-      email: 'arun@example.com',
-      phone: '+91 88776 65544',
-      firstName: 'Arun',
-      lastName: 'K',
-      profile: {
-        firstName: 'Arun',
-        lastName: 'K',
-        displayName: 'Arun K',
-        dateOfBirth: '1993-07-25T00:00:00.000Z',
-        gender: 'Male',
-        city: 'Madurai',
-        state: 'Tamil Nadu',
-        country: 'India',
-        zipCode: '625001'
-      }
-    },
-    frontImage: { id: 'img-aadhaar-front', fileUrl: '/images/aadhaar_front.jpg', fileName: 'aadhaar_front.jpg', fileSize: 624929, mimeType: 'image/jpeg' },
-    backImage: { id: 'img-aadhaar-back', fileUrl: '/images/aadhaar_back.jpg', fileName: 'aadhaar_back.jpg', fileSize: 670382, mimeType: 'image/jpeg' },
-    selfieImage: { id: 'img-selfie', fileUrl: '/images/selfie.jpg', fileName: 'selfie.jpg', fileSize: 680605, mimeType: 'image/jpeg' }
-  }
-};
-
-const MOCK_PAN_DOC = {
-  id: 'img-pan',
-  fileUrl: '/images/pan_card.jpg',
-  fileName: 'pan_card.jpg',
-  fileSize: 988234,
-  mimeType: 'image/jpeg',
-  documentNumber: 'ABCDE1234F'
-};
-
 interface DocumentCardProps {
   title: string;
   imageUrl?: string;
   onDownload: () => void;
-  isScanning: boolean;
-  customContent?: React.ReactNode;
 }
 
-const DocumentPreviewCard = ({ title, imageUrl, onDownload, isScanning, customContent }: DocumentCardProps) => {
+const DocumentPreviewCard = ({ title, imageUrl, onDownload }: DocumentCardProps) => {
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
 
@@ -176,22 +69,6 @@ const DocumentPreviewCard = ({ title, imageUrl, onDownload, isScanning, customCo
 
   return (
     <Card sx={{ borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: 'none', overflow: 'hidden', bgcolor: 'white', position: 'relative' }}>
-      {/* Animated Scan Line Overlay */}
-      {isScanning && (
-        <Box
-          sx={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            height: '3px',
-            background: 'linear-gradient(to bottom, rgba(59,130,246,0), rgba(59,130,246,1), rgba(59,130,246,0))',
-            boxShadow: '0 0 8px #3b82f6',
-            zIndex: 10,
-            animation: 'scanline 2s linear infinite'
-          }}
-        />
-      )}
-
       <Box sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 1, borderBottom: '1px solid #f1f5f9' }}>
         <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1e293b' }}>
           📄 {title}
@@ -206,20 +83,8 @@ const DocumentPreviewCard = ({ title, imageUrl, onDownload, isScanning, customCo
         overflow: 'hidden',
         position: 'relative'
       }}>
-        {customContent ? (
-          <Box sx={{ 
-            width: '100%', 
-            height: '100%', 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center',
-            transform: `scale(${zoom}) rotate(${rotation}deg)`,
-            transition: 'transform 0.2s ease'
-          }}>
-            {customContent}
-          </Box>
-        ) : (
-          <Box 
+        {imageUrl ? (
+          <Box
             component="img"
             src={imageUrl}
             alt={title}
@@ -232,6 +97,10 @@ const DocumentPreviewCard = ({ title, imageUrl, onDownload, isScanning, customCo
               borderRadius: 1
             }}
           />
+        ) : (
+          <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600 }}>
+            No image uploaded
+          </Typography>
         )}
       </Box>
       <Box sx={{ p: 1, display: 'flex', justifyContent: 'center', gap: 1, borderTop: '1px solid #f1f5f9', bgcolor: '#f8fafc' }}>
@@ -251,99 +120,6 @@ const DocumentPreviewCard = ({ title, imageUrl, onDownload, isScanning, customCo
     </Card>
   );
 };
-
-// CSS-styled Passport Front Document Mockup to match Kumar S profile & bearded selfie photo perfectly
-const PassportFrontPreview = ({ name, dob, passportNo, selfieUrl }: { name: string; dob: string; passportNo: string; selfieUrl: string }) => (
-  <Box sx={{
-    width: '90%',
-    height: '92%',
-    bgcolor: '#fcf8f2',
-    border: '2px solid #b58957',
-    borderRadius: 2,
-    p: 1.5,
-    boxSizing: 'border-box',
-    fontFamily: 'monospace',
-    color: '#1c1917',
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'space-between',
-    boxShadow: '0 4px 6px rgba(0,0,0,0.05)'
-  }}>
-    <Box sx={{ borderBottom: '1px solid #b58957', pb: 0.5, textAlign: 'center' }}>
-      <Typography sx={{ fontWeight: 800, fontSize: '0.62rem', letterSpacing: 0.8, color: '#b58957', fontFamily: 'monospace' }}>REPUBLIC OF INDIA / भारत गणराज्य</Typography>
-      <Typography sx={{ fontWeight: 700, fontSize: '0.58rem', color: '#78716c', fontFamily: 'monospace' }}>PASSPORT / पासपोर्ट</Typography>
-    </Box>
-
-    <Box sx={{ display: 'flex', gap: 1.5, flexGrow: 1, mt: 0.75 }}>
-      {/* Portrait photo of the user matching the selfie */}
-      <Box sx={{ width: 68, height: 80, border: '1px solid #78716c', bgcolor: '#e7e5e4', overflow: 'hidden', borderRadius: 0.5 }}>
-        <img src={selfieUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-      </Box>
-      <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 0.25, fontSize: '0.5rem' }}>
-        <Box>
-          <Typography sx={{ fontSize: '0.42rem', color: '#78716c', m: 0 }}>Surname / उपनाम</Typography>
-          <Typography sx={{ fontWeight: 700, fontSize: '0.55rem', m: 0 }}>S</Typography>
-        </Box>
-        <Box>
-          <Typography sx={{ fontSize: '0.42rem', color: '#78716c', m: 0 }}>Given Name(s) / नाम</Typography>
-          <Typography sx={{ fontWeight: 700, fontSize: '0.55rem', m: 0 }}>{name}</Typography>
-        </Box>
-        <Box>
-          <Typography sx={{ fontSize: '0.42rem', color: '#78716c', m: 0 }}>Date of Birth / जन्म तिथि</Typography>
-          <Typography sx={{ fontWeight: 700, fontSize: '0.55rem', m: 0 }}>{dob}</Typography>
-        </Box>
-      </Box>
-    </Box>
-
-    <Box sx={{ borderTop: '1px solid #b58957', pt: 0.5, mt: 0.5 }}>
-      <Typography sx={{ fontWeight: 800, fontSize: '0.58rem', textAlign: 'right', color: '#b58957', fontFamily: 'monospace', m: 0 }}>P.No: {passportNo}</Typography>
-      <Box sx={{ bgcolor: '#e7e5e4', p: 0.25, borderRadius: 0.5, mt: 0.25, fontSize: '0.42rem', letterSpacing: 0.8, fontFamily: 'Courier New, monospace', fontWeight: 'bold', lineHeight: 1.1 }}>
-        P&lt;IND{name.toUpperCase().replace(/\s+/g, '')}&lt;&lt;S&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;<br />
-        {passportNo}4IND9103120M2608311&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;0
-      </Box>
-    </Box>
-  </Box>
-);
-
-// CSS-styled Passport Back Document Mockup matching Kumar S details
-const PassportBackPreview = ({ address }: { address: string }) => (
-  <Box sx={{
-    width: '90%',
-    height: '92%',
-    bgcolor: '#fcf8f2',
-    border: '2px solid #b58957',
-    borderRadius: 2,
-    p: 1.5,
-    boxSizing: 'border-box',
-    fontFamily: 'monospace',
-    color: '#1c1917',
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'space-between',
-    boxShadow: '0 4px 6px rgba(0,0,0,0.05)'
-  }}>
-    <Box sx={{ borderBottom: '1px solid #b58957', pb: 0.5, textAlign: 'center' }}>
-      <Typography sx={{ fontWeight: 800, fontSize: '0.62rem', color: '#b58957', fontFamily: 'monospace' }}>REPUBLIC OF INDIA / भारत गणराज्य</Typography>
-    </Box>
-    <Box sx={{ mt: 1, flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 0.5, fontSize: '0.5rem' }}>
-      <Box>
-        <Typography sx={{ fontSize: '0.42rem', color: '#78716c', m: 0 }}>Name of Father / पिता का नाम</Typography>
-        <Typography sx={{ fontWeight: 700, fontSize: '0.55rem', m: 0 }}>SOMANATHAN S</Typography>
-      </Box>
-      <Box>
-        <Typography sx={{ fontSize: '0.42rem', color: '#78716c', m: 0 }}>Name of Mother / माता का नाम</Typography>
-        <Typography sx={{ fontWeight: 700, fontSize: '0.55rem', m: 0 }}>MEENAKSHI S</Typography>
-      </Box>
-      <Box>
-        <Typography sx={{ fontSize: '0.42rem', color: '#78716c', m: 0 }}>Address / पता</Typography>
-        <Typography sx={{ fontWeight: 700, fontSize: '0.48rem', lineHeight: 1.2, m: 0 }}>{address}</Typography>
-      </Box>
-    </Box>
-    <Box sx={{ borderTop: '1px solid #b58957', pt: 0.5, mt: 0.5, textAlign: 'center' }}>
-      <Typography sx={{ fontSize: '0.48rem', color: '#78716c', fontFamily: 'monospace' }}>PIN CODE: 600002</Typography>
-    </Box>
-  </Box>
-);
 
 export default function KycDetailsPage() {
   const router = useRouter();
@@ -372,10 +148,11 @@ export default function KycDetailsPage() {
   });
   const [reuploadReason, setReuploadReason] = useState('Blurry / Low resolution');
 
-  // Auto-Verification and Detection state machine
-  const [autoState, setAutoState] = useState<'idle' | 'scanning' | 'completed'>('idle');
+  // Manual verification checklist - there is no real automated
+  // document-verification integration, so every item starts (and stays,
+  // unless an admin manually marks it via toggleChecklistItem) 'pending'.
   const [scannedItems, setScannedItems] = useState({
-    nameMatched: 'pending',       // 'pending' | 'scanning' | 'passed' | 'failed'
+    nameMatched: 'pending',       // 'pending' | 'passed' | 'failed'
     dobMatched: 'pending',
     documentReadable: 'pending',
     selfieMatched: 'pending',
@@ -404,64 +181,66 @@ export default function KycDetailsPage() {
       setKyc(selectedKyc);
       setRemarks(selectedKyc.remarks || '');
 
-      // Initialize Verification Timeline depending on status
+      // Build the Verification History timeline from the real timestamps
+      // this record actually has (submittedAt/createdAt, approvedAt,
+      // rejectedAt) - this used to hardcode a fixed fake date/time for
+      // every single entry regardless of when anything actually happened
+      // ("21 Aug 2026, 11:05 PM" for every application's "Under Review"
+      // step, etc.), which an admin could mistake for a real audit trail.
+      const fmt = (iso: string) =>
+        new Date(iso).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) +
+        ', ' + new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+      const submittedAt = selectedKyc.submittedAt || selectedKyc.createdAt;
       const initialTimeline = [
         {
-          date: selectedKyc.submittedAt ? new Date(selectedKyc.submittedAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) + ', ' + new Date(selectedKyc.submittedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '21 Aug 2026, 10:42 PM',
+          date: submittedAt ? fmt(submittedAt) : 'Not available',
           title: 'KYC Submitted by user',
           subtitle: 'Documents uploaded successfully.',
           iconColor: '#3b82f6'
-        },
-        {
-          date: '21 Aug 2026, 11:05 PM',
-          title: 'Under Review',
-          subtitle: 'Review assigned to Admin.',
-          iconColor: '#94a3b8'
         }
       ];
 
-      if (selectedKyc.status === 'APPROVED') {
+      if (selectedKyc.status === 'UNDER_REVIEW') {
         initialTimeline.push({
-          date: '21 Aug 2026, 11:30 PM',
+          date: fmt(selectedKyc.updatedAt),
+          title: 'Under Review',
+          subtitle: 'Review in progress.',
+          iconColor: '#94a3b8'
+        });
+      } else if (selectedKyc.status === 'APPROVED') {
+        initialTimeline.push({
+          date: selectedKyc.approvedAt ? fmt(selectedKyc.approvedAt) : 'Not available',
           title: 'Verified & Approved by Admin',
-          subtitle: 'Checks successfully verified.',
+          subtitle: 'Application approved.',
           iconColor: '#10b981'
         });
-        setScannedItems({
-          nameMatched: 'passed',
-          dobMatched: 'passed',
-          documentReadable: 'passed',
-          selfieMatched: 'passed',
-          duplicateKyc: 'passed'
-        });
-        setAutoState('completed');
       } else if (selectedKyc.status === 'REJECTED') {
         initialTimeline.push({
-          date: '21 Aug 2026, 11:45 PM',
+          date: selectedKyc.rejectedAt ? fmt(selectedKyc.rejectedAt) : 'Not available',
           title: 'Rejected by Admin',
-          subtitle: selectedKyc.remarks || 'Document unclear',
+          subtitle: selectedKyc.remarks || 'No reason provided',
           iconColor: '#ef4444'
         });
-        // For rejected mock user Arun (U-100250), name/selfie mismatch checks fail!
-        setScannedItems({
-          nameMatched: 'failed', // Failed (Arun K vs Venkatesh Sekar)
-          dobMatched: 'failed',  // Failed
-          documentReadable: 'passed',
-          selfieMatched: 'failed', // Failed (clean shaven vs bearded selfie)
-          duplicateKyc: 'passed'
-        });
-        setAutoState('completed');
       }
-      // PENDING/SUBMITTED intentionally does NOT trigger the auto-scan
-      // timer below: it used to run a ~3s animation that always ended
-      // with every check (name/DOB/selfie match, duplicate check) marked
-      // "passed" for every application, regardless of what the documents
-      // actually show - a fake automated-verification result an admin
-      // could easily mistake for a real one. scannedItems stays at its
-      // real 'pending' default; toggleChecklistItem (wired to the
-      // checklist below) lets the admin mark each one after actually
-      // looking at the documents, which is the only real verification
-      // that exists here without a document-verification vendor integration.
+
+      // There is no real per-check (name/DOB/selfie match) verification
+      // data anywhere in this system - no document-verification vendor is
+      // integrated, and nothing persists which checks an admin looked at
+      // before approving/rejecting. This used to synthesize a fixed
+      // all-"passed" or all-"failed"-except-two pattern here for every
+      // approved/rejected application, presenting fabricated per-check
+      // verdicts as if they were the real basis for a past decision.
+      // Leaving these at their honest 'pending' default and letting
+      // toggleChecklistItem (below) be the only way any of them change is
+      // the only truthful option without a real vendor integration.
+      setScannedItems({
+        nameMatched: 'pending',
+        dobMatched: 'pending',
+        documentReadable: 'pending',
+        selfieMatched: 'pending',
+        duplicateKyc: 'pending'
+      });
 
       setVerificationTimeline(initialTimeline);
 
@@ -482,75 +261,9 @@ export default function KycDetailsPage() {
     fetchKycDetail();
   }, [fetchKycDetail]);
 
-  // 2. Simulated Auto-Verification Step-by-Step Timer Effect
-  useEffect(() => {
-    if (autoState !== 'scanning') return;
-
-    // Phase 1: Name match scan
-    const t1 = setTimeout(() => {
-      setScannedItems(prev => ({ ...prev, nameMatched: 'scanning' }));
-    }, 300);
-
-    const t2 = setTimeout(() => {
-      setScannedItems(prev => ({ ...prev, nameMatched: 'passed', dobMatched: 'scanning' }));
-    }, 900);
-
-    // Phase 2: DOB match scan
-    const t3 = setTimeout(() => {
-      setScannedItems(prev => ({ ...prev, dobMatched: 'passed', documentReadable: 'scanning' }));
-    }, 1500);
-
-    // Phase 3: Document readability scan
-    const t4 = setTimeout(() => {
-      setScannedItems(prev => ({ ...prev, documentReadable: 'passed', selfieMatched: 'scanning' }));
-    }, 2100);
-
-    // Phase 4: Selfie Match scan
-    const t5 = setTimeout(() => {
-      setScannedItems(prev => ({ ...prev, selfieMatched: 'passed', duplicateKyc: 'scanning' }));
-    }, 2700);
-
-    // Phase 5: Duplicate KYC check
-    const t6 = setTimeout(() => {
-      setScannedItems(prev => ({ ...prev, duplicateKyc: 'passed' }));
-      setAutoState('completed');
-      
-      // Append Auto-Verification success timeline event
-      const now = new Date();
-      const timeStr = now.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) + ', ' + now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-      
-      setVerificationTimeline(prev => [
-        ...prev,
-        {
-          date: timeStr,
-          title: 'Auto-verification checks passed',
-          subtitle: 'OCR & facial comparison successfully matched.',
-          iconColor: '#10b981'
-        }
-      ]);
-      setSnackbar({ open: true, message: 'Auto-verification checks completed successfully!', severity: 'success' });
-    }, 3300);
-
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-      clearTimeout(t4);
-      clearTimeout(t5);
-      clearTimeout(t6);
-    };
-  }, [autoState]);
-
   const handleDownload = (fileUrl: string, fileName: string) => {
-    // If it's a CSS preview file, download it as a custom textual passport representation
     if (!fileUrl) {
-      const element = document.createElement('a');
-      const file = new Blob([`PASSPORT DOCUMENT DATA:\nName: ${kyc?.user?.firstName} ${kyc?.user?.lastName}\nDOB: 12 Mar 1991\nNo: A1234567`], { type: 'text/plain' });
-      element.href = URL.createObjectURL(file);
-      element.download = fileName;
-      document.body.appendChild(element);
-      element.click();
-      document.body.removeChild(element);
+      setSnackbar({ open: true, message: 'No file was uploaded for this document.', severity: 'error' });
       return;
     }
 
@@ -569,16 +282,11 @@ export default function KycDetailsPage() {
       setLoading(true);
       await kycService.approve(kyc.id);
       // Re-fetch the real record instead of hand-editing local state, so
-      // what's shown always matches what's actually in the database.
+      // what's shown always matches what's actually in the database - this
+      // also rebuilds the Verification History timeline from the real
+      // approvedAt field, so no separate append is needed here.
       await fetchKycDetail();
       setSnackbar({ open: true, message: 'KYC Application approved successfully', severity: 'success' });
-
-      const now = new Date();
-      const timeStr = now.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) + ', ' + now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-      setVerificationTimeline(prev => [
-        ...prev,
-        { date: timeStr, title: 'Verified & Approved by Admin', subtitle: 'Approved from details portal.', iconColor: '#10b981' }
-      ]);
     } catch (err: any) {
       // A failed approval must look like a failure - silently pretending
       // it worked left the applicant's real record untouched while the
@@ -601,15 +309,10 @@ export default function KycDetailsPage() {
     try {
       setLoading(true);
       await kycService.reject(kyc.id, finalReason);
+      // Rebuilds the timeline from the real rejectedAt field - see the
+      // matching comment in handleApproveConfirm above.
       await fetchKycDetail();
       setSnackbar({ open: true, message: `KYC Application rejected. Reason: ${finalReason}`, severity: 'success' });
-
-      const now = new Date();
-      const timeStr = now.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) + ', ' + now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-      setVerificationTimeline(prev => [
-        ...prev,
-        { date: timeStr, title: 'Rejected by Admin', subtitle: `Reason: ${finalReason}`, iconColor: '#ef4444' }
-      ]);
     } catch (err: any) {
       console.error('Failed to reject KYC application:', err);
       setSnackbar({ open: true, message: err?.response?.data?.message || 'Failed to reject this application. Please try again.', severity: 'error' });
@@ -679,11 +382,6 @@ export default function KycDetailsPage() {
     );
   }
 
-  const isVenkatesh = kyc?.user?.firstName === 'Venkatesh';
-  const isKumar = kyc?.user?.firstName === 'Kumar';
-  const isArun = kyc?.user?.firstName === 'Arun';
-  const hasSecondaryPan = isVenkatesh;
-
   const getStatusChipColor = (status: string) => {
     switch (status) {
       case 'SUBMITTED':
@@ -703,9 +401,8 @@ export default function KycDetailsPage() {
   const statusInfo = kyc ? getStatusChipColor(kyc.status) : { label: 'Pending', bg: '#fef3c7', text: '#d97706' };
 
   const getKycTypeLabel = () => {
-    if (!kyc) return 'Aadhaar + PAN';
-    if (isKumar) return 'Passport';
-    return hasSecondaryPan ? 'Aadhaar + PAN' : kyc.documentType;
+    if (!kyc) return '—';
+    return kyc.documentType.replace(/_/g, ' ');
   };
 
   const renderChecklistStatus = (itemState: string, successLabel: string, failLabel: string) => {
@@ -740,15 +437,6 @@ export default function KycDetailsPage() {
 
   return (
     <Box sx={{ p: 4, display: 'flex', flexDirection: 'column', gap: 3, bgcolor: '#f8fafc', minHeight: '100vh' }}>
-      {/* CSS Keyframes for Scan Line Animation */}
-      <style>{`
-        @keyframes scanline {
-          0% { top: 0px; }
-          50% { top: 220px; }
-          100% { top: 0px; }
-        }
-      `}</style>
-
       {/* Top Header Controls */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Box>
@@ -802,28 +490,19 @@ export default function KycDetailsPage() {
           <Grid container spacing={3} alignItems="center">
             {/* User Name, ID, Mobile/Email */}
             <Grid item xs={12} md={4.5} sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
-              {/* Profile Avatar: resolve portrait dynamically */}
-              {isVenkatesh ? (
-                <Avatar sx={{ width: 64, height: 64, border: '1px solid #e2e8f0' }}>
-                  <Box sx={{
-                    width: '100%',
-                    height: '100%',
-                    backgroundImage: "url('/images/aadhaar_front.jpg')",
-                    backgroundSize: '450%',
-                    backgroundPosition: '11% 47%',
-                    backgroundRepeat: 'no-repeat'
-                  }} />
-                </Avatar>
-              ) : (
-                <Avatar
-                  src={kyc.selfieImage?.fileUrl || '/images/selfie.jpg'}
-                  sx={{ width: 64, height: 64, border: '1px solid #e2e8f0' }}
-                />
-              )}
+              {/* Profile Avatar: the real uploaded selfie, or an initial-letter
+                  fallback - never a stock/mock photo standing in for a real
+                  applicant's face. */}
+              <Avatar
+                src={kyc.selfieImage?.fileUrl || undefined}
+                sx={{ width: 64, height: 64, border: '1px solid #e2e8f0' }}
+              >
+                {!kyc.selfieImage?.fileUrl && (kyc.user?.firstName?.[0] || '?')}
+              </Avatar>
               <Box>
                 <Stack direction="row" spacing={1} alignItems="center">
                   <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#0f172a' }}>
-                    {kyc.user?.firstName} {kyc.user?.lastName || 'Sekar'}
+                    {kyc.user?.firstName} {kyc.user?.lastName || ''}
                   </Typography>
                   <Chip
                     label="Individual"
@@ -844,7 +523,7 @@ export default function KycDetailsPage() {
                 <Stack direction="row" spacing={1.5} sx={{ mt: 0.75, color: '#64748b' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                     <Phone sx={{ fontSize: 13, color: '#64748b' }} />
-                    <Typography variant="caption" sx={{ fontWeight: 500 }}>{kyc.user?.phone || '+91 81234 56789'}</Typography>
+                    <Typography variant="caption" sx={{ fontWeight: 500 }}>{kyc.user?.phone || 'Not provided'}</Typography>
                   </Box>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                     <Email sx={{ fontSize: 13, color: '#64748b' }} />
@@ -886,7 +565,12 @@ export default function KycDetailsPage() {
                 <Box>
                   <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600, display: 'block', mb: 0.5 }}>Submitted On</Typography>
                   <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1e293b' }}>
-                    {kyc.submittedAt ? new Date(kyc.submittedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) + ', ' + new Date(kyc.submittedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '21 Aug 2026, 10:42 PM'}
+                    {(() => {
+                      const submitted = kyc.submittedAt || kyc.createdAt;
+                      return submitted
+                        ? new Date(submitted).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) + ', ' + new Date(submitted).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+                        : 'Not available';
+                    })()}
                   </Typography>
                 </Box>
 
@@ -921,34 +605,6 @@ export default function KycDetailsPage() {
         </Card>
       )}
 
-      {/* Auto-Verification Glow Indicator */}
-      {kyc && autoState !== 'idle' && (
-        <Card
-          sx={{
-            p: 2,
-            borderRadius: 3,
-            boxShadow: 'none',
-            border: autoState === 'scanning' ? '1px solid #93c5fd' : '1px solid #a7f3d0',
-            bgcolor: autoState === 'scanning' ? '#eff6ff' : '#ecfdf5',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between'
-          }}
-        >
-          <Stack direction="row" spacing={1.5} alignItems="center">
-            {autoState === 'scanning' ? (
-              <Autorenew sx={{ color: '#3b82f6', animation: 'spin 1.5s linear infinite' }} />
-            ) : (
-              <DoneAll sx={{ color: '#10b981' }} />
-            )}
-            <Typography variant="body2" sx={{ fontWeight: 700, color: autoState === 'scanning' ? '#1e3a8a' : '#065f46' }}>
-              {autoState === 'scanning' ? '🤖 Auto-Verification: Scanning uploaded documents and running facial matching checks...' : '🟢 Auto-Verification: All document verification biometric checks completed.'}
-            </Typography>
-          </Stack>
-          {autoState === 'scanning' && <CircularProgress size={16} />}
-        </Card>
-      )}
-
       {/* Main Dual Column Layout (60% Document Preview, 40% User/Verification Info) */}
       {kyc && (
         <Grid container spacing={3}>
@@ -957,94 +613,33 @@ export default function KycDetailsPage() {
             <Card sx={{ p: 3, borderRadius: 4, boxShadow: 'none', border: '1px solid #e2e8f0', bgcolor: 'white' }}>
               <Typography variant="h6" sx={{ fontWeight: 800, color: '#0f172a', mb: 2.5 }}>Document Verification</Typography>
               <Grid container spacing={3}>
-                {/* 1. Passport Front side (for Kumar) OR Aadhaar Front side (for others) */}
+                {/* 1. Front side - the real uploaded document image only, never a
+                     stock/mock fallback standing in for what the applicant
+                     actually submitted. */}
                 <Grid item xs={12} sm={6}>
-                  {isKumar ? (
-                    <DocumentPreviewCard
-                      title="Front side"
-                      onDownload={() => handleDownload('', 'passport_front.txt')}
-                      isScanning={autoState === 'scanning'}
-                      customContent={
-                        <PassportFrontPreview 
-                          name="Kumar S" 
-                          dob="12/03/1991" 
-                          passportNo="A1234567" 
-                          selfieUrl="/images/selfie.jpg" 
-                        />
-                      }
-                    />
-                  ) : (
-                    <DocumentPreviewCard
-                      title="Front side"
-                      imageUrl={kyc.frontImage?.fileUrl || '/images/aadhaar_front.jpg'}
-                      onDownload={() => handleDownload(kyc.frontImage?.fileUrl || '/images/aadhaar_front.jpg', kyc.frontImage?.fileName || 'front_side.jpg')}
-                      isScanning={autoState === 'scanning'}
-                    />
-                  )}
+                  <DocumentPreviewCard
+                    title="Front side"
+                    imageUrl={kyc.frontImage?.fileUrl}
+                    onDownload={() => handleDownload(kyc.frontImage?.fileUrl || '', kyc.frontImage?.fileName || 'front_side.jpg')}
+                  />
                 </Grid>
 
-                {/* 2. Passport Back side (for Kumar) OR Aadhaar Back side (for others) */}
+                {/* 2. Back side (optional - not every document type has one) */}
                 <Grid item xs={12} sm={6}>
-                  {isKumar ? (
-                    <DocumentPreviewCard
-                      title="Back side"
-                      onDownload={() => handleDownload('', 'passport_back.txt')}
-                      isScanning={autoState === 'scanning'}
-                      customContent={
-                        <PassportBackPreview 
-                          address="4/56, Anna Salai, Chennai, Tamil Nadu - 600002" 
-                        />
-                      }
-                    />
-                  ) : (
-                    <DocumentPreviewCard
-                      title="Back side"
-                      imageUrl={kyc.backImage?.fileUrl || '/images/aadhaar_back.jpg'}
-                      onDownload={() => handleDownload(kyc.backImage?.fileUrl || '/images/aadhaar_back.jpg', kyc.backImage?.fileName || 'back_side.jpg')}
-                      isScanning={autoState === 'scanning'}
-                    />
-                  )}
+                  <DocumentPreviewCard
+                    title="Back side"
+                    imageUrl={kyc.backImage?.fileUrl}
+                    onDownload={() => handleDownload(kyc.backImage?.fileUrl || '', kyc.backImage?.fileName || 'back_side.jpg')}
+                  />
                 </Grid>
 
-                {/* 3. Secondary PAN Card (if applicable, for Aadhaar + PAN) */}
-                {hasSecondaryPan && (
-                  <Grid item xs={12} sm={6}>
-                    <DocumentPreviewCard
-                      title="PAN Card"
-                      imageUrl={MOCK_PAN_DOC.fileUrl}
-                      onDownload={() => handleDownload(MOCK_PAN_DOC.fileUrl, MOCK_PAN_DOC.fileName)}
-                      isScanning={autoState === 'scanning'}
-                    />
-                  </Grid>
-                )}
-
-                {/* 4. Selfie */}
+                {/* 3. Selfie */}
                 <Grid item xs={12} sm={6}>
-                  {isVenkatesh ? (
-                    <DocumentPreviewCard
-                      title="Selfie"
-                      onDownload={() => handleDownload('/images/aadhaar_front.jpg', 'venkatesh_selfie.jpg')}
-                      isScanning={autoState === 'scanning'}
-                      customContent={
-                        <Box sx={{
-                          width: '100%',
-                          height: '100%',
-                          backgroundImage: "url('/images/aadhaar_front.jpg')",
-                          backgroundSize: '450%',
-                          backgroundPosition: '11% 47%',
-                          backgroundRepeat: 'no-repeat',
-                          borderRadius: 2
-                        }} />
-                      }
-                    />
-                  ) : (
-                    <DocumentPreviewCard
-                      title="Selfie"
-                      imageUrl={kyc.selfieImage?.fileUrl || '/images/selfie.jpg'}
-                      onDownload={() => handleDownload(kyc.selfieImage?.fileUrl || '/images/selfie.jpg', kyc.selfieImage?.fileName || 'selfie.jpg')}
-                      isScanning={autoState === 'scanning'}
-                    />
-                  )}
+                  <DocumentPreviewCard
+                    title="Selfie"
+                    imageUrl={kyc.selfieImage?.fileUrl}
+                    onDownload={() => handleDownload(kyc.selfieImage?.fileUrl || '', kyc.selfieImage?.fileName || 'selfie.jpg')}
+                  />
                 </Grid>
               </Grid>
             </Card>
