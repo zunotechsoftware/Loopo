@@ -78,6 +78,20 @@ export class KycService {
     if (!entity) return entity;
     const sign = async (media: any) => {
       if (!media) return media;
+      // Every real upload through this app's own pipeline (getUploadUrl)
+      // generates a key shaped "<category>/<userId>/<uuid>.<ext>" - always
+      // containing at least one "/". A bare filename with no "/" (e.g. old
+      // seed/demo rows created before this signing existed, pointing at a
+      // static asset like "/images/aadhaar_front.jpg" served directly by
+      // the admin app's own public folder) was never actually uploaded to
+      // S3/MinIO under that name - signing it anyway produces a
+      // syntactically valid presigned URL for an object that doesn't
+      // exist, which 404s the moment a browser loads it. getSignedUrl()
+      // itself never throws for a bad key (it only builds a signature, it
+      // never checks the object exists), so the old try/catch here never
+      // actually caught this case - skip signing instead and leave
+      // whatever URL is already stored untouched.
+      if (!media.fileName?.includes('/')) return media;
       try {
         return { ...media, fileUrl: await this.s3Service.getSignedReadUrl(media.fileName) };
       } catch {

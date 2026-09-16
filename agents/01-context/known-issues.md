@@ -6,6 +6,38 @@ last_verified: 2026-09-13
 
 ## OPEN
 
+### RESOLVED — loopo-admin: KYC document images 404'd for some applications (broken by an earlier session fix, not a new bug)
+User-reported: "images are not showing" on the KYC detail page. Root cause
+was in `KycService.signMediaTriplet` (backend): every KYC image response
+gets a fresh presigned S3/MinIO GET URL generated from `MediaFile.fileName`,
+treated unconditionally as a real S3 object key. This is correct for every
+real upload (`getUploadUrl` always produces a key shaped
+`<category>/<userId>/<uuid>.<ext>`), but two pre-existing seed/demo
+`KycDocument` rows ("Venkatesh Sekar", `prisma/seed.ts`) predate that signing
+logic entirely - their `MediaFile.fileName` is a bare local filename
+(`aadhaar_front.jpg`, `pan_front.jpg`, ...) whose matching `fileUrl`
+(`/images/aadhaar_front.jpg`) was always meant to be served directly by
+`loopo-admin`'s own `public/images/` folder, never uploaded to S3 at all.
+Signing blindly overwrote that working relative URL with a syntactically
+valid but meaningless presigned URL for an object that doesn't exist in the
+bucket - confirmed via direct fetch: 404. The old `try/catch` around the
+signing call never caught this, because `getSignedUrl()` only computes a
+signature locally and never checks the object exists, so it can't throw for
+a bad key.
+
+**Fixed:** `sign()` now skips signing (leaves the stored `fileUrl` untouched)
+whenever `MediaFile.fileName` doesn't contain a `/` - a reliable signal since
+every real key this app's own upload pipeline ever generates always has the
+category as a `/`-separated prefix; a bare filename was never a real S3 key
+to begin with. Verified live: both broken seed KYC records (`documentType`
+AADHAAR and PAN for Venkatesh Sekar) now return their real
+`/images/...jpg` relative URL again (confirmed the admin dev server serves
+it, 200), while a real S3-backed submission's front/selfie images still get
+correctly signed (confirmed presigned URL with a valid signature, unchanged
+behavior). Backend: `tsc --noEmit` clean, 83/83 unit tests pass; rebuilt and
+restarted the compiled backend process to pick up the fix (it runs
+`node dist/src/main`, not `--watch`).
+
 ### RESOLVED — loopo-admin: dashboard showed "Is the backend reachable?" for any non-super-admin missing even one permission
 User-reported: "When a non-super admin logged into admin panel I am getting
 'Could not load dashboard data. Is the backend reachable?'". The backend was
