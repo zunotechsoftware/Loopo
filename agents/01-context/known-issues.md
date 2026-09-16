@@ -38,6 +38,9 @@ Found while auditing role-assignment endpoints for the same login/role audit. `S
 
 **Verified live after the fix:** the identical self-promotion request via both endpoints now returns 403 ("Only a Super Admin can grant the Super Admin role."), while a real Super Admin performing the exact same grant still succeeds (200). Backend: `tsc --noEmit` clean, 83/83 unit tests pass.
 
+### OPEN — loopo-flutter: "Mobile + Password" login mode is non-functional for any real account
+Noticed while auditing Flutter login for the role/security pass above (not itself a security issue - no bypass, no escalation, just broken). `login_screen.dart`'s email/mobile toggle, when set to mobile, derives a lookup email as `$countryCode$mobile@loopo.com` and logs in with the password the user actually typed. `signup_screen.dart` always registers with the real email the user entered in the form, never a phone-derived synthetic one - so no real account is ever stored under that synthetic email, meaning this login mode will show "invalid credentials" for every real user who tries it, regardless of a correct password. Not fixed this pass (scope was security-focused role/login correctness); a real fix needs either a backend `login-by-phone` lookup or making signup register phone-only users under a consistent convention this mode can actually match.
+
 ### RESOLVED — loopo-admin: KYC document images 404'd for some applications (broken by an earlier session fix, not a new bug)
 User-reported: "images are not showing" on the KYC detail page. Root cause
 was in `KycService.signMediaTriplet` (backend): every KYC image response
