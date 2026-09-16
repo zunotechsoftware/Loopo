@@ -52,9 +52,10 @@ export class AdminUsersController {
   @ApiOperation({ summary: 'Create a new user' })
   async createUser(
     @CurrentUser('id') adminId: string,
+    @CurrentUser('roles') callerRoles: string[],
     @Body() dto: CreateAdminUserDto,
   ) {
-    return this.adminUsersService.createUser(adminId, dto);
+    return this.adminUsersService.createUser(adminId, dto, callerRoles);
   }
 
   @Patch(':id')
@@ -63,9 +64,10 @@ export class AdminUsersController {
   async updateUserDetails(
     @Param('id') id: string,
     @CurrentUser('id') adminId: string,
+    @CurrentUser('roles') callerRoles: string[],
     @Body() dto: UpdateAdminUserDto,
   ) {
-    return this.adminUsersService.updateUserDetails(id, adminId, dto);
+    return this.adminUsersService.updateUserDetails(id, adminId, dto, callerRoles);
   }
 
   @Delete(':id')
@@ -95,8 +97,9 @@ export class AdminUsersController {
   async updateUserRoles(
     @Param('id') id: string,
     @CurrentUser('id') adminId: string,
+    @CurrentUser('roles') callerRoles: string[],
     @Body() dto: UpdateUserRolesDto,
   ) {
-    return this.adminUsersService.updateUserRoles(id, adminId, dto);
+    return this.adminUsersService.updateUserRoles(id, adminId, dto, callerRoles);
   }
 }

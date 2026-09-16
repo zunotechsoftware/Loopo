@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../../shared/database/prisma.service';
 import { UpdateUserStatusDto, UpdateUserRolesDto, CreateAdminUserDto, UpdateAdminUserDto } from './dto/admin-user.dto';
 import { UserStatus } from '@prisma/client';
@@ -7,6 +7,21 @@ import * as bcrypt from 'bcrypt';
 @Injectable()
 export class AdminUsersService {
   constructor(private readonly prisma: PrismaService) {}
+
+  // SUPER_ADMIN bypasses every permission check in the app (see
+  // PermissionsGuard), so granting it is not an ordinary role assignment -
+  // it's handing out unrestricted root access. `roles.update`/
+  // `users.update`/`users.create` are real, seeded permissions a plain
+  // ADMIN legitimately needs for everyday user management, but none of
+  // the three endpoints that can set a user's roles (create, update
+  // details, update roles) ever checked what role was being granted vs.
+  // who was granting it - confirmed live: a real ADMIN account could
+  // PATCH its own roles to ["SUPER_ADMIN"] and successfully gain it.
+  private assertCanAssignRoles(requestedRoles: string[], callerRoles: string[]) {
+    if (requestedRoles.includes('SUPER_ADMIN') && !callerRoles.includes('SUPER_ADMIN')) {
+      throw new ForbiddenException('Only a Super Admin can grant the Super Admin role.');
+    }
+  }
 
   async getAllUsers(skip: number = 0, take: number = 20, search?: string, role?: string, status?: string) {
     const where: any = { deletedAt: null };
@@ -45,7 +60,8 @@ export class AdminUsersService {
     return { data, total };
   }
 
-  async createUser(adminId: string, dto: CreateAdminUserDto) {
+  async createUser(adminId: string, dto: CreateAdminUserDto, callerRoles: string[]) {
+    this.assertCanAssignRoles(dto.roles, callerRoles);
     const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (existing) {
       throw new ConflictException('A user with this email already exists.');
@@ -90,7 +106,7 @@ export class AdminUsersService {
     return this.getUserById(user.id);
   }
 
-  async updateUserDetails(id: string, adminId: string, dto: UpdateAdminUserDto) {
+  async updateUserDetails(id: string, adminId: string, dto: UpdateAdminUserDto, callerRoles: string[]) {
     const user = await this.getUserById(id);
 
     if (dto.email && dto.email !== user.email) {
@@ -116,7 +132,7 @@ export class AdminUsersService {
     });
 
     if (dto.roles) {
-      await this.updateUserRoles(id, adminId, { roles: dto.roles });
+      await this.updateUserRoles(id, adminId, { roles: dto.roles }, callerRoles);
     }
 
     return this.getUserById(id);
@@ -149,7 +165,8 @@ export class AdminUsersService {
     });
   }
 
-  async updateUserRoles(id: string, adminId: string, dto: UpdateUserRolesDto) {
+  async updateUserRoles(id: string, adminId: string, dto: UpdateUserRolesDto, callerRoles: string[]) {
+    this.assertCanAssignRoles(dto.roles, callerRoles);
     await this.getUserById(id);
 
     // Get role IDs
