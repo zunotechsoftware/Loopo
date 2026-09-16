@@ -6,6 +6,98 @@ last_verified: 2026-09-13
 
 ## OPEN
 
+### RESOLVED — P0, user-reported: "Publish Listing Now" silently failed for a real user - description was under the backend's minimum length, with no client-side warning until the very last step
+User's own live test: typed a title ("aksjka") and a short description
+("sjajsjah", 8 characters), clicked through to Preview, clicked "Publish
+Listing Now", and the listing never appeared anywhere - not in their own
+My Listings, not in admin. Confirmed via a direct database query: no such
+product was ever created.
+
+Root cause: the backend's `CreateProductDto.description` requires
+`@MinLength(10)` (and is `@IsNotEmpty()`), but `sell/details/page.tsx`'s
+`handleSubmit` only validated `title`/`price`, never `description` length
+- and the label read "Description" with no `*`, implying (incorrectly)
+that it was optional. A user could sail through all 5 steps and only
+discover the problem at the very last one, as a raw backend validation
+message in a toast that's easy to miss entirely (which is exactly what
+happened here).
+
+**Fixed:** `handleSubmit` now validates title (3-100 chars) and
+description (10-2000 chars) client-side, matching the backend exactly;
+marked the label required (`Description *`); added a live character
+counter that turns red below the 10-character minimum. A user now gets a
+clear, immediate, un-missable block at the step where the problem
+actually is, instead of a silent failure three steps later.
+
+**Verified live:** re-ran the user's exact input ("aksjka" / "sjajsjah")
+- clicking Next now correctly stays on the Details step with the counter
+showing "8/10" in red; fixing the description correctly proceeds. The
+underlying create → admin-pending → approve → public-visible pipeline
+itself was already confirmed fully working in a separate full wizard
+walkthrough (see the city/state/negotiable fix entry above) - this was
+purely a missing-validation gap that made a bad input look like a broken
+integration.
+
+### RESOLVED — Admin KYC review page fabricated a person's date of birth, gender, and home address, and ran a fake "auto-verification" that always passed every check
+Found while re-verifying the KYC flow end to end (user request: "check
+... kyc"). Two related, serious issues on `kyc/[id]/page.tsx`, both
+pre-existing (not introduced this session):
+
+1. **Fabricated identity fields.** The "Identity Information" panel fell
+   back to a specific, detailed fake person whenever a field was missing
+   from the real profile (which is always, currently - nothing in this
+   app collects date of birth, gender, or a home address yet):
+   `dateOfBirth` → hardcoded `"15 Aug 1995"`, `gender` → hardcoded
+   `"Male"`, `address` → hardcoded `"1/23, South Street, Hosur,
+   Krishnagiri, Tamil Nadu - 635109"` (with an extra special case
+   appending that exact street address whenever a real profile's city
+   happened to be "Hosur"). An admin reviewing a real person's real
+   Aadhaar/PAN submission was shown someone else's fabricated personal
+   details right next to it, with no visual distinction from real data.
+2. **Fake automated verification.** For any PENDING/SUBMITTED
+   application, the page ran a ~3-second timer that animated through
+   "Scanning uploaded documents and running facial matching checks..."
+   and always ended with every check (name match, DOB match, document
+   readable, selfie match, duplicate KYC) marked green "Matched" /
+   "Passed" - regardless of the actual document contents. There is no
+   real document-verification integration anywhere in this codebase; this
+   was pure animation. An admin could reasonably (and wrongly) treat a
+   wall of green checkmarks as a real signal.
+
+**Fixed:** the three identity fields now show `"Not provided"` when the
+real profile field is genuinely empty, instead of a fabricated value.
+Removed the trigger that started the fake auto-scan timer for
+PENDING/SUBMITTED applications - `scannedItems` now stays at its real
+`'pending'` default, and the existing (already-built, just previously
+pre-empted by the fake timer) `toggleChecklistItem` mechanism is the only
+way any check becomes "Matched"/"Passed" now: an admin manually marking
+it after actually looking at the documents shown right next to it. This
+is the only real verification available without integrating a document-
+verification vendor.
+
+**Verified live end to end, not simulated:** a real client submission
+(real document number, real front/selfie image upload) reviewed on the
+real admin KYC detail page shows "Not provided" for DOB/gender/address
+(previously always a fabricated Aug-1995/Male/Hosur record) and every
+verification check honestly at "Pending" (previously all green after
+~3s, every time) - confirmed via screenshot after waiting well past where
+the old fake timer would have completed. The full submit → admin-approve
+(via the real Approve button + confirmation dialog, not the API directly)
+→ client-reflects-APPROVED chain still works correctly (verified
+separately, two real browser sessions, zero console errors on either
+side).
+
+**Not fixed, flagged for a future pass (lower severity - static text, not
+an active real-time false claim):** the Verification History timeline
+still pushes hardcoded fake timestamps ("21 Aug 2026, 11:05 PM" for
+"Under Review", etc.) for the initial-load synthetic entries, rather than
+reflecting real audit-log timestamps. The now-fully-dead
+`MOCK_KYC_DETAILS` constant (already unreachable after the earlier fake-
+fallback fix) is also still present as dead code. Both are cosmetic/
+historical-display issues rather than something that could change a real
+approve/reject decision, and were left alone rather than risk further
+edits to this ~1500-line file under time pressure.
+
 ### RESOLVED — Sell wizard: every listing's city/state were silently swapped/wrong, and the negotiable checkbox never reached the backend
 Found while re-verifying the full sell flow end to end (user request: "check
 seller flow works properly"). Two real bugs, confirmed live:

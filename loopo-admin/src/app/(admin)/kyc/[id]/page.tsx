@@ -451,10 +451,17 @@ export default function KycDetailsPage() {
           duplicateKyc: 'passed'
         });
         setAutoState('completed');
-      } else {
-        // PENDING / SUBMITTED -> Trigger Auto Verification Simulator!
-        setAutoState('scanning');
       }
+      // PENDING/SUBMITTED intentionally does NOT trigger the auto-scan
+      // timer below: it used to run a ~3s animation that always ended
+      // with every check (name/DOB/selfie match, duplicate check) marked
+      // "passed" for every application, regardless of what the documents
+      // actually show - a fake automated-verification result an admin
+      // could easily mistake for a real one. scannedItems stays at its
+      // real 'pending' default; toggleChecklistItem (wired to the
+      // checklist below) lets the admin mark each one after actually
+      // looking at the documents, which is the only real verification
+      // that exists here without a document-verification vendor integration.
 
       setVerificationTimeline(initialTimeline);
 
@@ -641,7 +648,12 @@ export default function KycDetailsPage() {
   };
 
   const formatBirthDate = (dateStr?: string) => {
-    if (!dateStr) return '15 Aug 1995';
+    // Real user profiles don't collect a date of birth anywhere in this
+    // app yet - this used to fabricate a specific fake date ("15 Aug
+    // 1995") whenever it was missing, on every single real application,
+    // which an admin could easily mistake for real data while deciding
+    // whether to approve/reject someone's actual identity documents.
+    if (!dateStr) return 'Not provided';
     const date = new Date(dateStr);
     return date.toLocaleDateString('en-US', {
       day: 'numeric',
@@ -1095,7 +1107,7 @@ export default function KycDetailsPage() {
                   <Box>
                     <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600 }}>GENDER</Typography>
                     <Typography variant="body2" sx={{ fontWeight: 700, color: '#334155' }}>
-                      {kyc.user?.profile?.gender || 'Male'}
+                      {kyc.user?.profile?.gender || 'Not provided'}
                     </Typography>
                   </Box>
                 </Box>
@@ -1107,7 +1119,9 @@ export default function KycDetailsPage() {
                   <Box>
                     <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600 }}>ADDRESS</Typography>
                     <Typography variant="body2" sx={{ fontWeight: 700, color: '#334155', lineHeight: 1.4 }}>
-                      {kyc.user?.profile?.city ? `${kyc.user.profile.city === 'Hosur' ? '1/23, South Street, Hosur, Krishnagiri, ' : ''}${kyc.user.profile.city}, ${kyc.user.profile.state} - ${kyc.user.profile.zipCode}` : '1/23, South Street, Hosur, Krishnagiri, Tamil Nadu - 635109'}
+                      {kyc.user?.profile?.city
+                        ? `${kyc.user.profile.city}, ${kyc.user.profile.state || ''} ${kyc.user.profile.zipCode || ''}`.trim()
+                        : 'Not provided'}
                     </Typography>
                   </Box>
                 </Box>
