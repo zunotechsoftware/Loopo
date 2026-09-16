@@ -23,6 +23,29 @@ export default function SellPreviewPage() {
       router.push(ROUTES.SELL_CATEGORY);
       return;
     }
+    // Re-validate here too, not just on the Details step's "Next" button -
+    // Preview can be reached with stale/invalid data (e.g. navigating back
+    // with the browser, or data left over from before this validation
+    // existed), and this used to let Publish call the API anyway, which
+    // then failed with a raw, easy-to-miss backend error and nothing
+    // pointing the seller back at what to fix.
+    const title = formData.title.trim();
+    const description = formData.description.trim();
+    if (title.length < 3 || title.length > 100) {
+      dispatch(showToast('Product title must be 3-100 characters - please fix it on the Details step.'));
+      router.push(ROUTES.SELL_DETAILS);
+      return;
+    }
+    if (!formData.price.trim() || Number(formData.price) <= 0) {
+      dispatch(showToast('Please enter a valid price on the Details step.'));
+      router.push(ROUTES.SELL_DETAILS);
+      return;
+    }
+    if (description.length < 10 || description.length > 2000) {
+      dispatch(showToast('Description must be 10-2000 characters - please fix it on the Details step.'));
+      router.push(ROUTES.SELL_DETAILS);
+      return;
+    }
     dispatch(setSubmitting(true));
     try {
       const priceNum = Number(formData.price) || 5000;
