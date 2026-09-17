@@ -20,11 +20,18 @@ function buildProfile(u: any): UserProfile | null {
     name: u.firstName ? `${u.firstName} ${u.lastName || ''}`.trim() : (u.name || 'User'),
     email: u.email || '',
     phone: u.phone || '',
-    avatar: u.profile?.avatarUrl || u.avatarUrl || '',
+    // The real Profile model's picture is a MediaFile relation
+    // (profile.profileImage.fileUrl), never a plain `avatarUrl` string -
+    // that field never existed on any real response, so every user's
+    // avatar silently fell through to ProfileView's hardcoded stock photo
+    // regardless of whether they'd actually uploaded one.
+    avatar: u.profile?.profileImage?.fileUrl || u.avatarUrl || '',
     isVerified: Boolean(u.isEmailVerified || u.isKycVerified),
     memberSince: u.createdAt
       ? new Date(u.createdAt).getFullYear().toString()
       : new Date().getFullYear().toString(),
+    city: u.profile?.city || undefined,
+    state: u.profile?.state || undefined,
     // The real API returns `roles: string[]`, never a singular `role` -
     // reading `u.role` here always fell through to the 'USER' fallback
     // for every account, including real ADMIN/SUPER_ADMIN ones.
@@ -109,6 +116,31 @@ export const registerUserThunk = createAsyncThunk(
       return res.data || { success: true };
     }
     return rejectWithValue(res.error || 'Registration failed');
+  }
+);
+
+export const sendPhoneOtpThunk = createAsyncThunk(
+  'auth/sendPhoneOtp',
+  async (phone: string, { rejectWithValue }) => {
+    const res = await authApi.sendPhoneLoginOtp(phone);
+    if (res.success) return res.data;
+    return rejectWithValue(res.error || 'Could not send OTP');
+  }
+);
+
+/** Verifies a real phone OTP and logs in with the real tokens/user it
+ * returns - used both for "Mobile OTP Login" and for the verification
+ * step shown right after email registration (the same phone number was
+ * already attached to the account at signup, so this also marks it
+ * verified and activates the account). */
+export const verifyPhoneOtpThunk = createAsyncThunk(
+  'auth/verifyPhoneOtp',
+  async ({ phone, otp }: { phone: string; otp: string }, { rejectWithValue }) => {
+    const res = await authApi.verifyPhoneLoginOtp(phone, otp);
+    if (res.success && res.data) {
+      return res.data;
+    }
+    return rejectWithValue(res.error || 'Invalid or expired OTP');
   }
 );
 
@@ -224,6 +256,27 @@ export const authSlice = createSlice({
 
         state.loading = false;
         state.error = (action.payload as string) || 'Registration failed';
+      })
+      // Phone OTP verify (mobile login, and the post-registration
+      // verification step) - same shape/handling as loginUserThunk since
+      // the backend returns real tokens + user either way.
+      .addCase(verifyPhoneOtpThunk.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(verifyPhoneOtpThunk.fulfilled, (state, action) => {
+        state.loading = false;
+        const u = (action.payload as any)?.user;
+        const profile = buildProfile(u);
+        if (profile) {
+          state.isAuthenticated = true;
+          state.user = profile;
+          saveLocalUser(profile);
+        }
+      })
+      .addCase(verifyPhoneOtpThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = (action.payload as string) || 'Invalid or expired OTP';
       });
   },
 });

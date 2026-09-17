@@ -10,13 +10,39 @@ export interface SubmitKycPayload {
   backImageId?: string;
 }
 
+/** Matches the real backend CreateAddressDto/UpdateAddressDto exactly -
+ * the previous shape here ({name, phone, address, city, pincode, type:
+ * 'Home'|'Work'}) didn't match any real field the backend accepts
+ * (fullName vs name, addressLine1 vs address, postalCode vs pincode, no
+ * state/country at all, wrong type enum casing) and had never actually
+ * been exercised against the real endpoint. */
 export interface AddressPayload {
-  name: string;
+  type: 'HOME' | 'WORK' | 'OTHER';
+  fullName: string;
   phone: string;
-  address: string;
+  addressLine1: string;
+  addressLine2?: string;
   city: string;
-  pincode: string;
-  type: 'Home' | 'Work';
+  state: string;
+  country: string;
+  postalCode: string;
+  isDefault?: boolean;
+}
+
+export interface Address extends AddressPayload {
+  id: string;
+}
+
+export interface UpdateProfilePayload {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  zipCode?: string;
+  bio?: string;
 }
 
 export interface PublicSellerProfile {
@@ -72,12 +98,28 @@ export const userApi = {
     return apiClient.get('/kyc/me');
   },
 
-  async getAddresses(): Promise<ApiResponse<AddressPayload[]>> {
-    return apiClient.get<AddressPayload[]>('/addresses');
+  async getAddresses(): Promise<ApiResponse<Address[]>> {
+    return apiClient.get<Address[]>('/addresses');
   },
 
-  async addAddress(payload: AddressPayload): Promise<ApiResponse<any>> {
-    return apiClient.post('/addresses', payload);
+  async addAddress(payload: AddressPayload): Promise<ApiResponse<Address>> {
+    return apiClient.post<Address>('/addresses', payload);
+  },
+
+  async updateAddress(id: string, payload: Partial<AddressPayload>): Promise<ApiResponse<Address>> {
+    return apiClient.put<Address>(`/addresses/${id}`, payload);
+  },
+
+  async deleteAddress(id: string): Promise<ApiResponse<any>> {
+    return apiClient.delete(`/addresses/${id}`);
+  },
+
+  async getMe(): Promise<ApiResponse<any>> {
+    return apiClient.get('/users/me');
+  },
+
+  async updateProfile(payload: UpdateProfilePayload): Promise<ApiResponse<any>> {
+    return apiClient.put('/users/me', payload);
   },
 
   async updateNotificationSettings(settings: Record<string, boolean>): Promise<ApiResponse<any>> {

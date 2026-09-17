@@ -6,7 +6,9 @@ import MainLayout from '@/components/layout/MainLayout';
 import ProtectedRoute from '@/routes/ProtectedRoute';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { showToast } from '@/redux/slices/uiSlice';
-import { User, Mail, Phone, MapPin, ArrowLeft, Camera, Save } from 'lucide-react';
+import { initAuthThunk } from '@/redux/slices/authSlice';
+import { userApi } from '@/services/userApi';
+import { User, Mail, Phone, MapPin, ArrowLeft, Camera, Save, Loader2 } from 'lucide-react';
 import { ROUTES } from '@/routes/routes';
 import Link from 'next/link';
 
@@ -15,15 +17,43 @@ export default function EditProfilePage() {
   const dispatch = useAppDispatch();
   const currentUser = useAppSelector((state) => state.auth.user);
 
-  const [name, setName] = useState(currentUser?.name || 'Venkatesh Kumar');
-  const [email, setEmail] = useState(currentUser?.email || 'user@loopo.com');
-  const [phone, setPhone] = useState(currentUser?.phone || '+91 98765 43210');
-  const [location, setLocation] = useState('Indiranagar, Bangalore');
+  const [name, setName] = useState(currentUser?.name || '');
+  const [email, setEmail] = useState(currentUser?.email || '');
+  const [phone, setPhone] = useState(currentUser?.phone || '');
+  const [location, setLocation] = useState(
+    currentUser?.city ? `${currentUser.city}${currentUser.state ? `, ${currentUser.state}` : ''}` : ''
+  );
+  const [saving, setSaving] = useState(false);
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    dispatch(showToast('Profile information updated!'));
-    router.push(ROUTES.PROFILE);
+    setSaving(true);
+
+    const [firstName, ...rest] = name.trim().split(/\s+/);
+    const lastName = rest.join(' ');
+    const [city, state] = location.split(',').map((s) => s.trim()).filter(Boolean);
+
+    const res = await userApi.updateProfile({
+      firstName: firstName || undefined,
+      lastName: lastName || undefined,
+      email: email || undefined,
+      phone: phone || undefined,
+      city: city || undefined,
+      state: state || undefined,
+    });
+
+    setSaving(false);
+
+    if (res.success) {
+      // Refresh the session's cached profile so the rest of the app
+      // (header, this same edit form on a re-visit, etc.) reflects the
+      // change immediately instead of showing what was there before save.
+      await dispatch(initAuthThunk());
+      dispatch(showToast('Profile information updated!'));
+      router.push(ROUTES.PROFILE);
+    } else {
+      dispatch(showToast(res.error || 'Could not update profile'));
+    }
   };
 
   return (
@@ -54,7 +84,7 @@ export default function EditProfilePage() {
                 />
                 <button
                   type="button"
-                  onClick={() => dispatch(showToast('Select avatar image'))}
+                  onClick={() => dispatch(showToast("Profile photo upload isn't available yet."))}
                   className="absolute bottom-0 right-0 p-1.5 bg-emerald-600 text-white rounded-full shadow hover:bg-emerald-700"
                 >
                   <Camera className="w-3.5 h-3.5" />
@@ -62,7 +92,7 @@ export default function EditProfilePage() {
               </div>
               <div>
                 <div className="text-xs font-bold text-slate-800">Profile Picture</div>
-                <div className="text-[10px] text-slate-400">JPG or PNG up to 2MB</div>
+                <div className="text-[10px] text-slate-400">Coming soon</div>
               </div>
             </div>
 
@@ -115,6 +145,7 @@ export default function EditProfilePage() {
                   type="text"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
+                  placeholder="City, State"
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none"
                 />
               </div>
@@ -122,10 +153,11 @@ export default function EditProfilePage() {
 
             <button
               type="submit"
+              disabled={saving}
               className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2"
             >
-              <Save className="w-4 h-4" />
-              <span>Save Profile Changes</span>
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              <span>{saving ? 'Saving...' : 'Save Profile Changes'}</span>
             </button>
           </form>
         </div>

@@ -7,7 +7,7 @@ import MainLayout from '@/components/layout/MainLayout';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { registerUserThunk, clearAuthError } from '@/redux/slices/authSlice';
 import { showToast } from '@/redux/slices/uiSlice';
-import { User, Mail, Lock, Smartphone, ArrowRight, Loader2, Sparkles } from 'lucide-react';
+import { User, Mail, Lock, Smartphone, ArrowRight, Loader2, Sparkles, Eye, EyeOff } from 'lucide-react';
 import { ROUTES } from '@/routes/routes';
 
 export default function RegisterPage() {
@@ -20,6 +20,20 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Mirrors the backend's real RegisterDto password policy exactly
+  // (MinLength(8) + upper/lower/digit/special-char regex) - the form used
+  // to just say "At least 6 characters" and never checked anything before
+  // submitting, so a password that actually followed that on-screen hint
+  // (e.g. "abc123") always failed the real backend validation. Combined
+  // with apiClient previously surfacing only the generic "Validation
+  // failed" label instead of the real reason, this made signup look
+  // completely broken for anyone who didn't guess the real requirement.
+  const isValidPassword = (value: string) =>
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#_])[A-Za-z\d@$!%*?&#_]{8,}$/.test(value);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,13 +44,30 @@ export default function RegisterPage() {
       return;
     }
 
+    if (!isValidPassword(password)) {
+      dispatch(showToast('Password must be 8+ characters with an uppercase letter, lowercase letter, number, and special character (@$!%*?&#_).'));
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      dispatch(showToast('Passwords do not match.'));
+      return;
+    }
+
     const res = await dispatch(
       registerUserThunk({ firstName, lastName, email, phone, password })
     );
 
     if (registerUserThunk.fulfilled.match(res)) {
       dispatch(showToast('Account created successfully!'));
-      router.push(ROUTES.ONBOARDING);
+      if (phone) {
+        // Verify the phone number right away via a real OTP - it's already
+        // attached to the account just created, so a successful verify
+        // also marks it verified and activates the account.
+        router.push(`${ROUTES.VERIFY_OTP}?phone=${encodeURIComponent(phone)}&redirect=${encodeURIComponent(ROUTES.ONBOARDING)}`);
+      } else {
+        router.push(ROUTES.ONBOARDING);
+      }
     }
   };
 
@@ -118,14 +149,57 @@ export default function RegisterPage() {
               <div className="relative">
                 <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="At least 6 characters"
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all"
+                  placeholder="At least 8 characters"
+                  className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-600"
+                  tabIndex={-1}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
+              <p className="text-[10px] text-slate-400 font-medium">
+                8+ characters with uppercase, lowercase, number & symbol (@$!%*?&amp;#_)
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-700">Confirm Password *</label>
+              <div className="relative">
+                <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                <input
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Re-enter your password"
+                  className={`w-full pl-10 pr-10 py-2.5 bg-slate-50 border rounded-xl text-xs font-semibold text-slate-800 outline-none focus:bg-white transition-all ${
+                    confirmPassword && confirmPassword !== password
+                      ? 'border-red-300 focus:border-red-500'
+                      : 'border-slate-200 focus:border-emerald-500'
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword((v) => !v)}
+                  className="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-600"
+                  tabIndex={-1}
+                  aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              {confirmPassword && confirmPassword !== password && (
+                <p className="text-[10px] text-red-500 font-medium">Passwords do not match</p>
+              )}
             </div>
 
             <button

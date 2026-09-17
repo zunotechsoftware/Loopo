@@ -24,9 +24,6 @@ export default function SellSuccessPage() {
         <p className="text-xs text-slate-500 font-medium">
           Your ad has been successfully posted to the Loopo marketplace.
         </p>
-        <div className="inline-block bg-slate-100 px-3 py-1 rounded-full text-xs font-bold text-slate-700 mt-1">
-          Reference ID: #{publishedListingId}
-        </div>
       </div>
 
       <div className="space-y-3 pt-2">

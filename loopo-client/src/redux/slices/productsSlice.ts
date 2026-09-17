@@ -14,6 +14,12 @@ interface FilterState {
 
 interface ProductsState {
   items: Product[];
+  /** Real total matching the last fetch's filters (from the backend's
+   * paginated response) - NOT items.length, which is capped at whatever
+   * page size was requested and previously went unused entirely, making
+   * any "N items" display built from it wrong for any filter matching
+   * more results than one page. */
+  total: number;
   favorites: string[];
   filters: FilterState;
   loading: boolean;
@@ -22,6 +28,7 @@ interface ProductsState {
 
 const initialState: ProductsState = {
   items: [],
+  total: 0,
   favorites: [],
   filters: {
     searchQuery: '',
@@ -37,9 +44,16 @@ const initialState: ProductsState = {
 
 /** Normalise a backend product into the frontend Product shape */
 function normaliseProduct(p: any): Product {
+  // The real backend image record's field is `originalUrl` (see
+  // product-media.controller.ts's attach response) - this used to only
+  // check `url`/`path`, neither of which exists on a real image, so every
+  // product's photos silently became empty strings here regardless of a
+  // fully successful upload. myAdsSlice's own normaliser already had this
+  // right; this one (used by the home feed, category browsing, search,
+  // and seller profile) didn't.
   const images: string[] =
     Array.isArray(p.images) && p.images.length > 0
-      ? p.images.map((img: any) => (typeof img === 'string' ? img : img?.url || img?.path || ''))
+      ? p.images.map((img: any) => (typeof img === 'string' ? img : img?.originalUrl || img?.thumbnailUrl || img?.url || img?.path || ''))
       : [];
 
   const seller = p.seller || p.user || {};
@@ -84,10 +98,11 @@ function normaliseProduct(p: any): Product {
 
 export const fetchProductsThunk = createAsyncThunk(
   'products/fetchProducts',
-  /** @param args.categoryId - real backend category UUID, not a display name */
-  async (args?: { categoryId?: string; query?: string; city?: string; sellerId?: string }) => {
-    const { categoryId, query, city, sellerId } = args || {};
-    const res = await productsApi.getProducts(categoryId, query, city, sellerId);
+  /** @param args.categoryId - real backend category UUID, not a display name
+   * @param args.limit - how many results to request (default: backend's own default of 20) */
+  async (args?: { categoryId?: string; query?: string; city?: string; sellerId?: string; limit?: number }) => {
+    const { categoryId, query, city, sellerId, limit } = args || {};
+    const res = await productsApi.getProducts(categoryId, query, city, sellerId, limit);
 
     if (res.success) {
       const data = res.data as any;
@@ -96,10 +111,13 @@ export const fetchProductsThunk = createAsyncThunk(
         : Array.isArray(data?.items)
         ? data.items
         : [];
+      // The real total matching the filter, independent of how many items
+      // this particular page actually returned.
+      const total: number = typeof data?.total === 'number' ? data.total : rawItems.length;
 
-      return rawItems.map(normaliseProduct);
+      return { items: rawItems.map(normaliseProduct), total };
     }
-    return [];
+    return { items: [], total: 0 };
   }
 );
 
@@ -210,13 +228,14 @@ export const productsSlice = createSlice({
       .addCase(fetchProductsThunk.fulfilled, (state, action) => {
         state.loading = false;
         const fetchedMap = new Map<string, Product>();
-        action.payload.forEach((item) => fetchedMap.set(item.id, item));
+        action.payload.items.forEach((item) => fetchedMap.set(item.id, item));
         state.items.forEach((existing) => {
           if (!fetchedMap.has(existing.id)) {
             fetchedMap.set(existing.id, existing);
           }
         });
         state.items = Array.from(fetchedMap.values());
+        state.total = action.payload.total;
       })
 
       .addCase(fetchProductsThunk.rejected, (state, action) => {

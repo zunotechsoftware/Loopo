@@ -58,7 +58,17 @@ export async function apiRequest<T>(
     const json = await response.json().catch(() => null);
 
     if (!response.ok) {
-      const errMsg = Array.isArray(json?.message)
+      // The backend's real error envelope is
+      // { success, message: "Validation failed", errors: ["<real per-field reason>", ...] } -
+      // `message` alone is just a generic category label ("Validation
+      // failed") for anything the global ValidationPipe rejects (wrong
+      // password strength, missing field, etc.). Reading only `message`
+      // meant every validation error surfaced as the same unhelpful
+      // "Validation failed" text regardless of what was actually wrong -
+      // indistinguishable from the request failing outright.
+      const errMsg = Array.isArray(json?.errors) && json.errors.length > 0
+        ? json.errors.join('. ')
+        : Array.isArray(json?.message)
         ? json.message.join('. ')
         : json?.message || json?.error || `API Error (${response.status})`;
       return {

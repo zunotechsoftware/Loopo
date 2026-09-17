@@ -48,6 +48,8 @@ export default function SellLocationPage() {
               <option value="Hyderabad">Hyderabad, Telangana</option>
               <option value="Chennai">Chennai, Tamil Nadu</option>
               <option value="Pune">Pune, Maharashtra</option>
+              <option value="Kolkata">Kolkata, West Bengal</option>
+              <option value="Ahmedabad">Ahmedabad, Gujarat</option>
             </select>
           </div>
         </div>

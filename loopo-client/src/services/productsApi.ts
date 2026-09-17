@@ -52,6 +52,8 @@ const CITY_STATE_MAP: Record<string, string> = {
   Hyderabad: 'Telangana',
   Chennai: 'Tamil Nadu',
   Pune: 'Maharashtra',
+  Kolkata: 'West Bengal',
+  Ahmedabad: 'Gujarat',
 };
 
 /** Parses a free-text "Area, City, State" (or shorter) display string back
@@ -97,13 +99,18 @@ function dataUrlToBlob(dataUrl: string): { blob: Blob; mimeType: string } {
 
 
 export const productsApi = {
-  /** @param categoryId - real backend category UUID, not a display name (see useCategories()) */
-  async getProducts(categoryId?: string, keyword?: string, city?: string, sellerId?: string): Promise<ApiResponse<Product[]>> {
+  /** @param categoryId - real backend category UUID, not a display name (see useCategories())
+   * @param limit - defaults to the backend's own default (20) when omitted, matching prior
+   * behaviour for callers that don't care (e.g. the home feed). Pages that need the full
+   * result set for a filter (e.g. a category listing) should pass a larger value explicitly -
+   * the real total is always returned separately (see fetchProductsThunk) regardless of limit. */
+  async getProducts(categoryId?: string, keyword?: string, city?: string, sellerId?: string, limit?: number): Promise<ApiResponse<Product[]>> {
     const params = new URLSearchParams();
     if (categoryId) params.append('categoryId', categoryId);
     if (keyword) params.append('keyword', keyword);
     if (city) params.append('city', city);
     if (sellerId) params.append('sellerId', sellerId);
+    if (limit) params.append('limit', String(limit));
 
     const queryString = params.toString();
     const endpoint = queryString ? `/products?${queryString}` : '/products';

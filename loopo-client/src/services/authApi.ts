@@ -55,6 +55,22 @@ export const authApi = {
     return apiClient.post('/auth/verify-phone-otp', { phone, otp });
   },
 
+  /** Pre-authentication phone OTP: send a real code (queued for SMS
+   * delivery) to log in, or verify a phone number right after email
+   * registration - not the same as verifyPhoneOtp above, which requires
+   * an existing session and just confirms phone ownership on it. */
+  async sendPhoneLoginOtp(phone: string): Promise<ApiResponse<any>> {
+    return apiClient.post('/auth/phone/send-otp', { phone });
+  },
+
+  async verifyPhoneLoginOtp(phone: string, otp: string): Promise<ApiResponse<AuthResponseData>> {
+    const res = await apiClient.post<AuthResponseData>('/auth/phone/verify-otp', { phone, otp });
+    if (res.success && res.data?.accessToken) {
+      setAuthToken(res.data.accessToken);
+    }
+    return res;
+  },
+
   async logout(): Promise<void> {
     clearAuthToken();
     apiClient.post('/auth/logout', {}).catch(() => {});

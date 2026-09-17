@@ -389,6 +389,21 @@ export class ProductsService {
     await this.imageCompressionQueue.add('compress', { imageId: img.id });
     await this.thumbnailGenerationQueue.add('generate-thumbnail', { imageId: img.id, type: 'IMAGE' });
 
+    // getListingDetails caches the full product (images included) for 30
+    // minutes. Every other mutation (update/delete/approve/reject) already
+    // invalidates that cache, but attaching an image never did - so any
+    // view of the listing before an upload finished (a very likely race:
+    // the sell flow creates the listing, then uploads photos to it
+    // afterward, and the seller's own "View Listing" link goes straight to
+    // the detail page) permanently cached a zero-images snapshot for the
+    // full TTL, regardless of how many photos were actually attached
+    // moments later. Confirmed live: a real uploaded+attached image never
+    // appeared in GET /products/:id until this was fixed.
+    const product = await this.productsRepo.findById(productId);
+    if (product) {
+      await this.invalidateListingCache(productId, product.slug);
+    }
+
     return img;
   }
 
@@ -406,6 +421,10 @@ export class ProductsService {
     await this.productsRepo.deleteImage(imageId);
     if (image.fileKey) {
       await this.s3Service.deleteFile(image.fileKey);
+    }
+
+    if (product) {
+      await this.invalidateListingCache(image.productId, product.slug);
     }
 
     return { id: imageId, success: true };

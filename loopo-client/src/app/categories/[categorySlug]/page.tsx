@@ -24,19 +24,33 @@ export default function CategoryDetailPage({ params }: PageProps) {
   const categoryName = matchedCategory ? matchedCategory.name : categorySlug.replace(/-/g, ' ');
 
   const products = useAppSelector((state) => state.products.items);
+  const total = useAppSelector((state) => state.products.total);
   const productsLoading = useAppSelector((state) => state.products.loading);
 
   useEffect(() => {
     if (matchedCategory) {
-      dispatch(fetchProductsThunk({ categoryId: matchedCategory.id }));
+      // A larger limit than the default page size (20) so a category with
+      // more listings than one page still shows all of them here - this
+      // page has no pagination UI, so a capped fetch would silently hide
+      // the rest regardless of what the displayed count said.
+      dispatch(fetchProductsThunk({ categoryId: matchedCategory.id, limit: 100 }));
     }
   }, [matchedCategory, dispatch]);
 
   const loading = categoriesLoading || productsLoading;
-  // Products in store are already scoped to this category by the fetch
-  // above (server-side filter by real categoryId) - no client-side
-  // name-matching needed.
-  const filteredProducts = matchedCategory ? products : [];
+  // `products` is a shared, cross-fetch cache (home feed, other category
+  // pages, seller profiles, etc. all merge into the same array) - the
+  // backend's categoryId filter only scopes what THIS fetch added, not
+  // what's already sitting in the store from an earlier fetch. Re-filter
+  // by the category name defensively, the same pattern the seller-profile
+  // page already uses to scope the same shared list to its own owner.
+  const filteredProducts = matchedCategory
+    ? products.filter((p) => p.category === matchedCategory.name)
+    : [];
+  // The real total for this category from the backend, not the length of
+  // whatever page of items happened to load - correct even before/without
+  // a full pagination UI, and unaffected by the shared-cache filtering above.
+  const displayCount = matchedCategory ? total : 0;
 
 
   return (
@@ -56,7 +70,7 @@ export default function CategoryDetailPage({ params }: PageProps) {
             <div>
               <h1 className="text-2xl font-black text-slate-900 capitalize">{categoryName}</h1>
               <p className="text-xs text-slate-500 font-medium mt-1">
-                Showing {filteredProducts.length} verified listings in {categoryName}
+                Showing {displayCount} verified listings in {categoryName}
               </p>
             </div>
 

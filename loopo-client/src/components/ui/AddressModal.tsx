@@ -1,27 +1,63 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, MapPin, Plus } from 'lucide-react';
+import { X, MapPin, Plus, Loader2 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { setAddressModalOpen, showToast } from '@/redux/slices/uiSlice';
+import { userApi } from '@/services/userApi';
 
 export default function AddressModal() {
   const dispatch = useAppDispatch();
   const isOpen = useAppSelector((state) => state.ui.isAddressModalOpen);
 
-  const [name, setName] = useState('');
+  const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
-  const [address, setAddress] = useState('');
+  const [addressLine1, setAddressLine1] = useState('');
   const [city, setCity] = useState('');
-  const [pincode, setPincode] = useState('');
-  const [type, setType] = useState<'Home' | 'Work'>('Home');
+  const [state, setState] = useState('');
+  const [postalCode, setPostalCode] = useState('');
+  const [type, setType] = useState<'HOME' | 'WORK'>('HOME');
+  const [saving, setSaving] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const resetForm = () => {
+    setFullName('');
+    setPhone('');
+    setAddressLine1('');
+    setCity('');
+    setState('');
+    setPostalCode('');
+    setType('HOME');
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    dispatch(setAddressModalOpen(false));
-    dispatch(showToast(`Saved new address: ${address}, ${city}`));
+    if (!fullName || !phone || !addressLine1 || !city || !state || !postalCode) {
+      dispatch(showToast('Please fill in all address fields'));
+      return;
+    }
+
+    setSaving(true);
+    const res = await userApi.addAddress({
+      type,
+      fullName,
+      phone,
+      addressLine1,
+      city,
+      state,
+      country: 'India',
+      postalCode,
+    });
+    setSaving(false);
+
+    if (res.success) {
+      dispatch(showToast(`Address saved: ${addressLine1}, ${city}`));
+      resetForm();
+      dispatch(setAddressModalOpen(false));
+    } else {
+      dispatch(showToast(res.error || 'Could not save address'));
+    }
   };
 
   return (
@@ -47,8 +83,8 @@ export default function AddressModal() {
               <input
                 type="text"
                 placeholder="Full Name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 font-semibold text-slate-800 outline-none focus:border-emerald-500"
               />
             </div>
@@ -69,50 +105,61 @@ export default function AddressModal() {
             <input
               type="text"
               placeholder="House/Flat No., Building, Street"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
+              value={addressLine1}
+              onChange={(e) => setAddressLine1(e.target.value)}
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 font-semibold text-slate-800 outline-none focus:border-emerald-500"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="font-bold text-slate-700 block mb-1">City / State</label>
+              <label className="font-bold text-slate-700 block mb-1">City</label>
               <input
                 type="text"
-                placeholder="City, State"
+                placeholder="City"
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 font-semibold text-slate-800 outline-none focus:border-emerald-500"
               />
             </div>
             <div>
-              <label className="font-bold text-slate-700 block mb-1">Pincode</label>
+              <label className="font-bold text-slate-700 block mb-1">State</label>
               <input
                 type="text"
-                placeholder="6-digit Pincode"
-                value={pincode}
-                onChange={(e) => setPincode(e.target.value)}
+                placeholder="State"
+                value={state}
+                onChange={(e) => setState(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 font-semibold text-slate-800 outline-none focus:border-emerald-500"
               />
             </div>
           </div>
 
           <div>
+            <label className="font-bold text-slate-700 block mb-1">Pincode</label>
+            <input
+              type="text"
+              placeholder="6-digit Pincode"
+              value={postalCode}
+              onChange={(e) => setPostalCode(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 font-semibold text-slate-800 outline-none focus:border-emerald-500"
+            />
+          </div>
+
+          <div>
             <label className="font-bold text-slate-700 block mb-1">Address Label</label>
             <div className="flex gap-2">
-              {(['Home', 'Work'] as const).map((lbl) => (
+              {(['HOME', 'WORK'] as const).map((lbl) => (
                 <button
                   key={lbl}
                   type="button"
                   onClick={() => setType(lbl)}
-                  className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all border ${
+                  className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all border capitalize ${
                     type === lbl
                       ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
                       : 'bg-slate-50 text-slate-700 border-slate-200'
                   }`}
                 >
-                  {lbl}
+                  {lbl.toLowerCase()}
                 </button>
               ))}
             </div>
@@ -120,10 +167,11 @@ export default function AddressModal() {
 
           <button
             type="submit"
+            disabled={saving}
             className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-2xl shadow-md shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 mt-2"
           >
-            <Plus className="w-4 h-4" />
-            <span>Save Address</span>
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+            <span>{saving ? 'Saving...' : 'Save Address'}</span>
           </button>
         </form>
       </div>

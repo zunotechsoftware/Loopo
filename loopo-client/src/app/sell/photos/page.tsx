@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { addSellImage, removeSellImage, setPrimaryImage } from '@/redux/slices/sellSlice';
@@ -8,17 +8,47 @@ import { showToast } from '@/redux/slices/uiSlice';
 import { ROUTES } from '@/routes/routes';
 import { ArrowRight, ArrowLeft, Camera, Trash2, Star, Plus } from 'lucide-react';
 
+const MAX_IMAGES = 10;
+const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // matches the page's own stated "up to 10MB"
+
 export default function SellPhotosPage() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { images, primaryImageIndex } = useAppSelector((state) => state.sell.formData);
+  const [isDragging, setIsDragging] = useState(false);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
+  // Shared by both the click-to-upload input and drag-and-drop, so both
+  // paths validate and store images the same way (same FileReader ->
+  // data-URL -> addSellImage flow already used for the create-listing
+  // wizard, unchanged - see productsApi.uploadProductImages, which
+  // uploads these same data URLs to the real storage backend once the
+  // listing is published).
+  const processFiles = (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
 
-    Array.from(files).forEach((file) => {
+    const remainingSlots = MAX_IMAGES - images.length;
+    if (remainingSlots <= 0) {
+      dispatch(showToast(`You can upload up to ${MAX_IMAGES} photos.`));
+      return;
+    }
+
+    const files = Array.from(fileList);
+    const accepted = files.slice(0, remainingSlots);
+    if (files.length > accepted.length) {
+      dispatch(showToast(`Only ${remainingSlots} more photo${remainingSlots === 1 ? '' : 's'} can be added (max ${MAX_IMAGES}).`));
+    }
+
+    accepted.forEach((file) => {
+      if (!file.type.startsWith('image/')) {
+        dispatch(showToast(`"${file.name}" isn't an image (PNG, JPG or WebP only).`));
+        return;
+      }
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        dispatch(showToast(`"${file.name}" is over the 10MB limit.`));
+        return;
+      }
+
       const reader = new FileReader();
       reader.onload = (ev) => {
         if (ev.target?.result) {
@@ -27,6 +57,27 @@ export default function SellPhotosPage() {
       };
       reader.readAsDataURL(file);
     });
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    processFiles(e.target.files);
+    e.target.value = ''; // allow re-selecting the same file after removing it
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    processFiles(e.dataTransfer.files);
   };
 
   const handleNext = () => {
@@ -56,13 +107,22 @@ export default function SellPhotosPage() {
       {/* Upload Box */}
       <div
         onClick={() => fileInputRef.current?.click()}
-        className="border-2 border-dashed border-slate-200 hover:border-emerald-500 bg-slate-50/50 hover:bg-emerald-50/20 p-8 rounded-3xl text-center cursor-pointer transition-all flex flex-col items-center justify-center space-y-2 group"
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className={`border-2 border-dashed p-8 rounded-3xl text-center cursor-pointer transition-all flex flex-col items-center justify-center space-y-2 group ${
+          isDragging
+            ? 'border-emerald-500 bg-emerald-50/40'
+            : 'border-slate-200 hover:border-emerald-500 bg-slate-50/50 hover:bg-emerald-50/20'
+        }`}
       >
         <div className="w-12 h-12 rounded-2xl bg-white text-emerald-600 shadow-sm flex items-center justify-center group-hover:scale-110 transition-transform">
           <Camera className="w-6 h-6" />
         </div>
-        <div className="text-xs font-bold text-slate-800">Click to upload product photos</div>
-        <div className="text-[10px] text-slate-400 font-medium">PNG, JPG or WebP up to 10MB</div>
+        <div className="text-xs font-bold text-slate-800">
+          {isDragging ? 'Drop photos to upload' : 'Click or drag & drop to upload product photos'}
+        </div>
+        <div className="text-[10px] text-slate-400 font-medium">PNG, JPG or WebP up to 10MB, max {MAX_IMAGES} photos</div>
       </div>
 
       {/* Uploaded Images Grid */}
