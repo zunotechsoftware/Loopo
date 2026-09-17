@@ -11,6 +11,7 @@ import {
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { AuthService } from '../services/auth.service';
+import { UsersService } from '../../users/services/users.service';
 import { RegisterDto } from '../dto/register.dto';
 import { LoginDto } from '../dto/login.dto';
 import { ForgotPasswordDto } from '../dto/forgot-password.dto';
@@ -29,7 +30,10 @@ import { AuthGuard } from '@nestjs/passport';
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly usersService: UsersService,
+  ) {}
 
   @Public()
   @Post('register')
@@ -207,10 +211,20 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get current user profile' })
   @ApiResponse({ status: 200, description: 'User profile retrieved' })
-  async getProfile(@CurrentUser() user: any) {
+  async getProfile(@CurrentUser('id') userId: string) {
+    // @CurrentUser() alone only carries the JWT payload ({id, email,
+    // roles}) - this used to return that directly, so every client that
+    // calls this to restore a session on page load (the client apps' own
+    // initAuthThunk-style re-hydration) got a stub with no firstName,
+    // phone, or nested `profile` (city/state/avatar/etc.) at all. Any
+    // full profile a login response had already populated got silently
+    // overwritten with "User" / blank fields on the next refresh. Mirrors
+    // UsersController.getMe(), the equivalent already-correct endpoint.
+    const user = await this.usersService.findById(userId);
+    const profile = await this.usersService.getProfile(userId);
     return {
       message: 'Profile retrieved successfully',
-      data: user,
+      data: { ...user, profile },
     };
   }
 }
