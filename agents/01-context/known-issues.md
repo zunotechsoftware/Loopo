@@ -6,6 +6,56 @@ last_verified: 2026-09-13
 
 ## OPEN
 
+### RESOLVED — User profile was almost entirely hardcoded placeholder data, and stale across page refreshes
+User-reported: "User profile is static it is showing placeholder data"
+and "selling product not listed in active after approval". Two separate
+root causes, both now fixed:
+
+1. **`GET /auth/profile` returned a stub.** Every client's session
+   re-hydration on page load (loopo-client's `initAuthThunk`) calls this
+   endpoint, but it just echoed the raw JWT payload (`{id, email, roles}`)
+   instead of the real user + profile - so a real login's full profile
+   data got silently wiped back to defaults (name -> "User", no city, no
+   avatar) on every refresh, regardless of what was actually saved. Fixed
+   to mirror the already-correct `UsersController.getMe()`.
+2. **`ProfileView`/`EditProfilePage`/`AddressModal` were themselves almost
+   entirely fake**, independent of bug #1: a hardcoded "4.9 (48 rating)"
+   and "Bangalore, KA" city for every account, a fabricated "Saved
+   Addresses" list (fictional "Venkatesh" at two made-up addresses),
+   "Edit Profile" that only showed a fake success toast without navigating
+   anywhere, and an edit form whose submit handler never called any API at
+   all. `userApi.ts`'s `AddressPayload` also never matched the real
+   `CreateAddressDto` (name vs fullName, address vs addressLine1, pincode
+   vs postalCode, no state/country, wrong type casing) - dead code with a
+   wrong contract, never actually exercised. The real backend for all of
+   this (`GET/PUT /users/me`, full `/addresses` CRUD, `GET
+   /users/public/:id` for rating aggregates) already existed and was
+   already used correctly elsewhere (the seller-profile page's real
+   rating) - just never wired into the current user's own profile screens.
+   Fixed all of it to use the real endpoints, with honest empty/fallback
+   states ("Not set", "No reviews yet") instead of fabricated defaults.
+   Avatar upload intentionally left as an honest "coming soon" rather than
+   fixed - no presigned upload flow exists for it yet, unlike the
+   equivalent listing/KYC image flows.
+3. **"Approved listing not showing under Active"**: the shared
+   `/my-listings` layout only fetched ads once on first mount: Next's App
+   Router keeps that layout mounted across its own sub-tab navigation, so
+   switching tabs after an approval happened elsewhere never re-fetched -
+   the tab showed whatever status was cached from the last full page load.
+   The backend itself was verified correct via a live test (create ->
+   pending -> approve -> `/products/my` immediately shows `APPROVED`, and
+   the item is correctly present in the public `/products` listing too).
+   Fixed by re-fetching on every pathname change within the layout, not
+   just once on mount.
+
+**Verified live for all of the above:** a real account's `GET
+/auth/profile` before/after a real `PUT /users/me` city update, a real
+address created and listed via the corrected contract, and the full
+create -> pending -> approve -> public-visible chain for a fresh test
+listing. Backend: `tsc --noEmit` clean, 83/83 tests pass. Frontend: `tsc
+--noEmit` clean, `next build` succeeds. Test accounts/listings deleted
+afterward.
+
 ### RESOLVED — Client-reported findings batch (10 items): image cache, signup, counts, city list, ref ID, drag-and-drop
 A structured client findings report (10 numbered items) was investigated and
 fixed. Findings 8/9/10 (seller-becomes-admin, seller ownership, Super Admin
