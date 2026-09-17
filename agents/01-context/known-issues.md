@@ -6,6 +6,75 @@ last_verified: 2026-09-13
 
 ## OPEN
 
+### RESOLVED — Client-reported findings batch (10 items): image cache, signup, counts, city list, ref ID, drag-and-drop
+A structured client findings report (10 numbered items) was investigated and
+fixed. Findings 8/9/10 (seller-becomes-admin, seller ownership, Super Admin
+full access) turned out to already be covered by the login/role security
+audit fixed immediately before this batch (see that entry) - re-verified
+live here rather than re-fixed. The remaining 7 were new:
+
+1. **Uploaded images not showing (root cause, not a display bug):**
+   `GET /products/:id` caches the full product (images included) for 30
+   minutes; `attachImage`/`deleteImage` never invalidated it, unlike every
+   other product mutation. Any view of a listing before its photos finished
+   uploading permanently cached a zero-images snapshot for the full TTL -
+   and the sell flow's own publish-success screen links straight to the
+   detail page, making this very likely on a real publish. Confirmed live
+   with a real MinIO-backed upload (reproduced `images: []` after a real,
+   verified-in-the-database attach; fixed by adding the same
+   `invalidateListingCache` call already used everywhere else).
+2. **Signup "not working":** two compounding bugs - the password field's own
+   placeholder said "At least 6 characters" while the real backend policy
+   requires 8+ with upper/lower/digit/special-char, and `apiClient.ts` only
+   ever surfaced the backend's generic `"Validation failed"` label, never
+   the real per-field reasons in `errors[]`. Anyone following the form's own
+   hint got rejected with a message that didn't say why. Fixed the hint,
+   added matching client-side validation, and fixed the error-message
+   extraction to prefer `errors[]`.
+3. **Category item counts wrong:** the category detail page displayed
+   `filteredProducts.length` (the current page's array length, backend
+   default 20) as the listing count, discarding the real `total` the
+   backend already returns alongside `items`. A category with more than one
+   page of listings always under-reported, and the grid silently never
+   showed anything past page 1 (no pagination exists anywhere in this app).
+   Threaded a real `total` through `productsSlice`/`fetchProductsThunk` and
+   display that instead; also requested a larger page for this view and
+   re-added a defensive client-side category-name filter, since
+   `products.items` is a shared cross-fetch cache that can hold items from
+   other categories/pages once other views have populated it.
+4. **City dropdown:** the sell wizard's city `<select>` only had 6 of the
+   8 cities the marketplace's own "Set Marketplace Location" page already
+   lists (missing Kolkata, Ahmedabad) - a seller in either city had no
+   correct option. Extended to match the existing 8-city set (not a new
+   invented list) and updated `CITY_STATE_MAP` to match.
+5. **Reference ID in the published dialog:** presentation-only removal from
+   `sell/success/page.tsx` - the real id is untouched in the database/API
+   and still powers the "View Listing" link on the same screen.
+6. **Drag-and-drop upload:** added to the sell wizard's photo step, reusing
+   the exact existing upload mechanism (FileReader -> data URL ->
+   `addSellImage`) for both the click input and the new drop handler. Also
+   added real validation the page already claimed but never enforced
+   (image-type check, the stated 10MB limit, the stated 10-photo cap).
+7. **Admin approval status not changing:** could not reproduce as a backend
+   persistence bug - a live test (create -> approve via the real
+   `PATCH /admin/products/:id/approve` -> re-fetch) correctly showed
+   `APPROVED` and persisted. The admin Listings page's approve handler also
+   correctly calls this endpoint and refetches. Likely explanation: viewing
+   a "Pending Approval" filtered list, approving an item correctly makes it
+   disappear from that filtered view (since it's no longer PENDING) - which
+   can look like "nothing happened" rather than "it worked and moved
+   buckets." No code change made here since the underlying mechanism is
+   already correct; flagging as verified-working rather than claiming a fix
+   for something not actually reproduced.
+
+**Verified live for all of the above** (not just by reading code): a real
+MinIO-backed image upload/attach/cache reproduction, a real signup attempt
+matching the form's stated (wrong) password hint, and the seller-ownership
+403-vs-200 check from the login/role audit re-run against a fresh pair of
+test accounts. Backend: `tsc --noEmit` clean, 83/83 unit tests pass.
+Frontend: `tsc --noEmit` clean, `next build` succeeds (all pages). All test
+accounts/listings created for verification were deleted afterward.
+
 ### RESOLVED — P0: loopo-admin login had no role check at all - any registered customer/seller account could sign into the admin portal
 User request: "check if the app behaves for admin, super admin and user logins correctly in all the apps." `(auth)/login/page.tsx` called the same `/auth/login` endpoint used by every client app and, on any successful login, unconditionally stored the token and navigated to `/dashboard` - it never looked at the returned `roles` array. `AuthGuard.tsx` only checked `isAuthenticated`, never role. Confirmed live: a real freshly-registered customer account (`roles: ["USER"]`) would have passed straight through both checks into the full admin UI shell (every guarded backend call would still 403, degrading gracefully per the earlier dashboard fix, but the navigation/layout/page structure were fully reachable).
 
