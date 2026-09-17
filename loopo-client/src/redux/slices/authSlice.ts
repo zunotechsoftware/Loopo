@@ -20,11 +20,18 @@ function buildProfile(u: any): UserProfile | null {
     name: u.firstName ? `${u.firstName} ${u.lastName || ''}`.trim() : (u.name || 'User'),
     email: u.email || '',
     phone: u.phone || '',
-    avatar: u.profile?.avatarUrl || u.avatarUrl || '',
+    // The real Profile model's picture is a MediaFile relation
+    // (profile.profileImage.fileUrl), never a plain `avatarUrl` string -
+    // that field never existed on any real response, so every user's
+    // avatar silently fell through to ProfileView's hardcoded stock photo
+    // regardless of whether they'd actually uploaded one.
+    avatar: u.profile?.profileImage?.fileUrl || u.avatarUrl || '',
     isVerified: Boolean(u.isEmailVerified || u.isKycVerified),
     memberSince: u.createdAt
       ? new Date(u.createdAt).getFullYear().toString()
       : new Date().getFullYear().toString(),
+    city: u.profile?.city || undefined,
+    state: u.profile?.state || undefined,
     // The real API returns `roles: string[]`, never a singular `role` -
     // reading `u.role` here always fell through to the 'USER' fallback
     // for every account, including real ADMIN/SUPER_ADMIN ones.

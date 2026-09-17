@@ -124,6 +124,10 @@ export interface UserProfile {
   avatar: string;
   isVerified: boolean;
   memberSince: string;
+  /** Real profile location, when the user has set one - undefined/empty
+   * rather than a fake default when they haven't. */
+  city?: string;
+  state?: string;
   /** The real backend login/profile response returns `roles: string[]`
    * (a user can hold more than one) - there is no singular `role` field. */
   roles?: string[];
