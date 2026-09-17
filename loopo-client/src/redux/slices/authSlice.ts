@@ -119,6 +119,31 @@ export const registerUserThunk = createAsyncThunk(
   }
 );
 
+export const sendPhoneOtpThunk = createAsyncThunk(
+  'auth/sendPhoneOtp',
+  async (phone: string, { rejectWithValue }) => {
+    const res = await authApi.sendPhoneLoginOtp(phone);
+    if (res.success) return res.data;
+    return rejectWithValue(res.error || 'Could not send OTP');
+  }
+);
+
+/** Verifies a real phone OTP and logs in with the real tokens/user it
+ * returns - used both for "Mobile OTP Login" and for the verification
+ * step shown right after email registration (the same phone number was
+ * already attached to the account at signup, so this also marks it
+ * verified and activates the account). */
+export const verifyPhoneOtpThunk = createAsyncThunk(
+  'auth/verifyPhoneOtp',
+  async ({ phone, otp }: { phone: string; otp: string }, { rejectWithValue }) => {
+    const res = await authApi.verifyPhoneLoginOtp(phone, otp);
+    if (res.success && res.data) {
+      return res.data;
+    }
+    return rejectWithValue(res.error || 'Invalid or expired OTP');
+  }
+);
+
 export const authSlice = createSlice({
   name: 'auth',
   initialState,
@@ -231,6 +256,27 @@ export const authSlice = createSlice({
 
         state.loading = false;
         state.error = (action.payload as string) || 'Registration failed';
+      })
+      // Phone OTP verify (mobile login, and the post-registration
+      // verification step) - same shape/handling as loginUserThunk since
+      // the backend returns real tokens + user either way.
+      .addCase(verifyPhoneOtpThunk.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(verifyPhoneOtpThunk.fulfilled, (state, action) => {
+        state.loading = false;
+        const u = (action.payload as any)?.user;
+        const profile = buildProfile(u);
+        if (profile) {
+          state.isAuthenticated = true;
+          state.user = profile;
+          saveLocalUser(profile);
+        }
+      })
+      .addCase(verifyPhoneOtpThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = (action.payload as string) || 'Invalid or expired OTP';
       });
   },
 });

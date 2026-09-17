@@ -70,9 +70,13 @@ function normaliseConversation(c: any, currentUserId?: string): Conversation {
     otherPartyRole: iAmSeller ? 'Buyer' : 'Seller',
     itemTitle: product.title || c.productTitle || 'Item',
     itemPrice: product.price ? `₹${product.price.toLocaleString('en-IN')}` : '',
+    // product.images[0] here is a real image record (originalUrl/
+    // thumbnailUrl/etc.), not a plain string - using the object directly
+    // as an <img src> used to render "[object Object]".
     itemImage:
-      (Array.isArray(product.images) ? product.images[0] : product.image) ||
-      '',
+      (Array.isArray(product.images)
+        ? (typeof product.images[0] === 'string' ? product.images[0] : product.images[0]?.originalUrl || product.images[0]?.thumbnailUrl)
+        : product.image) || '',
     itemLocation: product.location?.city || product.location || '',
     lastMessage: c.lastMessage || (messages[messages.length - 1]?.text ?? ''),
     lastTime: c.updatedAt

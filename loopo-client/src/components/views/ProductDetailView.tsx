@@ -56,9 +56,12 @@ export default function ProductDetailView() {
         setLoading(false);
         if (res.success && res.data) {
           const p = res.data as any;
+          // Real image records use `originalUrl` (see the matching fix in
+          // productsSlice.ts's normaliseProduct) - `url`/`path` don't exist
+          // on a real one, so this always produced an empty src before.
           const images: string[] =
             Array.isArray(p.images) && p.images.length > 0
-              ? p.images.map((img: any) => (typeof img === 'string' ? img : img?.url || img?.path || ''))
+              ? p.images.map((img: any) => (typeof img === 'string' ? img : img?.originalUrl || img?.thumbnailUrl || img?.url || img?.path || ''))
               : [];
           const seller = p.seller || p.user || {};
           setFetchedProduct({

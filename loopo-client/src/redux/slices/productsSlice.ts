@@ -44,9 +44,16 @@ const initialState: ProductsState = {
 
 /** Normalise a backend product into the frontend Product shape */
 function normaliseProduct(p: any): Product {
+  // The real backend image record's field is `originalUrl` (see
+  // product-media.controller.ts's attach response) - this used to only
+  // check `url`/`path`, neither of which exists on a real image, so every
+  // product's photos silently became empty strings here regardless of a
+  // fully successful upload. myAdsSlice's own normaliser already had this
+  // right; this one (used by the home feed, category browsing, search,
+  // and seller profile) didn't.
   const images: string[] =
     Array.isArray(p.images) && p.images.length > 0
-      ? p.images.map((img: any) => (typeof img === 'string' ? img : img?.url || img?.path || ''))
+      ? p.images.map((img: any) => (typeof img === 'string' ? img : img?.originalUrl || img?.thumbnailUrl || img?.url || img?.path || ''))
       : [];
 
   const seller = p.seller || p.user || {};
