@@ -21,12 +21,28 @@ export default function RegisterPage() {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
 
+  // Mirrors the backend's real RegisterDto password policy exactly
+  // (MinLength(8) + upper/lower/digit/special-char regex) - the form used
+  // to just say "At least 6 characters" and never checked anything before
+  // submitting, so a password that actually followed that on-screen hint
+  // (e.g. "abc123") always failed the real backend validation. Combined
+  // with apiClient previously surfacing only the generic "Validation
+  // failed" label instead of the real reason, this made signup look
+  // completely broken for anyone who didn't guess the real requirement.
+  const isValidPassword = (value: string) =>
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#_])[A-Za-z\d@$!%*?&#_]{8,}$/.test(value);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     dispatch(clearAuthError());
 
     if (!firstName || !email || !password) {
       dispatch(showToast('Please fill out all required fields'));
+      return;
+    }
+
+    if (!isValidPassword(password)) {
+      dispatch(showToast('Password must be 8+ characters with an uppercase letter, lowercase letter, number, and special character (@$!%*?&#_).'));
       return;
     }
 
@@ -122,10 +138,13 @@ export default function RegisterPage() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="At least 6 characters"
+                  placeholder="At least 8 characters"
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all"
                 />
               </div>
+              <p className="text-[10px] text-slate-400 font-medium">
+                8+ characters with uppercase, lowercase, number & symbol (@$!%*?&amp;#_)
+              </p>
             </div>
 
             <button
