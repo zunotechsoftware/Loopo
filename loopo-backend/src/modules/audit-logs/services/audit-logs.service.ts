@@ -36,10 +36,15 @@ export class AuditLogsService {
     if (params.action) where.action = params.action;
     if (params.entity) where.entity = params.entity;
 
-    return this.auditLogsRepository.findMany({
-      skip: params.skip,
-      take: params.take,
-      where,
-    });
+    const [items, total] = await Promise.all([
+      this.auditLogsRepository.findMany({
+        skip: params.skip,
+        take: params.take,
+        where,
+      }),
+      this.auditLogsRepository.count(where),
+    ]);
+
+    return { items, total };
   }
 }

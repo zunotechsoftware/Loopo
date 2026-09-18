@@ -24,14 +24,31 @@ async function main() {
   }
 
   // 2. Seed Permissions
+  // NOTE: this list must stay in sync with every @Permissions(...) string
+  // used anywhere in the app - it previously drifted: 5 admin.*-prefixed
+  // permissions (admin.dashboard.view, admin.notifications.manage,
+  // admin.payments.manage, admin.products.manage, admin.settings.manage)
+  // were checked by real controllers but never seeded, meaning the ADMIN
+  // role (which doesn't bypass permission checks the way SUPER_ADMIN does)
+  // was silently locked out of those endpoints with a 403, forever, since
+  // no role could ever have a permission that doesn't exist in this table.
+  // Also added roles.view, since roles.create/update/delete existed but
+  // there was no permission at all for just listing roles.
   const permissionsList = [
     'users.view',
     'users.create',
     'users.update',
     'users.delete',
+    'roles.view',
     'roles.create',
     'roles.update',
     'roles.delete',
+    'admin.dashboard.view',
+    'admin.notifications.manage',
+    'admin.payments.manage',
+    'admin.products.manage',
+    'admin.settings.manage',
+    'admin.audit-logs.view',
     'categories.view',
     'categories.create',
     'categories.update',
@@ -405,6 +422,44 @@ async function main() {
     });
   }
   console.log('Report reasons seeded.');
+
+  // 10b. Seed System Settings (admin/settings "General" tab) - the value
+  // column is a JSON object per UpdateSystemSettingDto, so every row wraps
+  // its actual scalar as { value: <scalar> }.
+  const systemSettings = [
+    { key: 'platform_name', value: { value: 'Loopo Marketplace' }, group: 'GENERAL', description: 'Public-facing name of the platform' },
+    { key: 'support_email', value: { value: 'support@loopo.com' }, group: 'GENERAL', description: 'Email address shown to users for support' },
+    { key: 'commission_rate', value: { value: 8.5 }, group: 'GENERAL', description: 'Platform commission rate applied to sales, in percent' },
+    { key: 'min_payout', value: { value: 50 }, group: 'GENERAL', description: 'Minimum balance a seller can request as payout' },
+    { key: 'maintenance_mode', value: { value: false }, group: 'GENERAL', description: 'When enabled, the storefront shows a maintenance page to buyers' },
+    { key: 'auto_approve', value: { value: false }, group: 'GENERAL', description: 'When enabled, new listings publish immediately instead of waiting for moderator approval' },
+  ];
+  for (const setting of systemSettings) {
+    await prisma.systemSetting.upsert({
+      where: { key: setting.key },
+      update: {},
+      create: { ...setting, isPublic: false },
+    });
+  }
+  console.log('System settings seeded.');
+
+  // 10c. Seed Feature Flags (admin/settings "Feature Flags" tab)
+  const featureFlags = [
+    { key: 'referral_system', name: 'Referral System', description: 'Enable user referral rewards program', isEnabled: true },
+    { key: 'live_chat', name: 'Live Chat', description: 'Real-time chat between buyers and sellers', isEnabled: true },
+    { key: 'flash_deals', name: 'Flash Deals', description: 'Time-limited product deals section', isEnabled: false },
+    { key: 'loyalty_points', name: 'Loyalty Points', description: 'Reward buyers with points for purchases', isEnabled: false },
+    { key: 'ai_recommendations', name: 'AI Recommendations', description: 'Personalized product suggestions via ML', isEnabled: true },
+    { key: 'multi_currency', name: 'Multi-Currency', description: 'Accept payments in multiple currencies', isEnabled: false },
+  ];
+  for (const flag of featureFlags) {
+    await prisma.featureFlag.upsert({
+      where: { key: flag.key },
+      update: {},
+      create: flag,
+    });
+  }
+  console.log('Feature flags seeded.');
 
   // 11. Seed Categories
   const categoryData = [

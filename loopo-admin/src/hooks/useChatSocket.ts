@@ -25,8 +25,13 @@ export const useChatSocket = (options?: ChatSocketOptions) => {
   }, [options]);
 
   useEffect(() => {
-    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-    
+    // Real key: AuthProvider.tsx stores the admin's session token under
+    // 'accessToken' - this used to read a 'token' key that's never set
+    // anywhere in the app, so `token` was always empty and the socket
+    // silently never connected at all. That's why sent messages never
+    // appeared live: no client was ever actually listening.
+    const token = localStorage.getItem('accessToken');
+
     if (!token) return;
 
     const socketInstance = io(SOCKET_URL, {

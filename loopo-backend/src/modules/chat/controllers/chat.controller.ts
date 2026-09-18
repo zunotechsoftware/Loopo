@@ -18,7 +18,7 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@ne
 import { ChatService } from '../services/chat.service';
 import { ChatGateway } from '../gateways/chat.gateway';
 import { CreateConversationDto, UpdateConversationSettingsDto } from '../dto/conversation.dto';
-import { SendMessageDto, GetMessagesQueryDto, SearchMessagesQueryDto, GetUploadUrlDto, CreateAttachmentDto, EditMessageDto } from '../dto/message.dto';
+import { SendMessageDto, GetMessagesQueryDto, SearchMessagesQueryDto, ChatUploadUrlDto, CreateAttachmentDto, EditMessageDto } from '../dto/message.dto';
 import { JwtAuthGuard } from '../../../shared/common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../shared/common/guards/roles.guard';
 import { PermissionsGuard } from '../../../shared/common/guards/permissions.guard';
@@ -138,14 +138,26 @@ export class ChatController {
   @ApiResponse({ status: 201, type: MessageEntity })
   async sendMessage(@Body() dto: SendMessageDto, @Request() req: any) {
     const userId = req.user.id;
-    const message = await this.chatService.sendMessage(userId, dto);
-    
-    // Broadcast message to room
+    const message: any = await this.chatService.sendMessage(userId, dto);
+
+    // Broadcast message to whoever has this conversation open right now.
     this.chatGateway.server.to(`conversation:${dto.conversationId}`).emit('receive_message', message);
     this.chatGateway.server.to(`conversation:${dto.conversationId}`).emit('conversation_updated', {
       conversationId: dto.conversationId,
       lastMessage: message,
     });
+
+    // Also notify the recipient's personal room - every connected client
+    // joins `user:${their id}` on connect (see ChatGateway.handleConnection),
+    // regardless of which (if any) conversation they currently have open.
+    // Without this, a brand-new conversation, or a message on a thread the
+    // recipient isn't currently viewing, never updates their inbox live.
+    if (message.recipientId) {
+      this.chatGateway.server.to(`user:${message.recipientId}`).emit('conversation_updated', {
+        conversationId: dto.conversationId,
+        lastMessage: message,
+      });
+    }
 
     return { message: 'Message sent successfully', data: message };
   }
@@ -250,7 +262,7 @@ export class ChatController {
   @Post('upload-url')
   @Permissions('chat.send')
   @ApiOperation({ summary: 'Get a signed S3 upload URL for attachments' })
-  async getUploadUrl(@Body() dto: GetUploadUrlDto, @Request() req: any) {
+  async getUploadUrl(@Body() dto: ChatUploadUrlDto, @Request() req: any) {
     const result = await this.chatService.generateUploadUrl(req.user.id, dto.fileName, dto.fileType);
     return { message: 'Presigned upload URL generated successfully', data: result };
   }

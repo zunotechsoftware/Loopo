@@ -11,26 +11,21 @@ import {
   Eye,
   EyeOff,
   ArrowRight,
-  ShieldCheck,
-  Sparkles,
-  KeyRound,
+  MailCheck,
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { setAuthModalOpen, showToast } from '@/redux/slices/uiSlice';
 import {
   setAuthMode,
-  setOtpTarget,
-  loginSuccess,
   loginUserThunk,
   registerUserThunk,
 } from '@/redux/slices/authSlice';
-import { setActiveTab } from '@/redux/slices/navigationSlice';
+import { authApi } from '@/services/authApi';
 
 export default function AuthModal() {
   const dispatch = useAppDispatch();
   const isOpen = useAppSelector((state) => state.ui.isAuthModalOpen);
   const authMode = useAppSelector((state) => state.auth.authMode);
-  const otpTarget = useAppSelector((state) => state.auth.otpTarget);
   const { loading, error } = useAppSelector((state) => state.auth);
 
   // Form states
@@ -40,21 +35,8 @@ export default function AuthModal() {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [city, setCity] = useState('');
-  const [otpCode, setOtpCode] = useState(['', '', '', '']);
-  const box0Ref = React.useRef<HTMLInputElement>(null);
-  const box1Ref = React.useRef<HTMLInputElement>(null);
-  const box2Ref = React.useRef<HTMLInputElement>(null);
-  const box3Ref = React.useRef<HTMLInputElement>(null);
-  const otpInputRefs = [box0Ref, box1Ref, box2Ref, box3Ref];
-
-  React.useEffect(() => {
-    if (authMode === 'otp') {
-      const timer = setTimeout(() => {
-        otpInputRefs[0].current?.focus();
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [authMode]);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
+  const [forgotSubmitting, setForgotSubmitting] = useState(false);
 
   if (!isOpen) return null;
 
@@ -74,76 +56,33 @@ export default function AuthModal() {
     e.preventDefault();
     const nameParts = name.trim().split(' ');
     const firstName = nameParts[0] || name || 'User';
-    const lastName = nameParts.slice(1).join(' ') || 'User';
+    const lastName = nameParts.slice(1).join(' ') || '';
 
     const resultAction = await dispatch(registerUserThunk({ email, password, firstName, lastName, phone }));
     if (registerUserThunk.fulfilled.match(resultAction)) {
-      dispatch(setOtpTarget(email || phone));
-      dispatch(setAuthMode('otp'));
-      dispatch(showToast(`Account created! Verification code sent to ${email || phone}`));
+      dispatch(setAuthModalOpen(false));
+      dispatch(showToast(`Account created! Welcome to Loopo 🎉`));
     } else {
       const err = (resultAction.payload as string) || 'Registration failed.';
       dispatch(showToast(err));
     }
   };
 
-  const handleForgotSubmit = (e: React.FormEvent) => {
+
+  const handleForgotSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    dispatch(setOtpTarget(email));
-    dispatch(setAuthMode('otp'));
-    dispatch(showToast(`Password reset OTP sent to ${email}`));
-  };
-
-  const handleOtpVerify = (e: React.FormEvent) => {
-    e.preventDefault();
-    dispatch(loginSuccess({ name: name || 'New User', email, phone }));
-    dispatch(setAuthModalOpen(false));
-    dispatch(showToast('Account verified successfully! Welcome to Loopo.'));
-  };
-
-  const handleOtpChange = (index: number, val: string) => {
-    const digits = val.replace(/\D/g, '');
-    if (digits.length > 1) {
-      const updated = ['', '', '', ''];
-      for (let i = 0; i < 4; i++) {
-        updated[i] = digits[i] || '';
-      }
-      setOtpCode(updated);
-      const nextIdx = Math.min(digits.length - 1, 3);
-      otpInputRefs[nextIdx].current?.focus();
-      return;
-    }
-
-    const singleDigit = val.slice(-1).replace(/\D/g, '');
-    const updated = [...otpCode];
-    updated[index] = singleDigit;
-    setOtpCode(updated);
-
-    if (singleDigit && index < 3) {
-      otpInputRefs[index + 1].current?.focus();
-    }
-  };
-
-  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Backspace') {
-      if (!otpCode[index] && index > 0) {
-        otpInputRefs[index - 1].current?.focus();
-      }
-    }
-  };
-
-  const handleOtpPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
-    e.preventDefault();
-    const pastedData = e.clipboardData.getData('text').replace(/\D/g, '');
-    if (!pastedData) return;
-    const updated = ['', '', '', ''];
-    for (let i = 0; i < 4; i++) {
-      updated[i] = pastedData[i] || '';
-    }
-    setOtpCode(updated);
-    const focusIdx = Math.min(pastedData.length, 4) - 1;
-    if (focusIdx >= 0) {
-      otpInputRefs[focusIdx].current?.focus();
+    setForgotSubmitting(true);
+    // Real password reset is a link sent to the registered email (see
+    // /auth/forgot-password + /auth/reset-password), not an OTP code -
+    // this used to fake sending an OTP and then log the user in as
+    // whatever name/email/phone was typed into the OTP screen, with zero
+    // real verification of anything.
+    const res = await authApi.forgotPassword(email);
+    setForgotSubmitting(false);
+    if (res.success) {
+      setResetEmailSent(true);
+    } else {
+      dispatch(showToast(res.error || 'Could not send reset email'));
     }
   };
 
@@ -343,132 +282,72 @@ export default function AuthModal() {
               disabled={loading}
               className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs py-3.5 rounded-2xl shadow-md shadow-emerald-500/20 transition-all"
             >
-              {loading ? 'Submitting...' : 'Send Verification OTP'}
+              {loading ? 'Creating account...' : 'Create Account'}
             </button>
           </form>
         )}
 
         {/* --- FORGOT PASSWORD FORM --- */}
         {authMode === 'forgot' && (
-          <form onSubmit={handleForgotSubmit} className="space-y-4">
-            <div className="space-y-1">
-              <h2 className="text-xl font-black text-slate-900">Reset Password</h2>
-              <p className="text-xs text-slate-500 font-medium">Enter registered email or phone to receive reset code.</p>
-            </div>
-
-            <div>
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Email / Mobile</label>
-              <input
-                type="text"
-                required
-                placeholder="Registered email or phone"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-xs font-semibold text-slate-800 outline-none focus:border-emerald-500"
-              />
-            </div>
-
-            <div className="flex gap-2">
+          resetEmailSent ? (
+            <div className="space-y-4 text-center">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+                <MailCheck className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <h2 className="text-xl font-black text-slate-900">Check Your Email</h2>
+                <p className="text-xs text-slate-500 font-medium">
+                  If an account exists for {email}, a password reset link has been sent to it.
+                </p>
+              </div>
               <button
                 type="button"
-                onClick={() => dispatch(setAuthMode('login'))}
-                className="flex-1 border border-slate-200 text-slate-700 font-bold text-xs py-3 rounded-2xl hover:bg-slate-50"
+                onClick={() => {
+                  setResetEmailSent(false);
+                  dispatch(setAuthMode('login'));
+                }}
+                className="w-full border border-slate-200 text-slate-700 font-bold text-xs py-3 rounded-2xl hover:bg-slate-50"
               >
                 Back to Login
               </button>
-              <button
-                type="submit"
-                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-3 rounded-2xl shadow-md shadow-emerald-500/20"
-              >
-                Send Reset Code
-              </button>
             </div>
-          </form>
-        )}
+          ) : (
+            <form onSubmit={handleForgotSubmit} className="space-y-4">
+              <div className="space-y-1">
+                <h2 className="text-xl font-black text-slate-900">Reset Password</h2>
+                <p className="text-xs text-slate-500 font-medium">Enter your registered email to receive a reset link.</p>
+              </div>
 
-        {/* --- OTP VERIFICATION FORM --- */}
-        {authMode === 'otp' && (
-          <form onSubmit={handleOtpVerify} className="space-y-4 text-center">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
-              <KeyRound className="w-6 h-6" />
-            </div>
-
-            <div className="space-y-1">
-              <h2 className="text-xl font-black text-slate-900">Enter Verification Code</h2>
-              <p className="text-xs text-slate-500 font-medium">We sent a 4-digit code to {otpTarget || email}</p>
-            </div>
-
-            <div className="flex justify-center gap-3 py-2" onPaste={handleOtpPaste}>
-              {[0, 1, 2, 3].map((idx) => (
+              <div>
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Email</label>
                 <input
-                  key={idx}
-                  ref={otpInputRefs[idx]}
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  maxLength={1}
-                  value={otpCode[idx]}
-                  onChange={(e) => handleOtpChange(idx, e.target.value)}
-                  onKeyDown={(e) => handleOtpKeyDown(idx, e)}
-                  onFocus={(e) => e.target.select()}
-                  className="w-12 h-12 text-center text-lg font-black bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                  type="email"
+                  required
+                  placeholder="Registered email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-xs font-semibold text-slate-800 outline-none focus:border-emerald-500"
                 />
-              ))}
-            </div>
+              </div>
 
-            <button
-              type="submit"
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-3.5 rounded-2xl shadow-md shadow-emerald-500/20 transition-all"
-            >
-              Verify Code & Login
-            </button>
-
-            <div className="text-[11px] text-slate-400 font-medium">
-              Didn't receive code?{' '}
-              <button
-                type="button"
-                onClick={() => dispatch(showToast('Resent OTP to registered number'))}
-                className="text-emerald-600 font-bold hover:underline"
-              >
-                Resend Code
-              </button>
-            </div>
-          </form>
-        )}
-
-        {/* Social Authentication Options */}
-        {(authMode === 'login' || authMode === 'signup') && (
-          <div className="pt-2 border-t border-slate-100 space-y-3">
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center">Or continue with</div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  dispatch(loginSuccess({ name: 'Google User', email: 'google.user@gmail.com' }));
-                  dispatch(setAuthModalOpen(false));
-                  dispatch(showToast('Logged in via Google!'));
-                }}
-                className="flex items-center justify-center gap-2 p-2.5 border border-slate-200 rounded-2xl text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
-              >
-                <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-4 h-4" />
-                <span>Google</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  dispatch(loginSuccess({ name: 'Apple User', email: 'apple.user@icloud.com' }));
-                  dispatch(setAuthModalOpen(false));
-                  dispatch(showToast('Logged in via Apple ID!'));
-                }}
-                className="flex items-center justify-center gap-2 p-2.5 border border-slate-200 rounded-2xl text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
-              >
-                <img src="https://www.svgrepo.com/show/511330/apple-173.svg" alt="Apple" className="w-4 h-4" />
-                <span>Apple</span>
-              </button>
-            </div>
-          </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => dispatch(setAuthMode('login'))}
+                  className="flex-1 border border-slate-200 text-slate-700 font-bold text-xs py-3 rounded-2xl hover:bg-slate-50"
+                >
+                  Back to Login
+                </button>
+                <button
+                  type="submit"
+                  disabled={forgotSubmitting}
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs py-3 rounded-2xl shadow-md shadow-emerald-500/20"
+                >
+                  {forgotSubmitting ? 'Sending...' : 'Send Reset Link'}
+                </button>
+              </div>
+            </form>
+          )
         )}
       </div>
     </div>

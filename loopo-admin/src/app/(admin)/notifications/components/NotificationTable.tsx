@@ -308,7 +308,7 @@ export default function NotificationTable({
                     </TableCell>
                     <TableCell sx={{ borderBottom: '1px solid #f1f5f9' }}>
                       <Typography variant="body2" sx={{ color: '#0f172a', fontWeight: 500 }}>
-                        {row.delivery}
+                        {typeof row.deliveryRate === 'number' ? `${row.deliveryRate.toFixed(0)}%` : '—'}
                       </Typography>
                     </TableCell>
                     <TableCell align="center" sx={{ borderBottom: '1px solid #f1f5f9' }}>

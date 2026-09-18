@@ -1,11 +1,12 @@
 'use client';
 
-import React, { use } from 'react';
+import React, { use, useEffect } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import ProductCard from '@/components/ui/ProductCard';
-import { useAppSelector } from '@/redux/hooks';
-import { MOCK_CATEGORIES } from '@/mockData/categories';
-import { Smartphone, Car, Bike, Tv, Sofa, Shirt, BookOpen, Home, ArrowLeft } from 'lucide-react';
+import { useAppDispatch, useAppSelector } from '@/redux/hooks';
+import { fetchProductsThunk } from '@/redux/slices/productsSlice';
+import { useCategories } from '@/hooks/useCategories';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { ROUTES } from '@/routes/routes';
 
@@ -16,18 +17,41 @@ interface PageProps {
 export default function CategoryDetailPage({ params }: PageProps) {
   const resolvedParams = use(params);
   const categorySlug = resolvedParams.categorySlug;
+  const dispatch = useAppDispatch();
 
-  const products = useAppSelector((state) => state.products.items);
-
-  // Match category by slug or name
-  const matchedCategory = MOCK_CATEGORIES.find(
-    (c) => c.name.toLowerCase().replace(/\s+/g, '-') === categorySlug.toLowerCase()
-  );
+  const { categories, loading: categoriesLoading } = useCategories();
+  const matchedCategory = categories.find((c) => c.slug === categorySlug);
   const categoryName = matchedCategory ? matchedCategory.name : categorySlug.replace(/-/g, ' ');
 
-  const filteredProducts = products.filter(
-    (p) => p.category.toLowerCase() === categoryName.toLowerCase()
-  );
+  const products = useAppSelector((state) => state.products.items);
+  const total = useAppSelector((state) => state.products.total);
+  const productsLoading = useAppSelector((state) => state.products.loading);
+
+  useEffect(() => {
+    if (matchedCategory) {
+      // A larger limit than the default page size (20) so a category with
+      // more listings than one page still shows all of them here - this
+      // page has no pagination UI, so a capped fetch would silently hide
+      // the rest regardless of what the displayed count said.
+      dispatch(fetchProductsThunk({ categoryId: matchedCategory.id, limit: 100 }));
+    }
+  }, [matchedCategory, dispatch]);
+
+  const loading = categoriesLoading || productsLoading;
+  // `products` is a shared, cross-fetch cache (home feed, other category
+  // pages, seller profiles, etc. all merge into the same array) - the
+  // backend's categoryId filter only scopes what THIS fetch added, not
+  // what's already sitting in the store from an earlier fetch. Re-filter
+  // by the category name defensively, the same pattern the seller-profile
+  // page already uses to scope the same shared list to its own owner.
+  const filteredProducts = matchedCategory
+    ? products.filter((p) => p.category === matchedCategory.name)
+    : [];
+  // The real total for this category from the backend, not the length of
+  // whatever page of items happened to load - correct even before/without
+  // a full pagination UI, and unaffected by the shared-cache filtering above.
+  const displayCount = matchedCategory ? total : 0;
+
 
   return (
     <MainLayout>
@@ -46,27 +70,19 @@ export default function CategoryDetailPage({ params }: PageProps) {
             <div>
               <h1 className="text-2xl font-black text-slate-900 capitalize">{categoryName}</h1>
               <p className="text-xs text-slate-500 font-medium mt-1">
-                Showing {filteredProducts.length} verified listings in {categoryName}
+                Showing {displayCount} verified listings in {categoryName}
               </p>
             </div>
 
-            {matchedCategory && (
-              <div className="flex flex-wrap gap-1.5">
-                {matchedCategory.subcategories.map((sub) => (
-                  <span
-                    key={sub}
-                    className="text-[11px] font-bold bg-slate-100 text-slate-700 px-3 py-1 rounded-full"
-                  >
-                    {sub}
-                  </span>
-                ))}
-              </div>
-            )}
           </div>
         </div>
 
         {/* Listings Grid */}
-        {filteredProducts.length === 0 ? (
+        {loading ? (
+          <div className="flex items-center gap-2 text-sm text-slate-500 py-12 justify-center">
+            <Loader2 className="w-5 h-5 animate-spin" /> Loading listings…
+          </div>
+        ) : filteredProducts.length === 0 ? (
           <div className="bg-white rounded-3xl p-12 text-center border border-slate-100 text-slate-400 font-medium text-sm">
             No products currently found in <span className="font-bold capitalize">{categoryName}</span>.
           </div>

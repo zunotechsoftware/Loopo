@@ -17,12 +17,12 @@ describe('Reviews, Ratings & Reputation (e2e)', () => {
   const mockBuyer = {
     id: 'e2eebc99-aaaa-4ef8-bb6d-6bb9bd380101',
     email: 'review-buyer@loopo.com',
-    roles: ['CUSTOMER'],
+    roles: ['USER'],
   };
   const mockSeller = {
     id: 'e2eebc99-bbbb-4ef8-bb6d-6bb9bd380102',
     email: 'review-seller@loopo.com',
-    roles: ['CUSTOMER'],
+    roles: ['USER'],
   };
   const mockAdmin = {
     id: 'e2eebc99-cccc-4ef8-bb6d-6bb9bd380103',
@@ -66,12 +66,12 @@ describe('Reviews, Ratings & Reputation (e2e)', () => {
 
     // Clear RBAC Redis cache
     const redisClient = app.get('REDIS_CLIENT');
-    await redisClient.del('role:permissions:CUSTOMER');
+    await redisClient.del('role:permissions:USER');
     await redisClient.del('role:permissions:ADMIN');
 
     // Sign tokens
-    buyerToken = jwtService.sign({ sub: mockBuyer.id, email: mockBuyer.email, roles: ['CUSTOMER'] });
-    sellerToken = jwtService.sign({ sub: mockSeller.id, email: mockSeller.email, roles: ['CUSTOMER'] });
+    buyerToken = jwtService.sign({ sub: mockBuyer.id, email: mockBuyer.email, roles: ['USER'] });
+    sellerToken = jwtService.sign({ sub: mockSeller.id, email: mockSeller.email, roles: ['USER'] });
     adminToken = jwtService.sign({ sub: mockAdmin.id, email: mockAdmin.email, roles: ['ADMIN'] });
 
     // Seed category + product

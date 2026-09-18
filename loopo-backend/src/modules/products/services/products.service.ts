@@ -20,8 +20,8 @@ export class ProductsService {
     private readonly redisService: RedisService,
     private readonly s3Service: S3Service,
     private readonly interactionsService: InteractionsService,
-    @InjectQueue('image-compression') private readonly imageCompressionQueue: Queue,
-    @InjectQueue('thumbnail-generation') private readonly thumbnailGenerationQueue: Queue,
+    @InjectQueue('product-image-compression') private readonly imageCompressionQueue: Queue,
+    @InjectQueue('product-thumbnail-generation') private readonly thumbnailGenerationQueue: Queue,
     @InjectQueue('product-expiration') private readonly expirationQueue: Queue,
     @InjectQueue('search-index-update') private readonly searchIndexQueue: Queue,
     @InjectQueue('notification') private readonly notificationQueue: Queue,
@@ -83,7 +83,16 @@ export class ProductsService {
 
     // 6. Queue Search Index & Notifications
     await this.searchIndexQueue.add('index', { action: 'CREATE', productId: product!.id });
-    await this.notificationQueue.add('send', { type: 'LISTING_SUBMITTED', userId: sellerId, listingId: product!.id });
+    // Notifies admins that a listing needs review - NOT the seller who
+    // created it (this previously targeted `userId: sellerId`, so a seller
+    // submitting a listing "notified" themselves and no admin ever heard
+    // about it at all).
+    await this.notificationQueue.add('send', {
+      type: 'LISTING_SUBMITTED',
+      listingId: product!.id,
+      sellerId,
+      title: product!.title,
+    });
 
     // 7. Emit product created event for auto-creating seller profile
     this.eventEmitter.emit('product.created', {
@@ -152,9 +161,27 @@ export class ProductsService {
       };
     }
 
-    // OLX business logic: editing a listing reverts it to Pending approval
+    // OLX business logic: editing a listing reverts it to Pending approval.
+    // `dto.status` is not part of the public UpdateProductDto shape - an
+    // ordinary PUT :id request can never set it, since the global
+    // ValidationPipe (whitelist + forbidNonWhitelisted) strips any unknown
+    // property before this method ever sees it. Only the controller's own
+    // internal lifecycle actions (publish/archive/pause/resume/renew/sold)
+    // pass it, via `{ status } as any`, so it's safe to honor here.
     let targetStatus = product.status;
-    if (product.status === ProductStatus.APPROVED && !isAdmin) {
+    const explicitStatus = (dto as any).status as ProductStatus | undefined;
+    if (explicitStatus && explicitStatus !== product.status) {
+      targetStatus = explicitStatus;
+      updateProductData.status = explicitStatus;
+
+      await this.productsRepo.createStatusHistory({
+        productId: id,
+        fromStatus: product.status,
+        toStatus: explicitStatus,
+        comment: 'Status changed via listing lifecycle action',
+        changedById: sellerId,
+      });
+    } else if (product.status === ProductStatus.APPROVED && !isAdmin) {
       targetStatus = ProductStatus.PENDING;
       updateProductData.status = ProductStatus.PENDING;
 
@@ -277,13 +304,22 @@ export class ProductsService {
     return { items, total, page: query.page, limit: query.limit };
   }
 
-  async findPublicListings(query: ListingSearchQueryDto) {
+  // statusOverride is for trusted, guard-protected admin callers only (e.g.
+  // AdminProductsController.findPending). query.status is deliberately never
+  // read here even though ListingSearchQueryDto declares it: this method is
+  // also called directly by the public, unauthenticated `GET /products`
+  // endpoint, and honoring a client-supplied status would let anyone request
+  // ?status=PENDING/REJECTED and see un-moderated listings.
+  async findPublicListings(query: ListingSearchQueryDto, statusOverride?: ProductStatus) {
     const skip = (query.page! - 1) * query.limit!;
-    
+
     const where: Prisma.ProductWhereInput = {
-      status: ProductStatus.APPROVED,
+      status: statusOverride || ProductStatus.APPROVED,
     };
 
+    if (query.sellerId) {
+      where.sellerId = query.sellerId;
+    }
     if (query.categoryId) {
       where.categoryId = query.categoryId;
     }
@@ -362,6 +398,21 @@ export class ProductsService {
     await this.imageCompressionQueue.add('compress', { imageId: img.id });
     await this.thumbnailGenerationQueue.add('generate-thumbnail', { imageId: img.id, type: 'IMAGE' });
 
+    // getListingDetails caches the full product (images included) for 30
+    // minutes. Every other mutation (update/delete/approve/reject) already
+    // invalidates that cache, but attaching an image never did - so any
+    // view of the listing before an upload finished (a very likely race:
+    // the sell flow creates the listing, then uploads photos to it
+    // afterward, and the seller's own "View Listing" link goes straight to
+    // the detail page) permanently cached a zero-images snapshot for the
+    // full TTL, regardless of how many photos were actually attached
+    // moments later. Confirmed live: a real uploaded+attached image never
+    // appeared in GET /products/:id until this was fixed.
+    const product = await this.productsRepo.findById(productId);
+    if (product) {
+      await this.invalidateListingCache(productId, product.slug);
+    }
+
     return img;
   }
 
@@ -379,6 +430,10 @@ export class ProductsService {
     await this.productsRepo.deleteImage(imageId);
     if (image.fileKey) {
       await this.s3Service.deleteFile(image.fileKey);
+    }
+
+    if (product) {
+      await this.invalidateListingCache(image.productId, product.slug);
     }
 
     return { id: imageId, success: true };
@@ -414,7 +469,12 @@ export class ProductsService {
 
     await this.invalidateListingCache(id, product.slug);
     await this.searchIndexQueue.add('index', { action: 'UPDATE', productId: id });
-    await this.notificationQueue.add('send', { type: 'LISTING_APPROVED', userId: product.sellerId, listingId: id });
+    await this.notificationQueue.add('send', {
+      type: 'LISTING_APPROVED',
+      userId: product.sellerId,
+      listingId: id,
+      title: product.title,
+    });
 
     return updated;
   }
@@ -446,6 +506,7 @@ export class ProductsService {
       type: 'LISTING_REJECTED',
       userId: product.sellerId,
       listingId: id,
+      title: product.title,
       metadata: { reason },
     });
 

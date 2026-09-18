@@ -22,6 +22,11 @@ export class CreateEmailTemplateDto {
   @IsNotEmpty()
   subject: string;
 
+  @ApiProperty({ required: false, description: 'The actual email body (HTML)', example: '<p>Hi {{firstName}}, welcome to Loopo!</p>' })
+  @IsString()
+  @IsOptional()
+  body?: string;
+
   @ApiProperty({ required: false, example: 'English', default: 'English' })
   @IsString()
   @IsOptional()

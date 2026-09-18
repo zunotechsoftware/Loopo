@@ -14,32 +14,90 @@ import {
   Package,
   Flag,
   MapPin,
+  Ban,
+  Loader2,
+  X,
 } from 'lucide-react';
+import { userApi } from '@/services/userApi';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import {
   setChatFilterTab,
   setActiveConversation,
-  sendMessage,
+  addOptimisticMessage,
+  sendMessageThunk,
+  receiveMessage,
+  applyConversationUpdate,
+  removeMessage,
   updateOfferStatus,
   fetchConversationsThunk,
+  fetchMessagesThunk,
 } from '@/redux/slices/chatSlice';
 import {
   setOfferModalOpen,
-  setReportModalOpen,
+  openReportModal,
   setReviewModalOpen,
   showToast,
 } from '@/redux/slices/uiSlice';
+import { useChatSocket } from '@/hooks/useChatSocket';
 
 export default function MessagesView() {
   const dispatch = useAppDispatch();
   const conversations = useAppSelector((state) => state.chat.conversations);
   const activeConversationId = useAppSelector((state) => state.chat.activeConversationId);
   const chatFilterTab = useAppSelector((state) => state.chat.chatFilterTab);
+  const currentUserId = useAppSelector((state) => state.auth.user?.id);
 
   // Fetch real conversations from API on mount
   useEffect(() => {
     dispatch(fetchConversationsThunk());
   }, [dispatch]);
+
+  // Real-time: messages/conversation updates arrive over the same
+  // Socket.IO gateway already used by loopo-admin - joining a
+  // conversation's room (below) is what makes the backend start pushing
+  // these events for it.
+  const { joinConversation, leaveConversation, isConnected } = useChatSocket({
+    onReceiveMessage: (message) => {
+      if (message?.conversationId) {
+        dispatch(receiveMessage({ conversationId: message.conversationId, message, currentUserId }));
+      }
+    },
+    onConversationUpdated: (data) => {
+      if (!data?.conversationId) return;
+      const known = conversations.some((c) => c.id === data.conversationId);
+      if (known) {
+        dispatch(applyConversationUpdate({ conversationId: data.conversationId, lastMessage: data.lastMessage }));
+      } else {
+        // A brand-new conversation (or one we haven't loaded into this
+        // session yet) - pull the real list rather than trying to
+        // reconstruct a full Conversation object from a bare message event.
+        dispatch(fetchConversationsThunk());
+      }
+    },
+  });
+
+  // Join the active conversation's room (so we receive its live events and
+  // the backend marks its messages read/delivered for us), load its full
+  // history the first time it's opened, and leave the room when switching
+  // away or unmounting.
+  useEffect(() => {
+    // Also re-run once the socket finishes connecting: joining before it's
+    // connected is a silent no-op (see joinConversation), and the initial
+    // connection is asynchronous - without this, whichever conversation
+    // was already active before the socket connected never actually gets
+    // joined, so it never receives live events until switched away from
+    // and back to.
+    if (!activeConversationId || !isConnected) return;
+    joinConversation(activeConversationId);
+    const conv = conversations.find((c) => c.id === activeConversationId);
+    if (conv && !conv.messagesLoaded) {
+      dispatch(fetchMessagesThunk(activeConversationId));
+    }
+    return () => {
+      leaveConversation(activeConversationId);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeConversationId, isConnected]);
 
   // Compute total unread counts for Buying & Selling
   const buyingUnread = conversations
@@ -63,10 +121,62 @@ export default function MessagesView() {
 
   const [textInput, setTextInput] = useState('');
 
+  // --- Block / Unblock ---
+  const [blockedUserIds, setBlockedUserIds] = useState<Set<string>>(new Set());
+  const [blockActionLoading, setBlockActionLoading] = useState(false);
+  const [confirmBlockOpen, setConfirmBlockOpen] = useState(false);
+
+  const refreshBlockedList = () => {
+    userApi.getBlockedUsers().then((res) => {
+      if (res.success && res.data) {
+        setBlockedUserIds(new Set(res.data.map((u) => u.id)));
+      }
+    });
+  };
+
+  useEffect(() => {
+    refreshBlockedList();
+  }, []);
+
+  const isActivePartyBlocked = !!activeConv && blockedUserIds.has(activeConv.otherPartyId);
+
+  const handleConfirmBlockToggle = async () => {
+    if (!activeConv) return;
+    setBlockActionLoading(true);
+    try {
+      const res = isActivePartyBlocked
+        ? await userApi.unblockUser(activeConv.otherPartyId)
+        : await userApi.blockUser(activeConv.otherPartyId);
+      if (res.success) {
+        refreshBlockedList();
+        dispatch(showToast(isActivePartyBlocked ? `Unblocked ${activeConv.otherPartyName}` : `Blocked ${activeConv.otherPartyName}`));
+        setConfirmBlockOpen(false);
+      } else {
+        dispatch(showToast(res.error || 'Failed to update block status'));
+      }
+    } finally {
+      setBlockActionLoading(false);
+    }
+  };
+
+  // Optimistic-then-reconcile send: append immediately (feels instant),
+  // then persist for real - see sendMessageThunk/addOptimisticMessage for
+  // how the temporary and real copies get reconciled without duplicating.
+  const sendChatMessage = (text: string) => {
+    if (!text.trim() || !activeConv) return;
+    if (isActivePartyBlocked) {
+      dispatch(showToast('Unblock this user to send messages.'));
+      return;
+    }
+    const tempId = `optimistic-${Date.now()}`;
+    dispatch(addOptimisticMessage({ conversationId: activeConv.id, tempId, text }));
+    dispatch(sendMessageThunk({ conversationId: activeConv.id, text, tempId }));
+  };
+
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
     if (!textInput.trim()) return;
-    dispatch(sendMessage({ conversationId: activeConv.id, text: textInput }));
+    sendChatMessage(textInput);
     setTextInput('');
   };
 
@@ -222,7 +332,7 @@ export default function MessagesView() {
             {/* Action Buttons */}
             <div className="flex items-center gap-2 shrink-0">
               <button
-                onClick={() => dispatch(showToast(`Calling ${activeConv.otherPartyName} at +91 98765 43210`))}
+                onClick={() => dispatch(showToast('Calling isn\'t available yet - message the seller instead.'))}
                 className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-2 rounded-xl transition-all"
               >
                 <Phone className="w-3.5 h-3.5" />
@@ -238,14 +348,37 @@ export default function MessagesView() {
               </button>
 
               <button
-                onClick={() => dispatch(setReportModalOpen(true))}
+                onClick={() => dispatch(openReportModal({ targetType: 'USER', targetId: activeConv.otherPartyId, label: activeConv.otherPartyName }))}
                 className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 transition-colors"
                 title="Report User"
               >
                 <Flag className="w-4 h-4 text-slate-400 hover:text-red-500" />
               </button>
+
+              <button
+                onClick={() => setConfirmBlockOpen(true)}
+                className={`p-2 rounded-xl transition-colors ${isActivePartyBlocked ? 'text-red-500 bg-red-50' : 'text-slate-400 hover:bg-slate-100'}`}
+                title={isActivePartyBlocked ? 'Unblock User' : 'Block User'}
+              >
+                <Ban className={`w-4 h-4 ${isActivePartyBlocked ? '' : 'hover:text-red-500'}`} />
+              </button>
             </div>
           </div>
+
+          {/* Blocked-state banner */}
+          {isActivePartyBlocked && (
+            <div className="bg-red-50 border-b border-red-100 px-6 py-2.5 flex items-center justify-between gap-3 text-xs">
+              <span className="text-red-700 font-semibold">
+                You've blocked {activeConv.otherPartyName}. They can't message you, and you can't message them.
+              </span>
+              <button
+                onClick={() => setConfirmBlockOpen(true)}
+                className="text-red-700 font-extrabold underline shrink-0"
+              >
+                Unblock
+              </button>
+            </div>
+          )}
 
           {/* Messages Feed Area */}
           <div className="flex-1 p-6 overflow-y-auto space-y-4">
@@ -352,14 +485,31 @@ export default function MessagesView() {
                 >
                   <div
                     className={`max-w-md px-4 py-2.5 rounded-2xl text-xs font-medium shadow-sm leading-relaxed ${
-                      isUser
-                        ? 'bg-emerald-600 text-white rounded-br-none'
+                      msg.failed
+                        ? 'bg-red-50 text-red-700 border border-red-200 rounded-br-none'
+                        : isUser
+                        ? `bg-emerald-600 text-white rounded-br-none ${msg.pending ? 'opacity-60' : ''}`
                         : 'bg-white text-slate-800 border border-slate-100 rounded-bl-none'
                     }`}
                   >
                     {msg.text}
                   </div>
-                  <span className="text-[9px] font-medium text-slate-400 mt-1 px-1">{msg.time}</span>
+                  <span className="text-[9px] font-medium mt-1 px-1 flex items-center gap-1">
+                    {msg.failed ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          dispatch(removeMessage({ conversationId: activeConv.id, messageId: msg.id }));
+                          sendChatMessage(msg.text);
+                        }}
+                        className="text-red-500 font-bold underline"
+                      >
+                        Failed - tap to retry
+                      </button>
+                    ) : (
+                      <span className="text-slate-400">{msg.pending ? 'Sending...' : msg.time}</span>
+                    )}
+                  </span>
                 </div>
               );
             })}
@@ -370,7 +520,7 @@ export default function MessagesView() {
             {quickChips.map((chip) => (
               <button
                 key={chip}
-                onClick={() => dispatch(sendMessage({ conversationId: activeConv.id, text: chip }))}
+                onClick={() => sendChatMessage(chip)}
                 className="px-3 py-1 bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-[11px] font-semibold text-slate-600 rounded-full whitespace-nowrap transition-colors"
               >
                 {chip}
@@ -382,22 +532,25 @@ export default function MessagesView() {
           <form onSubmit={handleSend} className="p-4 bg-white border-t border-slate-100 flex items-center gap-2">
             <button
               type="button"
+              disabled={isActivePartyBlocked}
               onClick={() => dispatch(showToast('Photo attachment clicked'))}
-              className="p-2 text-slate-400 hover:text-slate-600 transition-colors"
+              className="p-2 text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               title="Attach Photo"
             >
               <Image className="w-5 h-5" />
             </button>
             <input
               type="text"
-              placeholder={`Message ${activeConv.otherPartyName}...`}
+              disabled={isActivePartyBlocked}
+              placeholder={isActivePartyBlocked ? 'Unblock to send a message...' : `Message ${activeConv.otherPartyName}...`}
               value={textInput}
               onChange={(e) => setTextInput(e.target.value)}
-              className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs font-medium text-slate-800 outline-none focus:border-emerald-500"
+              className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs font-medium text-slate-800 outline-none focus:border-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed"
             />
             <button
               type="submit"
-              className="w-10 h-10 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center shadow-md shadow-emerald-500/20 transition-all shrink-0"
+              disabled={isActivePartyBlocked}
+              className="w-10 h-10 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center shadow-md shadow-emerald-500/20 transition-all shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Send className="w-4 h-4" />
             </button>
@@ -406,6 +559,44 @@ export default function MessagesView() {
       ) : (
         <div className="flex-1 flex items-center justify-center p-8 text-slate-400 font-medium text-sm">
           Select a conversation to start chatting.
+        </div>
+      )}
+
+      {/* Block / Unblock Confirmation Dialog */}
+      {confirmBlockOpen && activeConv && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 font-black text-slate-900 text-base">
+                <Ban className="w-5 h-5 text-red-500" />
+                <span>{isActivePartyBlocked ? 'Unblock' : 'Block'} {activeConv.otherPartyName}?</span>
+              </div>
+              <button onClick={() => setConfirmBlockOpen(false)} className="p-2 rounded-xl text-slate-400 hover:bg-slate-100">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-xs text-slate-500 font-medium">
+              {isActivePartyBlocked
+                ? 'They will be able to message you again, and you can message them.'
+                : "They won't be able to send you messages, and you won't be able to message them, until you unblock."}
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmBlockOpen(false)}
+                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmBlockToggle}
+                disabled={blockActionLoading}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl shadow-md shadow-red-500/20 flex items-center justify-center gap-2 disabled:opacity-60"
+              >
+                {blockActionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4" />}
+                <span>{isActivePartyBlocked ? 'Unblock' : 'Block'}</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

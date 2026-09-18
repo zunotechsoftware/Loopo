@@ -15,7 +15,7 @@ import {
   CircularProgress
 } from '@mui/material';
 import { AdminUser } from '@/types';
-import { usersService } from '@/services/admin.service';
+import { usersService, rolesService } from '@/services/admin.service';
 
 interface UserDialogProps {
   open: boolean;
@@ -37,12 +37,25 @@ export default function UserDialog({ open, onClose, onSaved, user }: UserDialogP
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [roles, setRoles] = useState<{ id: string; name: string }[]>([]);
+
+  // Load the real role list (including any custom roles created under
+  // Roles & Permissions) instead of a hardcoded USER/ADMIN/SUPER_ADMIN
+  // dropdown - a custom role was otherwise unassignable to any user here.
+  useEffect(() => {
+    if (open) {
+      rolesService.getAll()
+        .then((res) => setRoles(Array.isArray(res.data?.data) ? res.data.data : []))
+        .catch((err) => console.error('Failed to load roles', err));
+    }
+  }, [open]);
 
   useEffect(() => {
     if (open && user) {
       const roleNames = user.roles?.map((r) => r.role.name) ?? [];
       const primaryRole = roleNames.includes('SUPER_ADMIN') ? 'SUPER_ADMIN' :
-                          roleNames.includes('ADMIN') ? 'ADMIN' : 'USER';
+                          roleNames.includes('ADMIN') ? 'ADMIN' :
+                          roleNames[0] || 'USER';
       setFormData({
         firstName: user.firstName ?? '',
         lastName: user.lastName ?? '',
@@ -168,12 +181,14 @@ export default function UserDialog({ open, onClose, onSaved, user }: UserDialogP
               value={formData.role}
               onChange={handleChange('role')}
             >
-              <MenuItem value="USER">User</MenuItem>
-              <MenuItem value="ADMIN">Admin</MenuItem>
-              <MenuItem value="SUPER_ADMIN">Super Admin</MenuItem>
+              {roles.map((r) => (
+                <MenuItem key={r.id} value={r.name}>
+                  {r.name.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+                </MenuItem>
+              ))}
             </Select>
           </FormControl>
-          
+
         </DialogContent>
         <DialogActions sx={{ p: 2, bgcolor: '#f8fafc' }}>
           <Button onClick={onClose} color="inherit" disabled={loading}>

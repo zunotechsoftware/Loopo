@@ -142,33 +142,52 @@ class AuthService {
     }
   }
 
-  /// Hybrid Mobile OTP login flow helper.
-  /// Authenticates deterministically against standard NestJS local login/register endpoints.
-  Future<Map<String, dynamic>> loginOrRegisterPhone({
-    required String phone,
-  }) async {
-    final email = '$phone@loopo.com';
-    const password = 'LoopoPhone@123';
+  /// Requests a real login OTP for [phone] - the backend generates a
+  /// genuine 6-digit code, hashes it, and queues it for SMS delivery
+  /// (POST /auth/phone/send-otp). Logs in the existing account for this
+  /// phone number on verify, or auto-registers a new one if none exists.
+  Future<Map<String, dynamic>> sendPhoneLoginOtp({required String phone}) async {
+    final response = await http
+        .post(
+          Uri.parse(ApiConfig.sendPhoneLoginOtpUrl),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'phone': phone}),
+        )
+        .timeout(const Duration(seconds: 25));
 
-    try {
-      // Attempt login
-      return await login(email: email, password: password);
-    } catch (_) {
-      // If login fails (user does not exist), register the user first
-      try {
-        await register(
-          firstName: 'Phone',
-          lastName: 'User',
-          email: email,
-          password: password,
-          phone: phone,
-        );
-      } catch (regError) {
-        // Fallthrough if conflict/already exists but login failed for another reason
-        // print('Deterministic signup error (might already exist): $regError');
-      }
-      // Retry login
-      return await login(email: email, password: password);
+    final responseData = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return responseData;
     }
+    throw Exception(_parseError(responseData, 'Could not send OTP (${response.statusCode})'));
+  }
+
+  /// Verifies the OTP sent by [sendPhoneLoginOtp] and returns real session
+  /// tokens on success (POST /auth/phone/verify-otp) - no hardcoded code
+  /// and no deterministic password shortcut.
+  Future<Map<String, dynamic>> verifyPhoneLoginOtp({
+    required String phone,
+    required String otp,
+  }) async {
+    final response = await http
+        .post(
+          Uri.parse(ApiConfig.verifyPhoneLoginOtpUrl),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'phone': phone, 'otp': otp}),
+        )
+        .timeout(const Duration(seconds: 25));
+
+    final responseData = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final data = responseData['data'];
+      if (data is Map) {
+        final token = data['accessToken'] ?? data['token'];
+        if (token != null) {
+          AuthSession.setToken(token.toString());
+        }
+      }
+      return responseData;
+    }
+    throw Exception(_parseError(responseData, 'Invalid or expired OTP (${response.statusCode})'));
   }
 }

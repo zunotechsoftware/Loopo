@@ -1,7 +1,7 @@
 import { Controller, Get, Patch, Param, Body, Query, UseGuards, Delete } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { AdminProductsService } from './admin-products.service';
-import { RejectProductDto, FeatureProductDto, BoostProductDto, UpdateProductDto } from './dto/admin-product.dto';
+import { AdminUpdateProductDto } from './dto/admin-product.dto';
 import { JwtAuthGuard } from '../../../shared/common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../shared/common/guards/roles.guard';
 import { PermissionsGuard } from '../../../shared/common/guards/permissions.guard';
@@ -71,53 +71,20 @@ export class AdminProductsManagementController {
   async updateProduct(
     @Param('id') id: string,
     @CurrentUser('id') adminId: string,
-    @Body() dto: UpdateProductDto,
+    @Body() dto: AdminUpdateProductDto,
   ) {
     return this.adminProductsService.updateProductDetails(id, adminId, dto);
   }
 
-  @Patch(':id/approve')
-  @Permissions('admin.products.manage')
-  @ApiOperation({ summary: 'Approve a product' })
-  async approveProduct(
-    @Param('id') id: string,
-    @CurrentUser('id') adminId: string,
-  ) {
-    return this.adminProductsService.updateProductStatus(id, adminId, 'APPROVED');
-  }
-
-  @Patch(':id/reject')
-  @Permissions('admin.products.manage')
-  @ApiOperation({ summary: 'Reject a product' })
-  async rejectProduct(
-    @Param('id') id: string,
-    @CurrentUser('id') adminId: string,
-    @Body() dto: RejectProductDto,
-  ) {
-    return this.adminProductsService.updateProductStatus(id, adminId, 'REJECTED', dto.reason);
-  }
-
-  @Patch(':id/feature')
-  @Permissions('admin.products.manage')
-  @ApiOperation({ summary: 'Feature a product' })
-  async featureProduct(
-    @Param('id') id: string,
-    @CurrentUser('id') adminId: string,
-    @Body() dto: FeatureProductDto,
-  ) {
-    return this.adminProductsService.featureProduct(id, adminId, dto);
-  }
-
-  @Patch(':id/boost')
-  @Permissions('admin.products.manage')
-  @ApiOperation({ summary: 'Boost a product' })
-  async boostProduct(
-    @Param('id') id: string,
-    @CurrentUser('id') adminId: string,
-    @Body() dto: BoostProductDto,
-  ) {
-    return this.adminProductsService.boostProduct(id, adminId, dto);
-  }
+  // approve/reject/feature/boost were deliberately removed from here, not
+  // just left as dead code: ProductsModule registers before AdminModule in
+  // app.module.ts, so products/controllers/admin-products.controller.ts's
+  // identically-pathed PATCH :id/approve|reject|feature|boost routes were
+  // always registered first and permanently shadowed these ones - these
+  // handlers, their DTOs (RejectProductDto/FeatureProductDto/BoostProductDto),
+  // and the now-unused AdminProductsService methods they called
+  // (updateProductStatus/featureProduct/boostProduct) could never actually
+  // run. See known-issues.md for the investigation.
 
   @Delete(':id')
   @Permissions('admin.products.manage')

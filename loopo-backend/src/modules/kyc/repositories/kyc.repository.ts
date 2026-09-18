@@ -46,7 +46,10 @@ export class KycRepository {
     return this.prisma.kycDocument.create({
       data: {
         ...data,
-        userId,
+        // Mixing nested relation `connect` syntax (frontImage/selfieImage)
+        // with a raw `userId` scalar forces Prisma's "checked" input type,
+        // which rejects the scalar and demands `user: { connect }` instead.
+        user: { connect: { id: userId } },
         createdBy: userId,
       },
       include: {

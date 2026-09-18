@@ -11,7 +11,7 @@ import { CurrentUser } from '../../../shared/common/decorators/current-user.deco
 @ApiTags('Admin - Feature Flags')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
-@Controller('api/v1/admin/feature-flags')
+@Controller('admin/feature-flags')
 export class AdminFeatureFlagsController {
   constructor(private readonly featureFlagsService: AdminFeatureFlagsService) {}
 

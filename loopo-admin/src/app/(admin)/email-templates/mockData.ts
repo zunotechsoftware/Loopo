@@ -7,6 +7,7 @@ export interface EmailTemplate {
   subtext: string;
   category: TemplateCategory;
   subject: string;
+  body?: string;
   language: string;
   status: TemplateStatus;
   used: number;

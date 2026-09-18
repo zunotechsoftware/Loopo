@@ -1,12 +1,14 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import ProtectedRoute from '@/routes/ProtectedRoute';
 import { ROUTES } from '@/routes/routes';
 import { Package, CheckCircle, Clock, FileText, CheckSquare, XCircle, Plus } from 'lucide-react';
+import { useAppDispatch } from '@/redux/hooks';
+import { fetchMyAdsThunk } from '@/redux/slices/myAdsSlice';
 
 interface MyListingsLayoutProps {
   children: React.ReactNode;
@@ -14,6 +16,18 @@ interface MyListingsLayoutProps {
 
 export default function MyListingsLayout({ children }: MyListingsLayoutProps) {
   const pathname = usePathname();
+  const dispatch = useAppDispatch();
+
+  // Re-fetch on every tab switch, not just once on first mount - this
+  // layout stays mounted while navigating between its own sub-tabs (Next's
+  // App Router doesn't remount a shared layout for sibling routes), so a
+  // mount-only effect meant a listing approved (or rejected, sold, etc.)
+  // while the user already had My Listings open stayed on whatever tab it
+  // used to belong to until a full page reload - e.g. approving a listing
+  // elsewhere and then clicking "Active" here still showed it as Pending.
+  useEffect(() => {
+    dispatch(fetchMyAdsThunk());
+  }, [dispatch, pathname]);
 
   const tabs = [
     { label: 'All', href: ROUTES.MY_LISTINGS, icon: Package },

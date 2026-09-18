@@ -48,6 +48,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
       { name: 'profile-image-processing' },
       { name: 'thumbnail-generation' },
       { name: 'image-compression' },
+      { name: 'product-thumbnail-generation' },
+      { name: 'product-image-compression' },
       { name: 'product-expiration' },
       { name: 'view-counter-sync' },
       { name: 'search-index-update' },

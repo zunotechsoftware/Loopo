@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../../shared/database/prisma.service';
-import { CreateCouponDto, UpdateCouponDto } from './dto/coupons.dto';
+import { AdminCreateCouponDto, UpdateCouponDto } from './dto/coupons.dto';
 
 @Injectable()
 export class AdminCouponsService {
@@ -25,7 +25,7 @@ export class AdminCouponsService {
     return coupon;
   }
 
-  async createCoupon(dto: CreateCouponDto) {
+  async createCoupon(dto: AdminCreateCouponDto) {
     // Check if code already exists
     const existing = await this.prisma.coupon.findUnique({
       where: { code: dto.code }

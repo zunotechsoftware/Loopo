@@ -16,19 +16,19 @@ describe('Reports & Moderation System (e2e)', () => {
   const mockCustomer = {
     id: 'f8b07384-d113-4956-a5cc-810237e19201',
     email: 'reporter@loopo.com',
-    roles: ['CUSTOMER'],
+    roles: ['USER'],
   };
 
   const mockViolator = {
     id: 'f8b07384-d113-4956-a5cc-810237e19202',
     email: 'violator@loopo.com',
-    roles: ['CUSTOMER'],
+    roles: ['USER'],
   };
 
   const mockModerator = {
     id: 'f8b07384-d113-4956-a5cc-810237e19203',
     email: 'moderator@loopo.com',
-    roles: ['MODERATOR'],
+    roles: ['ADMIN'],
   };
 
   const mockAdmin = {
@@ -78,13 +78,13 @@ describe('Reports & Moderation System (e2e)', () => {
 
     // Clear role permissions cache in Redis for clean test execution
     const redisClient = app.get('REDIS_CLIENT');
-    await redisClient.del('role:permissions:CUSTOMER');
-    await redisClient.del('role:permissions:MODERATOR');
+    await redisClient.del('role:permissions:USER');
+    await redisClient.del('role:permissions:ADMIN');
     await redisClient.del('role:permissions:ADMIN');
 
     // Sign tokens
-    customerToken = jwtService.sign({ sub: mockCustomer.id, email: mockCustomer.email, roles: ['CUSTOMER'] });
-    moderatorToken = jwtService.sign({ sub: mockModerator.id, email: mockModerator.email, roles: ['MODERATOR'] });
+    customerToken = jwtService.sign({ sub: mockCustomer.id, email: mockCustomer.email, roles: ['USER'] });
+    moderatorToken = jwtService.sign({ sub: mockModerator.id, email: mockModerator.email, roles: ['ADMIN'] });
     adminToken = jwtService.sign({ sub: mockAdmin.id, email: mockAdmin.email, roles: ['ADMIN'] });
 
     // Seed a dummy category & product listing to report

@@ -9,7 +9,7 @@ import {
   Select,
   MenuItem,
   FormControl,
-  Grid,
+  Grid2 as Grid,
   TextField,
   RadioGroup,
   FormControlLabel,

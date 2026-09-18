@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+
 import { useRouter } from 'next/navigation';
 import {
   ChevronRight,
@@ -18,31 +19,86 @@ import {
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { setActiveTab } from '@/redux/slices/navigationSlice';
-import { toggleFavorite } from '@/redux/slices/productsSlice';
+import { toggleFavoriteThunk } from '@/redux/slices/productsSlice';
 import {
   setOfferModalOpen,
-  setReportModalOpen,
+  openReportModal,
   setReviewModalOpen,
+  setAuthModalOpen,
   showToast,
 } from '@/redux/slices/uiSlice';
+
 import { setActiveConversation } from '@/redux/slices/chatSlice';
 import ProductCard from '../ui/ProductCard';
 
+import { productsApi } from '@/services/productsApi';
+import { chatApi } from '@/services/chatApi';
+
 export default function ProductDetailView() {
   const dispatch = useAppDispatch();
+  const router = useRouter();
+  const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
   const selectedProductId = useAppSelector((state) => state.navigation.selectedProductId);
   const products = useAppSelector((state) => state.products.items);
   const allProducts = products;
   const favorites = useAppSelector((state) => state.products.favorites);
 
-  const product = products.find((p) => p?.id === selectedProductId) || products[0];
-  const isFavorite = favorites.includes(product?.id || '');
+  const [fetchedProduct, setFetchedProduct] = useState<any | null>(null);
+  const [loading, setLoading] = useState(false);
 
+  const localProduct = products.find((p) => p?.id === selectedProductId);
+  const product = localProduct || fetchedProduct || products[0];
+
+  useEffect(() => {
+    if (!localProduct && selectedProductId) {
+      setLoading(true);
+      productsApi.getProductById(selectedProductId).then((res) => {
+        setLoading(false);
+        if (res.success && res.data) {
+          const p = res.data as any;
+          // Real image records use `originalUrl` (see the matching fix in
+          // productsSlice.ts's normaliseProduct) - `url`/`path` don't exist
+          // on a real one, so this always produced an empty src before.
+          const images: string[] =
+            Array.isArray(p.images) && p.images.length > 0
+              ? p.images.map((img: any) => (typeof img === 'string' ? img : img?.originalUrl || img?.thumbnailUrl || img?.url || img?.path || ''))
+              : [];
+          const seller = p.seller || p.user || {};
+          setFetchedProduct({
+            id: p.id || selectedProductId,
+            title: p.title || 'Untitled Listing',
+            price: typeof p.price === 'number' ? p.price : Number(p.price) || 0,
+            location: typeof p.location === 'string' ? p.location : p.location?.city || 'India',
+            postedDate: p.createdAt ? new Date(p.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Recently',
+            category: p.category?.name || p.category || 'General',
+            condition: p.condition || 'Used',
+            images,
+            seller: {
+              id: seller.id || 's-1',
+              name: seller.firstName ? `${seller.firstName} ${seller.lastName || ''}`.trim() : (seller.name || 'Seller'),
+              avatar: seller.profile?.avatarUrl || seller.avatarUrl || '',
+              rating: seller.reputation?.averageRating || seller.rating || 0,
+              reviewCount: seller.reputation?.totalReviews || seller.reviewCount || 0,
+              memberSince: seller.createdAt ? new Date(seller.createdAt).getFullYear().toString() : '',
+              isVerified: seller.isEmailVerified || false,
+            },
+            description: p.description || '',
+            specs: p.specs || p.attributes || {},
+            viewsCount: p.viewCount || 0,
+            distance: '',
+            likesCount: p.favoriteCount || 0,
+          });
+        }
+      });
+    }
+  }, [selectedProductId, localProduct]);
+
+  const isFavorite = favorites.includes(product?.id || '');
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
-  if (!product) {
+  if (loading || !product) {
     return (
-      <div className="p-12 text-center text-slate-500 font-medium bg-white rounded-3xl border border-slate-100">
+      <div className="p-12 text-center text-slate-500 font-medium bg-white rounded-3xl border border-slate-100 animate-pulse">
         Loading listing details...
       </div>
     );
@@ -55,14 +111,32 @@ export default function ProductDetailView() {
     maximumFractionDigits: 0,
   }).format(priceNum);
 
-  const router = useRouter();
-
-  const handleStartChat = () => {
-    dispatch(setActiveConversation('conv-buy-1'));
+  const handleStartChat = async () => {
+    if (!isAuthenticated) {
+      dispatch(setAuthModalOpen(true));
+      dispatch(showToast('Please log in to chat with the seller'));
+      return;
+    }
+    if (!product.id) return;
+    const res = await chatApi.startConversationForProduct(product.id);
+    if (!res.success || !res.data?.id) {
+      dispatch(showToast(res.error || 'Could not start a conversation with this seller'));
+      return;
+    }
+    dispatch(setActiveConversation(res.data.id));
     dispatch(setActiveTab('messages'));
-    dispatch(showToast(`Opening chat conversation with ${product.seller?.name || 'Seller'}...`));
     router.push('/chats');
   };
+
+  const handleToggleFavorite = () => {
+    if (!isAuthenticated) {
+      dispatch(setAuthModalOpen(true));
+      dispatch(showToast('Please log in to save favorites'));
+      return;
+    }
+    if (product.id) dispatch(toggleFavoriteThunk({ productId: product.id, isFavorited: isFavorite }));
+  };
+
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -98,7 +172,7 @@ export default function ProductDetailView() {
               className="w-full h-full object-cover"
             />
             <button
-              onClick={() => dispatch(toggleFavorite(product.id))}
+              onClick={handleToggleFavorite}
               className={`absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center backdrop-blur-md transition-all ${
                 isFavorite ? 'bg-red-500 text-white shadow-lg shadow-red-500/30' : 'bg-white/80 text-slate-700'
               }`}
@@ -110,7 +184,7 @@ export default function ProductDetailView() {
           {/* Thumbnails Row */}
           {product.images.length > 1 && (
             <div className="flex items-center gap-3">
-              {product.images.map((img, idx) => (
+              {product.images.map((img: string, idx: number) => (
                 <button
                   key={idx}
                   onClick={() => setActiveImageIndex(idx)}
@@ -137,7 +211,12 @@ export default function ProductDetailView() {
               </h1>
               <div className="flex items-center gap-1">
                 <button
-                  onClick={() => dispatch(showToast('Share link copied!'))}
+                  onClick={() => {
+                    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                      navigator.clipboard.writeText(window.location.href).catch(() => {});
+                    }
+                    dispatch(showToast('Share link copied!'));
+                  }}
                   className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 transition-colors"
                   title="Share"
                 >
@@ -145,7 +224,14 @@ export default function ProductDetailView() {
                 </button>
 
                 <button
-                  onClick={() => dispatch(setReportModalOpen(true))}
+                  onClick={() => {
+                    if (!isAuthenticated) {
+                      dispatch(setAuthModalOpen(true));
+                      dispatch(showToast('Please log in to report a listing'));
+                      return;
+                    }
+                    dispatch(openReportModal({ targetType: 'LISTING', targetId: product.id, label: product.title }));
+                  }}
                   className="p-2 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
                   title="Report Listing"
                 >
@@ -181,11 +267,20 @@ export default function ProductDetailView() {
           <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="relative">
-                <img
-                  src={product.seller.avatar}
-                  alt={product.seller.name}
-                  className="w-12 h-12 rounded-full object-cover ring-2 ring-emerald-500/20"
-                />
+                {product.seller.avatar ? (
+                  <img
+                    src={product.seller.avatar}
+                    alt={product.seller.name}
+                    className="w-12 h-12 rounded-full object-cover ring-2 ring-emerald-500/20"
+                  />
+                ) : (
+                  <div
+                    className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-700 ring-2 ring-emerald-500/20 flex items-center justify-center text-sm font-bold"
+                    aria-label={product.seller.name}
+                  >
+                    {(product.seller.name || '?').trim().charAt(0).toUpperCase()}
+                  </div>
+                )}
                 {product.seller.isVerified && (
                   <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center ring-2 ring-white">
                     <ShieldCheck className="w-3 h-3" />
@@ -198,7 +293,14 @@ export default function ProductDetailView() {
                 <div className="text-xs text-slate-500 font-medium">
                   Member since {product.seller.memberSince} •{' '}
                   <button
-                    onClick={() => dispatch(setReviewModalOpen(true))}
+                    onClick={() => {
+                      if (!isAuthenticated) {
+                        dispatch(setAuthModalOpen(true));
+                        dispatch(showToast('Please log in to rate seller'));
+                        return;
+                      }
+                      dispatch(setReviewModalOpen(true));
+                    }}
                     className="inline-flex items-center text-amber-500 font-bold hover:underline"
                   >
                     <Star className="w-3 h-3 fill-amber-400 inline mr-0.5" />
@@ -209,7 +311,14 @@ export default function ProductDetailView() {
             </div>
 
             <button
-              onClick={() => dispatch(setReviewModalOpen(true))}
+              onClick={() => {
+                if (!isAuthenticated) {
+                  dispatch(setAuthModalOpen(true));
+                  dispatch(showToast('Please log in to rate seller'));
+                  return;
+                }
+                dispatch(setReviewModalOpen(true));
+              }}
               className="text-xs font-bold text-emerald-600 hover:underline"
             >
               Rate Seller
@@ -228,12 +337,12 @@ export default function ProductDetailView() {
           <div className="space-y-2">
             <h3 className="font-bold text-slate-900 text-sm">Specifications</h3>
             <div className="grid grid-cols-2 gap-2 bg-white rounded-2xl p-4 border border-slate-100 text-xs">
-              {Object.entries(product.specs).map(([key, val]) => (
+              {Object.entries(product.specs || {}).map(([key, val]) => (
                 <div key={key} className="flex flex-col">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                     {key}
                   </span>
-                  <span className="font-semibold text-slate-800">{val}</span>
+                  <span className="font-semibold text-slate-800">{String(val)}</span>
                 </div>
               ))}
             </div>
@@ -250,7 +359,14 @@ export default function ProductDetailView() {
             </button>
 
             <button
-              onClick={() => dispatch(setOfferModalOpen(true))}
+              onClick={() => {
+                if (!isAuthenticated) {
+                  dispatch(setAuthModalOpen(true));
+                  dispatch(showToast('Please log in to make an offer'));
+                  return;
+                }
+                dispatch(setOfferModalOpen(true));
+              }}
               className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm py-3.5 rounded-2xl shadow-md shadow-emerald-500/20 transition-all"
             >
               <Tag className="w-4 h-4" />
@@ -259,6 +375,7 @@ export default function ProductDetailView() {
           </div>
 
           {/* Recommended / Similar Items Section */}
+
           <div className="pt-6 border-t border-slate-100 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-extrabold text-slate-900 text-base">Recommended & Similar Listings</h3>

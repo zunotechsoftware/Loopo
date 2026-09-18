@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../shared/database/prisma.service';
 import { MessageType, MessageStatus, Prisma } from '@prisma/client';
 import { CreateAttachmentDto } from '../dto/message.dto';
@@ -18,6 +18,8 @@ export class ChatRepository {
       },
       include: {
         participants: true,
+        buyer: { select: { id: true, firstName: true, lastName: true, profileImage: true, status: true, lastLoginAt: true } },
+        seller: { select: { id: true, firstName: true, lastName: true, profileImage: true, status: true, lastLoginAt: true } },
       },
     });
   }
@@ -52,6 +54,8 @@ export class ChatRepository {
         where: { id: conversation.id },
         include: {
           participants: true,
+          buyer: { select: { id: true, firstName: true, lastName: true, profileImage: true, status: true, lastLoginAt: true } },
+          seller: { select: { id: true, firstName: true, lastName: true, profileImage: true, status: true, lastLoginAt: true } },
         },
       });
     });
@@ -256,6 +260,14 @@ export class ChatRepository {
       select: { conversationId: true },
     });
     if (!message) throw new Error('Message not found');
+
+    // Only participants of this conversation may react to its messages.
+    const membership = await this.prisma.conversationParticipant.findUnique({
+      where: { conversationId_userId: { conversationId: message.conversationId, userId } },
+    });
+    if (!membership) {
+      throw new ForbiddenException('You are not a participant in this conversation');
+    }
 
     return this.prisma.$transaction(async (tx) => {
       const existing = await tx.messageReaction.findUnique({

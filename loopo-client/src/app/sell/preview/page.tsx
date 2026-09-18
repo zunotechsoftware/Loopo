@@ -6,6 +6,7 @@ import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { createProductThunk } from '@/redux/slices/productsSlice';
 import { setPublishedListingId, setSubmitting, resetSellForm } from '@/redux/slices/sellSlice';
 import { showToast } from '@/redux/slices/uiSlice';
+import { productsApi } from '@/services/productsApi';
 import { ROUTES } from '@/routes/routes';
 import { ArrowLeft, CheckCircle2, Loader2, Edit3, MapPin, Tag, ShieldCheck } from 'lucide-react';
 
@@ -17,6 +18,34 @@ export default function SellPreviewPage() {
   const primaryImage = formData.images[formData.primaryImageIndex] || formData.images[0] || 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?q=80&w=800&auto=format&fit=crop';
 
   const handlePublish = async () => {
+    if (!formData.categoryId) {
+      dispatch(showToast('Please choose a category before publishing.'));
+      router.push(ROUTES.SELL_CATEGORY);
+      return;
+    }
+    // Re-validate here too, not just on the Details step's "Next" button -
+    // Preview can be reached with stale/invalid data (e.g. navigating back
+    // with the browser, or data left over from before this validation
+    // existed), and this used to let Publish call the API anyway, which
+    // then failed with a raw, easy-to-miss backend error and nothing
+    // pointing the seller back at what to fix.
+    const title = formData.title.trim();
+    const description = formData.description.trim();
+    if (title.length < 3 || title.length > 100) {
+      dispatch(showToast('Product title must be 3-100 characters - please fix it on the Details step.'));
+      router.push(ROUTES.SELL_DETAILS);
+      return;
+    }
+    if (!formData.price.trim() || Number(formData.price) <= 0) {
+      dispatch(showToast('Please enter a valid price on the Details step.'));
+      router.push(ROUTES.SELL_DETAILS);
+      return;
+    }
+    if (description.length < 10 || description.length > 2000) {
+      dispatch(showToast('Description must be 10-2000 characters - please fix it on the Details step.'));
+      router.push(ROUTES.SELL_DETAILS);
+      return;
+    }
     dispatch(setSubmitting(true));
     try {
       const priceNum = Number(formData.price) || 5000;
@@ -25,22 +54,58 @@ export default function SellPreviewPage() {
           title: formData.title || 'Pre-loved Item',
           description: formData.description || 'Great condition item for sale.',
           price: priceNum,
-          category: formData.category || 'Mobiles',
+          categoryId: formData.categoryId,
           condition: formData.condition || 'Like New',
-          location: `${formData.area}, ${formData.city}`,
+          location: `${formData.area || 'Indiranagar'}, ${formData.city || 'Bangalore'}`,
+          // The real, separate fields the location step actually collected -
+          // avoids re-parsing the ambiguous display string above apart,
+          // which previously swapped city/area (every listing published
+          // through this wizard stored the locality as its "city").
+          locationDetails: {
+            city: formData.city || 'Bangalore',
+            area: formData.area || 'Indiranagar',
+            zipCode: formData.pincode || '560038',
+          },
           images: formData.images.length > 0 ? formData.images : [primaryImage],
+          negotiable: formData.isNegotiable,
         })
       );
 
-      const listingId = createProductThunk.fulfilled.match(res) ? res.payload?.id || 'prod-' + Date.now() : 'prod-' + Date.now();
-      dispatch(setPublishedListingId(listingId));
-      dispatch(showToast('Listing published successfully!'));
-      router.push(ROUTES.SELL_SUCCESS);
+      if (createProductThunk.fulfilled.match(res)) {
+        // createProductThunk now rejects if the backend didn't return a
+        // real id, so this is always real - no more fabricating a fake
+        // client-only id ("prod-<timestamp>") that made a failed save
+        // look like a successful "Listing published!" for a listing that
+        // was never actually in the database.
+        const listingId = res.payload.id;
+        dispatch(setPublishedListingId(listingId));
+
+        // Photos were only ever kept in Redux as data URLs and never
+        // actually sent anywhere - upload them now that the listing has a
+        // real id (the backend's media pipeline is per-listing: presign,
+        // PUT to S3, then register). Best-effort: a failed photo doesn't
+        // block the listing itself from being published.
+        if (formData.images.length > 0) {
+          const { failed } = await productsApi.uploadProductImages(listingId, formData.images);
+          if (failed > 0) {
+            dispatch(showToast(`Listing published, but ${failed} photo${failed > 1 ? 's' : ''} failed to upload.`));
+          }
+        }
+
+        dispatch(setSubmitting(false));
+        dispatch(showToast('Listing published successfully! 🎉'));
+        router.push(ROUTES.SELL_SUCCESS);
+      } else {
+        dispatch(setSubmitting(false));
+        const err = (res.payload as string) || 'Failed to publish listing. Please verify login.';
+        dispatch(showToast(err));
+      }
     } catch {
       dispatch(setSubmitting(false));
       dispatch(showToast('Failed to publish listing. Please try again.'));
     }
   };
+
 
   return (
     <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-6 animate-in fade-in duration-200">

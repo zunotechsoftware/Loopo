@@ -3,14 +3,14 @@ import 'package:flutter/foundation.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
-// TODO: [Backend Integration] Save user real-time GPS location via PATCH /api/v1/users/me/location
-// TODO: [Backend Integration] Fetch nearby listings sorted by distance via GET /api/v1/search?latitude=:lat&longitude=:lng&radiusKm=20
-
-class LocationService {
+class LocationService extends ChangeNotifier {
   static final LocationService _instance = LocationService._internal();
   factory LocationService() => _instance;
   LocationService._internal();
+
+  static const String _storageKey = 'loopo_location';
 
   String _currentCity = 'Bangalore';
   String _currentState = 'Karnataka';
@@ -18,14 +18,18 @@ class LocationService {
   double? _latitude = 12.9716;
   double? _longitude = 77.5946;
   bool _isRealGps = false;
+  bool _isInitialized = false;
+  bool _hasSavedLocation = false;
 
   String get currentCity => _currentCity;
   String get currentState => _currentState;
   String get currentCountry => _currentCountry;
   String get formattedLocation => '$_currentCity, $_currentCountry';
+  String get displayName => '$_currentCity, $_currentState';
   double? get latitude => _latitude;
   double? get longitude => _longitude;
   bool get isRealGps => _isRealGps;
+  bool get hasSavedLocation => _hasSavedLocation;
 
   static const List<Map<String, String>> popularCities = [
     {'city': 'Bangalore', 'state': 'Karnataka', 'country': 'India'},
@@ -37,6 +41,47 @@ class LocationService {
     {'city': 'Kolkata', 'state': 'West Bengal', 'country': 'India'},
     {'city': 'Ahmedabad', 'state': 'Gujarat', 'country': 'India'},
   ];
+
+  /// Load saved location from SharedPreferences on app start
+  Future<void> loadSavedLocation() async {
+    if (_isInitialized) return;
+    _isInitialized = true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString(_storageKey);
+      if (saved != null) {
+        final data = jsonDecode(saved) as Map<String, dynamic>;
+        _currentCity = data['city'] as String? ?? 'Bangalore';
+        _currentState = data['state'] as String? ?? 'Karnataka';
+        _currentCountry = data['country'] as String? ?? 'India';
+        _latitude = (data['latitude'] as num?)?.toDouble();
+        _longitude = (data['longitude'] as num?)?.toDouble();
+        _isRealGps = data['isGps'] as bool? ?? false;
+        _hasSavedLocation = true;
+        debugPrint('Restored saved location: $_currentCity, $_currentState');
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Failed to load saved location: $e');
+    }
+  }
+
+  /// Persist current location to SharedPreferences
+  Future<void> _saveLocation() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_storageKey, jsonEncode({
+        'city': _currentCity,
+        'state': _currentState,
+        'country': _currentCountry,
+        'latitude': _latitude,
+        'longitude': _longitude,
+        'isGps': _isRealGps,
+      }));
+    } catch (e) {
+      debugPrint('Failed to save location: $e');
+    }
+  }
 
   void setLocation({
     required String city,
@@ -52,6 +97,9 @@ class LocationService {
     if (lat != null) _latitude = lat;
     if (lng != null) _longitude = lng;
     _isRealGps = isGps;
+    _hasSavedLocation = true;
+    _saveLocation();
+    notifyListeners();
   }
 
   /// Fetch Real-Time GPS Location using Device Hardware Sensors + Reverse Geocoding
@@ -83,7 +131,7 @@ class LocationService {
       final position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.medium,
-          timeLimit: Duration(seconds: 3),
+          timeLimit: Duration(seconds: 4),
         ),
       );
 
@@ -91,7 +139,7 @@ class LocationService {
       final placemarks = await placemarkFromCoordinates(
         position.latitude,
         position.longitude,
-      ).timeout(const Duration(seconds: 3));
+      ).timeout(const Duration(seconds: 4));
 
       if (placemarks.isNotEmpty) {
         final place = placemarks.first;

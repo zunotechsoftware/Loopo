@@ -1,23 +1,70 @@
 'use client';
 
-import React, { useState, Suspense } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
-import { useAppDispatch } from '@/redux/hooks';
-import { loginSuccess } from '@/redux/slices/authSlice';
+import { useAppDispatch, useAppSelector } from '@/redux/hooks';
+import { sendPhoneOtpThunk, verifyPhoneOtpThunk, clearAuthError } from '@/redux/slices/authSlice';
 import { showToast } from '@/redux/slices/uiSlice';
 import { ShieldCheck, ArrowRight, Loader2 } from 'lucide-react';
 import { ROUTES } from '@/routes/routes';
 
+const RESEND_COOLDOWN_SECONDS = 60;
+
 function VerifyOtpContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const phone = searchParams.get('phone') || '+91 98765 43210';
+  const phone = searchParams.get('phone') || '';
   const redirectPath = searchParams.get('redirect') || ROUTES.HOME;
 
   const dispatch = useAppDispatch();
+  const { loading, error } = useAppSelector((state) => state.auth);
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
-  const [loading, setLoading] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [secondsRemaining, setSecondsRemaining] = useState(0);
+  const hasSentInitial = useRef(false);
+
+  const startCooldown = () => {
+    setSecondsRemaining(RESEND_COOLDOWN_SECONDS);
+  };
+
+  const sendOtp = async () => {
+    if (!phone) return;
+    setSending(true);
+    const res = await dispatch(sendPhoneOtpThunk(phone));
+    setSending(false);
+    if (sendPhoneOtpThunk.fulfilled.match(res)) {
+      // No real SMS gateway is configured in this environment - outside
+      // production the backend echoes the real code back here so the flow
+      // is actually testable. This never happens in production.
+      const devOtp = (res.payload as any)?.devOtp;
+      dispatch(showToast(devOtp ? `[DEV MODE] Your OTP is ${devOtp}` : `OTP sent to ${phone}`));
+      startCooldown();
+    } else {
+      dispatch(showToast((res.payload as string) || 'Could not send OTP'));
+    }
+  };
+
+  // Send a real OTP once, the moment this screen loads - covers both entry
+  // points (login page's "Mobile OTP Login" and right after email
+  // registration), instead of assuming one was already sent.
+  useEffect(() => {
+    if (!phone) {
+      dispatch(showToast('No phone number to verify'));
+      router.replace(ROUTES.LOGIN);
+      return;
+    }
+    if (hasSentInitial.current) return;
+    hasSentInitial.current = true;
+    sendOtp();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phone]);
+
+  useEffect(() => {
+    if (secondsRemaining <= 0) return;
+    const timer = setTimeout(() => setSecondsRemaining((s) => s - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [secondsRemaining]);
 
   const handleOtpChange = (index: number, value: string) => {
     if (value.length > 1) return;
@@ -32,27 +79,20 @@ function VerifyOtpContent() {
     }
   };
 
-  const handleVerify = (e: React.FormEvent) => {
+  const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
+    dispatch(clearAuthError());
     const otpCode = otp.join('');
     if (otpCode.length < 6) {
       dispatch(showToast('Please enter full 6-digit OTP'));
       return;
     }
 
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      dispatch(
-        loginSuccess({
-          name: 'Verified User',
-          email: 'user@loopo.com',
-          phone,
-        })
-      );
+    const res = await dispatch(verifyPhoneOtpThunk({ phone, otp: otpCode }));
+    if (verifyPhoneOtpThunk.fulfilled.match(res)) {
       dispatch(showToast('OTP verified successfully!'));
       router.push(redirectPath);
-    }, 1000);
+    }
   };
 
   return (
@@ -69,6 +109,12 @@ function VerifyOtpContent() {
           </p>
         </div>
 
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-600 text-xs font-semibold p-3 rounded-2xl">
+            {error}
+          </div>
+        )}
+
         <form onSubmit={handleVerify} className="space-y-6">
           <div className="flex justify-center gap-2">
             {otp.map((digit, idx) => (
@@ -76,6 +122,7 @@ function VerifyOtpContent() {
                 key={idx}
                 id={`otp-input-${idx}`}
                 type="text"
+                inputMode="numeric"
                 maxLength={1}
                 value={digit}
                 onChange={(e) => handleOtpChange(idx, e.target.value)}
@@ -86,7 +133,7 @@ function VerifyOtpContent() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || sending}
             className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 transition-all"
           >
             {loading ? (
@@ -102,10 +149,15 @@ function VerifyOtpContent() {
 
         <button
           type="button"
-          onClick={() => dispatch(showToast('Resent OTP to ' + phone))}
-          className="text-xs font-bold text-emerald-600 hover:underline"
+          onClick={sendOtp}
+          disabled={sending || secondsRemaining > 0}
+          className="text-xs font-bold text-emerald-600 hover:underline disabled:text-slate-400 disabled:no-underline"
         >
-          Resend OTP Code
+          {sending
+            ? 'Sending...'
+            : secondsRemaining > 0
+            ? `Resend OTP in ${secondsRemaining}s`
+            : 'Resend OTP Code'}
         </button>
       </div>
     </div>

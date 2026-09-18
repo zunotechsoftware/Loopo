@@ -43,19 +43,19 @@ export class EmailTemplatesService {
     const active = await this.prisma.emailTemplate.count({
       where: { status: 'ACTIVE' },
     });
-    
-    // Mocking 'used' and percentages since we don't have historical data tables for emails yet
-    const usedThisMonth = 4892;
-    const openRate = '32.45%';
-    const clickRate = '8.76%';
+    const usedAgg = await this.prisma.emailTemplate.aggregate({ _sum: { used: true } });
 
+    // openRate/clickRate stay unavailable rather than fabricated: there is
+    // no table tracking individual email sends/opens/clicks yet, only a
+    // per-template `used` counter (unlike notifications, which at least
+    // has a real per-row status).
     return {
       total,
       active,
       activePercentage: total > 0 ? ((active / total) * 100).toFixed(2) + '%' : '0%',
-      usedThisMonth,
-      openRate,
-      clickRate,
+      usedThisMonth: usedAgg._sum.used || 0,
+      openRate: null,
+      clickRate: null,
     };
   }
 }

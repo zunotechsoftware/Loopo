@@ -81,12 +81,15 @@ export class ReviewsRepository {
     });
   }
 
-  async findAllReviews(filters?: { isVisible?: boolean }) {
+  async findAllReviews(filters?: { isVisible?: boolean; reviewType?: ReviewType; skip?: number; take?: number }) {
     const where: Prisma.ReviewWhereInput = { deletedAt: null };
     if (filters?.isVisible !== undefined) where.isVisible = filters.isVisible;
+    if (filters?.reviewType !== undefined) where.reviewType = filters.reviewType;
 
     return this.prisma.review.findMany({
       where,
+      skip: filters?.skip,
+      take: filters?.take,
       orderBy: { createdAt: 'desc' },
       include: {
         reviewer: { select: { id: true, email: true } },

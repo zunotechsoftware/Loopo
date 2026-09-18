@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Bell,
   CheckCheck,
@@ -11,6 +12,7 @@ import {
   ShieldCheck,
   Rocket,
   Lock,
+  Package,
   ChevronRight,
   Sparkles,
 } from 'lucide-react';
@@ -26,10 +28,12 @@ import {
 import { setActiveTab } from '@/redux/slices/navigationSlice';
 import { setActiveConversation } from '@/redux/slices/chatSlice';
 import { showToast } from '@/redux/slices/uiSlice';
-import { NotificationType } from '@/mockData/notifications';
+import { NotificationType } from '@/types';
+
 
 export default function NotificationsView() {
   const dispatch = useAppDispatch();
+  const router = useRouter();
   const notifications = useAppSelector((state) => state.notifications.items);
   const filterTab = useAppSelector((state) => state.notifications.filterTab);
 
@@ -62,6 +66,8 @@ export default function NotificationsView() {
         return { Icon: Rocket, bg: 'bg-purple-100 text-purple-600' };
       case 'security':
         return { Icon: Lock, bg: 'bg-indigo-100 text-indigo-600' };
+      case 'listing':
+        return { Icon: Package, bg: 'bg-teal-100 text-teal-700' };
       default:
         return { Icon: Bell, bg: 'bg-slate-100 text-slate-600' };
     }
@@ -73,7 +79,9 @@ export default function NotificationsView() {
       dispatch(setActiveConversation(notif.targetId));
       dispatch(setActiveTab('messages'));
     } else if (notif.targetTab) {
-      dispatch(setActiveTab(notif.targetTab));
+      dispatch(setActiveTab(notif.targetTab as any));
+    } else if (notif.link) {
+      router.push(notif.link);
     }
   };
 
@@ -199,7 +207,7 @@ export default function NotificationsView() {
                   </p>
 
                   {/* Optional Action Prompt */}
-                  {notif.targetTab && (
+                  {(notif.targetTab || notif.link) && (
                     <div className="pt-1 flex items-center gap-1 text-[11px] font-bold text-emerald-600 group-hover:underline">
                       <span>Open & View Details</span>
                       <ChevronRight className="w-3 h-3" />

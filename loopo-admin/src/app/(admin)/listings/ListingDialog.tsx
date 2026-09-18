@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
   Dialog, DialogTitle, DialogContent, DialogActions, 
-  Button, Typography, Box, Grid, Chip, Avatar, Divider 
+  Button, Typography, Box, Grid2 as Grid, Chip, Avatar, Divider
 } from '@mui/material';
 
 interface ListingDialogProps {

@@ -1,34 +1,14 @@
-import { IsString, IsNotEmpty, IsOptional, IsInt, Min, IsNumber, IsEnum } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsString, IsOptional, IsNumber, Min, IsEnum } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { ProductCondition } from '@prisma/client';
 
-export class RejectProductDto {
-  @ApiProperty({ description: 'Reason for rejection' })
-  @IsString()
-  @IsNotEmpty()
-  reason: string;
-}
-
-export class FeatureProductDto {
-  @ApiProperty({ description: 'Number of days to feature' })
-  @IsInt()
-  @Min(1)
-  durationDays: number;
-}
-
-export class BoostProductDto {
-  @ApiProperty({ description: 'Package name for boost' })
-  @IsString()
-  @IsNotEmpty()
-  packageName: string;
-
-  @ApiProperty({ description: 'Number of days to boost' })
-  @IsInt()
-  @Min(1)
-  durationDays: number;
-}
-
-export class UpdateProductDto {
+// Named Admin*/*Product to disambiguate from products/dto/product.dto.ts's
+// UpdateProductDto (a different, real, reachable DTO for the seller-facing
+// PUT /products/:id) - both used to share the plain name "UpdateProductDto",
+// which is a valid class in two different modules but produces a duplicate
+// Swagger schema warning (and would be a real conflict once @nestjs/swagger
+// enforces unique names, per its own deprecation notice).
+export class AdminUpdateProductDto {
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()

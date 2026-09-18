@@ -9,7 +9,7 @@ import { Roles } from '../../../shared/common/decorators/roles.decorator';
 @ApiTags('Admin Analytics')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Controller('v1/admin/analytics')
+@Controller('admin/analytics')
 export class AdminAnalyticsController {
   constructor(private readonly queryService: AnalyticsQueryService) {}
 
@@ -19,6 +19,20 @@ export class AdminAnalyticsController {
   @ApiResponse({ status: 200, description: 'Dashboard metrics returned successfully' })
   async getDashboard(@Query() query: AnalyticsQueryDto) {
     return this.queryService.getAdminDashboard(query);
+  }
+
+  @Get('summary')
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @ApiOperation({ summary: 'Get live summary metrics for the admin analytics overview cards' })
+  async getSummary(@Query() query: AnalyticsQueryDto) {
+    return this.queryService.getAdminSummary(query);
+  }
+
+  @Get('users')
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @ApiOperation({ summary: 'Get user growth over time' })
+  async getUserGrowth(@Query() query: AnalyticsQueryDto) {
+    return this.queryService.getUserGrowth(query);
   }
 
   @Get('search')
@@ -35,6 +49,34 @@ export class AdminAnalyticsController {
     return this.queryService.getCategoryAnalytics(query);
   }
 
+  @Get('products')
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @ApiOperation({ summary: 'Get live listing counts by category' })
+  async getListingsByCategory() {
+    return this.queryService.getListingsByCategory();
+  }
+
+  @Get('revenue')
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @ApiOperation({ summary: 'Get live monthly revenue breakdown' })
+  async getRevenueBreakdown(@Query() query: AnalyticsQueryDto) {
+    return this.queryService.getRevenueBreakdown(query);
+  }
+
+  @Get('revenue/by-category')
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @ApiOperation({ summary: 'Get live revenue by product category' })
+  async getRevenueByCategory(@Query() query: AnalyticsQueryDto) {
+    return this.queryService.getRevenueByCategory(query);
+  }
+
+  @Get('moderation')
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @ApiOperation({ summary: 'Get live moderation activity over time' })
+  async getModerationOverview(@Query() query: AnalyticsQueryDto) {
+    return this.queryService.getModerationOverview(query);
+  }
+
   @Get('payments')
   @Roles('ADMIN', 'SUPER_ADMIN')
   @ApiOperation({ summary: 'Get payment analytics' })
@@ -46,7 +88,7 @@ export class AdminAnalyticsController {
 @ApiTags('Product Analytics')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('v1/products')
+@Controller('products')
 export class ProductAnalyticsController {
   constructor(private readonly queryService: AnalyticsQueryService) {}
 
@@ -63,7 +105,7 @@ export class ProductAnalyticsController {
 }
 
 @ApiTags('Search Analytics')
-@Controller('v1/search/analytics')
+@Controller('search/analytics')
 export class SearchAnalyticsController {
   constructor(private readonly queryService: AnalyticsQueryService) {}
 
@@ -75,7 +117,7 @@ export class SearchAnalyticsController {
 }
 
 @ApiTags('Category Analytics')
-@Controller('v1/categories/analytics')
+@Controller('categories/analytics')
 export class CategoryAnalyticsController {
   constructor(private readonly queryService: AnalyticsQueryService) {}
 
@@ -89,7 +131,7 @@ export class CategoryAnalyticsController {
 @ApiTags('Payment Analytics')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Controller('v1/payments/analytics')
+@Controller('payments/analytics')
 export class PaymentAnalyticsController {
   constructor(private readonly queryService: AnalyticsQueryService) {}
 

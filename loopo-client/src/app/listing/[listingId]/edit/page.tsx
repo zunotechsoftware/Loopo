@@ -1,15 +1,15 @@
 'use client';
 
-import React, { use, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { use, useEffect, useState } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import ProtectedRoute from '@/routes/ProtectedRoute';
 import SellFlowView from '@/components/views/SellFlowView';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
-import { updateSellForm } from '@/redux/slices/sellSlice';
+import { fetchProductByIdThunk } from '@/redux/slices/productsSlice';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { ROUTES } from '@/routes/routes';
+import { Product } from '@/types';
 
 interface PageProps {
   params: Promise<{ listingId: string }>;
@@ -19,25 +19,43 @@ export default function EditListingPage({ params }: PageProps) {
   const resolvedParams = use(params);
   const listingId = resolvedParams.listingId;
   const dispatch = useAppDispatch();
-  const products = useAppSelector((state) => state.products.items);
+  const productInStore = useAppSelector((state) => state.products.items.find((p) => p.id === listingId));
 
-  const product = products.find((p) => p.id === listingId);
+  // undefined = still resolving, null = confirmed not found/inaccessible, Product = loaded.
+  // SellFlowView reads this tri-state to show a loading/not-found view instead
+  // of silently rendering a blank "create new" form.
+  const [product, setProduct] = useState<Product | null | undefined>(productInStore);
 
   useEffect(() => {
-    if (product) {
-      dispatch(
-        updateSellForm({
-          title: product.title,
-          category: product.category,
-          price: product.price.toString(),
-          condition: product.condition as any,
-          description: product.description,
-          location: product.location,
-          images: product.images,
-        })
-      );
+    if (productInStore) {
+      setProduct(productInStore);
+      return;
     }
-  }, [product, dispatch]);
+
+    // Not already loaded into the store (fresh page load / direct link) -
+    // fetch it by id instead of leaving the form stuck blank forever.
+    let cancelled = false;
+    dispatch(fetchProductByIdThunk(listingId))
+      .unwrap()
+      .then((p) => {
+        if (!cancelled) setProduct(p);
+      })
+      .catch(() => {
+        if (!cancelled) setProduct(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // productInStore intentionally excluded - handled by the effect below so
+    // this one only ever fires the fetch once per listingId.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listingId, dispatch]);
+
+  // If the store's copy changes later (e.g. right after a successful save),
+  // stay in sync with it.
+  useEffect(() => {
+    if (productInStore) setProduct(productInStore);
+  }, [productInStore]);
 
   return (
     <ProtectedRoute>
@@ -55,7 +73,7 @@ export default function EditListingPage({ params }: PageProps) {
             </div>
           </div>
 
-          <SellFlowView />
+          <SellFlowView listingId={listingId} initialProduct={product} />
         </div>
       </MainLayout>
     </ProtectedRoute>

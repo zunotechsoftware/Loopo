@@ -354,6 +354,78 @@ export class AuthService {
     return { success: true, message: 'Phone number has been verified successfully.' };
   }
 
+  // --- Phone OTP login (pre-authentication) ---
+  // Separate from sendPhoneOtp/verifyPhoneOtp above, which require an
+  // existing session and confirm phone ownership on an already-logged-in
+  // account. This pair lets someone log in (or auto-register) using only
+  // their phone number - no password. It replaced a client-side "shortcut"
+  // that used to accept a single hardcoded OTP ("123456") for every phone
+  // number and log in via a deterministic, publicly-guessable email+
+  // password derived from the phone number - a real account-takeover
+  // vector for anyone who knew a target's phone number, not a genuine
+  // OTP check. This reuses the same secure OTP generation/hashing/expiry
+  // already proven by the authenticated flow above.
+  async sendPhoneLoginOtp(phone: string) {
+    let user = await this.usersService.findByPhone(phone);
+    if (!user) {
+      user = await this.usersService.create(
+        { phone, provider: Provider.LOCAL, status: UserStatus.PENDING },
+        ['USER'],
+      );
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const hashedOtp = await bcrypt.hash(otp, 8);
+    const expiry = new Date();
+    expiry.setMinutes(expiry.getMinutes() + 10);
+
+    await this.authRepository.savePhoneOtp(user.id, hashedOtp, phone, expiry);
+    await this.smsQueue.add('send-otp', { phone, otp });
+
+    // No real SMS gateway is configured anywhere in this codebase yet
+    // (SmsProcessor only logs the code) - outside production, echo the
+    // real OTP back in the response so this flow is actually testable
+    // without shelling into the backend's logs. Never do this in
+    // production: it would let anyone log into any phone number's
+    // account without ever receiving the real SMS.
+    const isProduction = this.configService.get<string>('NODE_ENV') === 'production';
+
+    // Never reveal whether this phone number already has an account -
+    // same response either way.
+    return {
+      success: true,
+      message: 'An OTP has been sent to your phone number.',
+      ...(isProduction ? {} : { devOtp: otp }),
+    };
+  }
+
+  async verifyPhoneLoginOtp(phone: string, otp: string, ipAddress?: string, userAgent?: string) {
+    const user = await this.usersService.findByPhone(phone);
+    if (!user) {
+      throw new BadRequestException('No OTP request found for this number. Please request a new OTP.');
+    }
+
+    const otpRecord = await this.authRepository.findPhoneOtp(user.id, phone);
+    if (!otpRecord) {
+      throw new BadRequestException('No active OTP found for this number. Please request a new OTP.');
+    }
+    if (new Date() > otpRecord.expiresAt) {
+      throw new BadRequestException('OTP has expired. Please request a new one.');
+    }
+    const isMatch = await bcrypt.compare(otp, otpRecord.otp);
+    if (!isMatch) {
+      throw new BadRequestException('Invalid OTP code.');
+    }
+    await this.authRepository.markPhoneOtpVerified(otpRecord.id);
+
+    const updated = await this.usersService.update(user.id, {
+      isPhoneVerified: true,
+      status: UserStatus.ACTIVE,
+    });
+
+    return this.login(updated, ipAddress, userAgent);
+  }
+
   // --- Social Logins Validation ---
   async validateOAuthUser(profile: any, provider: Provider) {
     const providerId = profile.id;

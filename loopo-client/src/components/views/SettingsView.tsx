@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   ChevronRight,
   User,
@@ -17,13 +18,34 @@ import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import {
   toggleDarkMode,
   setAddressModalOpen,
-  setKycModalOpen,
   showToast,
 } from '@/redux/slices/uiSlice';
+import { userApi } from '@/services/userApi';
+import { ROUTES } from '@/routes/routes';
+
+type KycStatus = 'NOT_STARTED' | 'DRAFT' | 'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED';
+
+const KYC_BADGE: Record<KycStatus, { label: string; className: string }> = {
+  NOT_STARTED: { label: 'Not Started', className: 'text-slate-500 bg-slate-100' },
+  DRAFT: { label: 'Draft', className: 'text-amber-600 bg-amber-50' },
+  SUBMITTED: { label: 'Submitted', className: 'text-amber-600 bg-amber-50' },
+  UNDER_REVIEW: { label: 'Under Review', className: 'text-amber-600 bg-amber-50' },
+  APPROVED: { label: 'Verified', className: 'text-emerald-600 bg-emerald-50' },
+  REJECTED: { label: 'Rejected', className: 'text-red-600 bg-red-50' },
+};
 
 export default function SettingsView() {
   const dispatch = useAppDispatch();
+  const router = useRouter();
   const isDarkMode = useAppSelector((state) => state.ui.isDarkMode);
+
+  const [kycStatus, setKycStatus] = useState<KycStatus>('NOT_STARTED');
+
+  useEffect(() => {
+    userApi.getMyKyc().then((res) => {
+      setKycStatus(res.success && res.data ? (res.data.status as KycStatus) : 'NOT_STARTED');
+    });
+  }, []);
 
   // Notification Preferences (Backend notification-settings endpoint)
   const [chatAlerts, setChatAlerts] = useState(true);
@@ -40,7 +62,7 @@ export default function SettingsView() {
           <div className="text-xs font-bold text-slate-400 uppercase tracking-wider px-1">Account & Security</div>
 
           <div
-            onClick={() => dispatch(setKycModalOpen(true))}
+            onClick={() => router.push(ROUTES.VERIFICATION)}
             className="flex items-center justify-between p-3.5 rounded-2xl hover:bg-slate-50 border border-slate-100/60 cursor-pointer transition-colors"
           >
             <div className="flex items-center gap-3">
@@ -52,7 +74,9 @@ export default function SettingsView() {
                 <div className="text-[10px] font-medium text-slate-400">Aadhaar / PAN identity document verification</div>
               </div>
             </div>
-            <span className="text-xs font-extrabold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">Verified</span>
+            <span className={`text-xs font-extrabold px-2.5 py-1 rounded-full ${KYC_BADGE[kycStatus].className}`}>
+              {KYC_BADGE[kycStatus].label}
+            </span>
           </div>
 
           <div

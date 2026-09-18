@@ -2,7 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsString, IsNotEmpty, IsOptional, IsEnum, IsNumber, IsDateString, IsBoolean } from 'class-validator';
 import { CouponType } from '@prisma/client';
 
-export class CreateCouponDto {
+export class AdminCreateCouponDto {
   @ApiProperty({ description: 'Coupon code' })
   @IsString()
   @IsNotEmpty()
@@ -54,4 +54,4 @@ export class CreateCouponDto {
   isActive?: boolean;
 }
 
-export class UpdateCouponDto extends CreateCouponDto {}
+export class UpdateCouponDto extends AdminCreateCouponDto {}

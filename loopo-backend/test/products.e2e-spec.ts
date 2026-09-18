@@ -43,16 +43,17 @@ describe('Products & Listings (e2e)', () => {
       .useValue(mockQueue)
       .overrideProvider(getQueueToken('profile-image-processing'))
       .useValue(mockQueue)
-      .overrideProvider(getQueueToken('image-compression'))
-      .useValue(mockQueue)
-      .overrideProvider(getQueueToken('thumbnail-generation'))
-      .useValue(mockQueue)
-      .overrideProvider(getQueueToken('product-expiration'))
-      .useValue(mockQueue)
-      .overrideProvider(getQueueToken('search-index-update'))
-      .useValue(mockQueue)
-      .overrideProvider(getQueueToken('view-counter-sync'))
-      .useValue(mockQueue)
+      // Deliberately NOT mocking image-compression/thumbnail-generation/
+      // product-expiration/search-index-update/view-counter-sync here.
+      // Overriding a queue token with a plain {add: jest.fn()} object
+      // replaces the real BullMQ Queue instance, but @nestjs/bullmq still
+      // discovers and registers a real Worker for that queue's @Processor()
+      // class at module init - and that Worker registration reads its
+      // connection info from the (now-fake) Queue instance, so it fails with
+      // "Worker requires a connection". Since a real Redis is reachable in
+      // this environment, it's simpler and safer to just let these run for
+      // real (they're side-effect-light: DB writes / simulated processing,
+      // no external calls) rather than partially mock them.
       .overrideProvider(EmailProcessor)
       .useValue({})
       .overrideProvider(SmsProcessor)
@@ -154,7 +155,7 @@ describe('Products & Listings (e2e)', () => {
     sellerToken = sellerLogin.body.data.accessToken;
 
     // Admin registration & role mapping
-    const adminReg = await request(app.getHttpServer())
+    await request(app.getHttpServer())
       .post('/api/v1/auth/register')
       .send({
         email: adminEmail,
@@ -163,7 +164,11 @@ describe('Products & Listings (e2e)', () => {
         lastName: 'E2E',
         phone: `+1555${Math.floor(1000000 + Math.random() * 9000000)}`,
       });
-    const adminUserId = adminReg.body.data.user.id;
+    // register() intentionally doesn't return the created user (see auth.service.ts
+    // register()) - the real client follows up with a login call to get it, so we
+    // look it up directly here instead.
+    const adminUser = await prismaService.user.findUnique({ where: { email: adminEmail } });
+    const adminUserId = adminUser!.id;
 
     const saRole = await prismaService.role.findUnique({ where: { name: 'SUPER_ADMIN' } });
     if (saRole) {

@@ -57,7 +57,10 @@ export default function ChatArea({ conversation, onConversationCreated }: ChatAr
 
   const handleReceiveMessage = useCallback((message: any) => {
     if (message.conversationId === conversation?.id) {
-      setMessages((prev) => [...prev, message]);
+      // Guard against duplicates: the sender's own tab is in this room too,
+      // so a message we just sent (and may have appended optimistically)
+      // can arrive back over the socket - only append if it's not already here.
+      setMessages((prev) => (prev.some((m) => m.id === message.id) ? prev : [...prev, message]));
       scrollToBottom();
     }
   }, [conversation?.id]);
@@ -164,10 +167,39 @@ export default function ChatArea({ conversation, onConversationCreated }: ChatAr
         type: selectedFile ? (selectedFile.type.startsWith('image/') ? 'IMAGE' : 'FILE') : 'TEXT',
         attachments: attachments.length ? attachments : undefined,
       };
-      const res = await chatService.sendMessage(payload);
-      // Socket might broadcast it back to us, but we can optimistically append
+
+      // Optimistic append: show the message immediately instead of waiting
+      // for the round trip. The real message (once the API responds)
+      // replaces this by tempId; if the socket echo (handleReceiveMessage)
+      // arrives first, its own id-based dedup skips re-adding it, and this
+      // optimistic entry is then replaced in place by id when the API call
+      // resolves just below.
+      const tempId = `optimistic-${Date.now()}`;
+      setMessages((prev) => [...prev, {
+        id: tempId,
+        conversationId: targetConvId,
+        senderId: undefined, // never equals recipient.id, so isSentByMe below still renders it correctly right-aligned
+        content: newMessage,
+        type: payload.type,
+        createdAt: new Date().toISOString(),
+        attachments,
+        _optimistic: true,
+      }]);
       setNewMessage('');
       setSelectedFile(null);
+      scrollToBottom();
+
+      const res = await chatService.sendMessage(payload);
+      const realMessage = res.data?.data || res.data;
+      if (realMessage?.id) {
+        setMessages((prev) => {
+          // Drop the optimistic placeholder; if the real message already
+          // arrived via socket in the meantime, don't add it twice.
+          const withoutOptimistic = prev.filter((m) => m.id !== tempId);
+          if (withoutOptimistic.some((m) => m.id === realMessage.id)) return withoutOptimistic;
+          return [...withoutOptimistic, realMessage];
+        });
+      }
     } catch (err) {
       console.error('Failed to send message:', err);
     }

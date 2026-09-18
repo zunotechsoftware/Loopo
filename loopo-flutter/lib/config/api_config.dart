@@ -12,7 +12,7 @@ class ApiConfig {
   static const String _overrideBaseUrl = String.fromEnvironment('API_BASE_URL');
 
   static const String _devBaseUrl = 'https://loopo-711b.onrender.com';
-  static const String _prodBaseUrl = 'https://api.loopo.com'; // Production API hostname
+  static const String _prodBaseUrl = 'https://loopo-api.zunotechsoftware.com'; // Production API hostname
 
   static AppEnvironment get environment =>
       _envString.toLowerCase() == 'production'
@@ -45,6 +45,8 @@ class ApiConfig {
   // ── API Endpoints ─────────────────────────────────────────────────────────
   static const String loginEndpoint = '/api/v1/auth/login';
   static const String registerEndpoint = '/api/v1/auth/register';
+  static const String sendPhoneLoginOtpEndpoint = '/api/v1/auth/phone/send-otp';
+  static const String verifyPhoneLoginOtpEndpoint = '/api/v1/auth/phone/verify-otp';
   static const String forgotPasswordEndpoint = '/api/v1/auth/forgot-password';
   static const String resetPasswordEndpoint = '/api/v1/auth/reset-password';
   static const String refreshTokenEndpoint = '/api/v1/auth/refresh';
@@ -60,7 +62,11 @@ class ApiConfig {
 
   static const String chatConversationsEndpoint = '/api/v1/chat/conversations';
   static const String chatMessagesEndpoint = '/api/v1/chat/messages';
-  static const String kycVerifyEndpoint = '/api/v1/kyc/verify';
+  // The real backend has no /kyc/verify endpoint at all - it's POST/PUT
+  // /kyc (submit/update) plus POST /kyc/upload-url for each document image.
+  static const String kycEndpoint = '/api/v1/kyc';
+  static const String kycUploadUrlEndpoint = '/api/v1/kyc/upload-url';
+  static const String kycMeEndpoint = '/api/v1/kyc/me';
   static const String favoritesEndpoint = '/api/v1/interactions/favorites';
   static const String notificationsEndpoint = '/api/v1/notifications';
   static const String addressesEndpoint = '/api/v1/addresses';
@@ -70,6 +76,8 @@ class ApiConfig {
   // ── Full URLs ─────────────────────────────────────────────────────────────
   static String get loginUrl => '$baseUrl$loginEndpoint';
   static String get registerUrl => '$baseUrl$registerEndpoint';
+  static String get sendPhoneLoginOtpUrl => '$baseUrl$sendPhoneLoginOtpEndpoint';
+  static String get verifyPhoneLoginOtpUrl => '$baseUrl$verifyPhoneLoginOtpEndpoint';
   static String get forgotPasswordUrl => '$baseUrl$forgotPasswordEndpoint';
   static String get resetPasswordUrl => '$baseUrl$resetPasswordEndpoint';
   static String get refreshTokenUrl => '$baseUrl$refreshTokenEndpoint';
@@ -85,7 +93,9 @@ class ApiConfig {
 
   static String get chatConversationsUrl => '$baseUrl$chatConversationsEndpoint';
   static String get chatMessagesUrl => '$baseUrl$chatMessagesEndpoint';
-  static String get kycVerifyUrl => '$baseUrl$kycVerifyEndpoint';
+  static String get kycUrl => '$baseUrl$kycEndpoint';
+  static String get kycUploadUrlUrl => '$baseUrl$kycUploadUrlEndpoint';
+  static String get kycMeUrl => '$baseUrl$kycMeEndpoint';
   static String get favoritesUrl => '$baseUrl$favoritesEndpoint';
   static String get notificationsUrl => '$baseUrl$notificationsEndpoint';
   static String get addressesUrl => '$baseUrl$addressesEndpoint';

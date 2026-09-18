@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../shared/database/prisma.service';
-import { RejectProductDto, FeatureProductDto, BoostProductDto, UpdateProductDto } from './dto/admin-product.dto';
+import { AdminUpdateProductDto } from './dto/admin-product.dto';
 import { ProductStatus, ProductCondition, Prisma } from '@prisma/client';
 
 @Injectable()
@@ -68,15 +68,16 @@ export class AdminProductsService {
   }
 
   async getProductsStats() {
-    const [total, active, pending, rejected, sold] = await Promise.all([
+    const [total, active, pending, rejected, sold, expired] = await Promise.all([
       this.prisma.product.count({ where: { deletedAt: null } }),
       this.prisma.product.count({ where: { deletedAt: null, status: 'APPROVED' } }),
       this.prisma.product.count({ where: { deletedAt: null, status: 'PENDING' } }),
       this.prisma.product.count({ where: { deletedAt: null, status: 'REJECTED' } }),
       this.prisma.product.count({ where: { deletedAt: null, status: 'SOLD' } }),
+      this.prisma.product.count({ where: { deletedAt: null, status: 'EXPIRED' } }),
     ]);
 
-    return { total, active, pending, rejected, sold };
+    return { total, active, pending, rejected, sold, expired };
   }
 
   async getDistinctLocations() {
@@ -105,61 +106,11 @@ export class AdminProductsService {
     return product;
   }
 
-  async updateProductStatus(id: string, adminId: string, status: ProductStatus, reason?: string) {
-    const product = await this.getProductById(id);
-
-    return this.prisma.$transaction(async (tx) => {
-      const updated = await tx.product.update({
-        where: { id },
-        data: {
-          status,
-          rejectionReason: reason || null,
-          updatedBy: adminId,
-          publishedAt: status === 'APPROVED' && !product.publishedAt ? new Date() : product.publishedAt,
-        },
-      });
-
-      await tx.productStatusHistory.create({
-        data: {
-          productId: id,
-          fromStatus: product.status,
-          toStatus: status,
-          comment: reason,
-          changedById: adminId,
-        },
-      });
-
-      return updated;
-    });
-  }
-
-  async featureProduct(id: string, adminId: string, dto: FeatureProductDto) {
-    await this.getProductById(id);
-    const endDate = new Date();
-    endDate.setDate(endDate.getDate() + dto.durationDays);
-
-    return this.prisma.featuredProduct.create({
-      data: {
-        productId: id,
-        durationDays: dto.durationDays,
-        endDate,
-      },
-    });
-  }
-
-  async boostProduct(id: string, adminId: string, dto: BoostProductDto) {
-    await this.getProductById(id);
-    const endDate = new Date();
-    endDate.setDate(endDate.getDate() + dto.durationDays);
-
-    return this.prisma.boostedProduct.create({
-      data: {
-        productId: id,
-        packageName: dto.packageName,
-        endDate,
-      },
-    });
-  }
+  // updateProductStatus/featureProduct/boostProduct were removed - they only
+  // ever backed the dead, permanently-shadowed approve/reject/feature/boost
+  // routes on this controller (see admin-products.controller.ts). The real,
+  // reachable implementations are ProductsService.approveProduct/
+  // rejectProduct/promoteFeatured/promoteBoost.
 
   async deleteProduct(id: string, adminId: string) {
     await this.getProductById(id);
@@ -169,7 +120,7 @@ export class AdminProductsService {
     });
   }
 
-  async updateProductDetails(id: string, adminId: string, dto: UpdateProductDto) {
+  async updateProductDetails(id: string, adminId: string, dto: AdminUpdateProductDto) {
     const product = await this.prisma.product.findUnique({ where: { id } });
     if (!product) throw new NotFoundException('Product not found');
 
