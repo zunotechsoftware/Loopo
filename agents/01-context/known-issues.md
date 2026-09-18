@@ -6,6 +6,76 @@ last_verified: 2026-09-13
 
 ## OPEN
 
+### RESOLVED — Batch: fake admin listings panel, missing confirm-password/toggle, fake OTP everywhere, and a real image field-name bug
+User-reported batch (4 items), all fixed and verified live:
+
+1. **loopo-client's duplicate `/admin/listings` panel was 100% hardcoded** -
+   3 fake rows, and the detail page always showed "iPhone 15 Pro Max"
+   regardless of the real id, with approve/reject/delete only flipping
+   local state. Rewired both pages to the real `GET/PATCH/DELETE
+   /admin/products` endpoints (the same ones `loopo-admin` uses) -
+   real list with search, real approve/reject (with a real rejection
+   reason)/delete, loading/error/empty states.
+2. **Signup had no confirm-password field or show/hide toggle.** Added
+   both to `/register`, matching the real password policy already
+   enforced there; also added a show/hide toggle to `/login` for
+   consistency.
+3. **Every OTP surface in loopo-client was fake, in three independent
+   places**, all now fixed:
+   - `/verify-otp` (reached from the login page's "Mobile OTP Login" and,
+     now, right after email registration when a phone was given): used to
+     accept literally any 6 digits and log in as a hardcoded fake
+     `"Verified User" / "user@loopo.com"` with no real session at all.
+     Rewired to the real pre-auth phone-OTP endpoints built for this
+     (`/auth/phone/send-otp` + `/verify-otp`) - sends a real code on load,
+     verifies for real, returns real tokens.
+   - The global `AuthModal` (opened by `ProtectedRoute` and several other
+     "log in to continue" prompts app-wide) had its own separate fake
+     OTP-verify-as-instant-fake-login step tied to "Forgot Password" (which
+     itself never called the real reset-password API), plus fully
+     fabricated Google/Apple "login" buttons that logged in as a
+     hardcoded fake account with zero real OAuth. Fixed Forgot Password to
+     call the real endpoint with a real "check your email" state; removed
+     the fake OTP step and the fake social buttons entirely rather than
+     leave a reachable fake-login shortcut.
+   - **Reported as "I am not getting OTP"**: expected given no real SMS
+     gateway is configured anywhere in this codebase (`SmsProcessor` only
+     logs the code - a pre-existing, documented limitation, not something
+     a code fix alone can complete without real Twilio/MSG91 credentials).
+     Added a dev-mode-only `devOtp` echo in the send-otp response
+     (`NODE_ENV !== 'production'`, matching the existing Stripe/Razorpay
+     mock-mode convention) so the flow is actually testable locally without
+     digging through backend logs - never active in production.
+   - Also fixed `ProtectedRoute` itself (the actual trigger for the user's
+     "different login screen... not working" report): it rendered an
+     inline card whose only action opened the (partly fake) `AuthModal`
+     instead of navigating anywhere. Now redirects to the real, fully
+     functional `/login` page with a return path.
+4. **Images still not showing after the earlier cache-invalidation fix**:
+   a second, independent, purely-frontend bug. The backend's real image
+   field is `originalUrl` (confirmed via a live upload), but
+   `productsSlice.ts`'s `normaliseProduct` (home feed, category browsing,
+   search, seller profile) and a duplicate inline mapper in
+   `ProductDetailView.tsx` only ever checked `img.url`/`img.path` - neither
+   exists on a real image, so every product's photos silently became empty
+   strings regardless of a fully successful upload and the cache fix.
+   `myAdsSlice.ts` (My Listings) already had this right, which is why only
+   the buyer-facing browsing surfaces were affected. Also fixed the same
+   class of bug in `chatSlice.ts`'s conversation-list thumbnail (was using
+   the raw image *object* as an `<img src>`, rendering `[object Object]`).
+
+**Verified live for all of the above:** full register -> send-otp
+(dev-echoed) -> verify -> real ACTIVE/isPhoneVerified account; a real
+upload -> approve -> public-listing-fetch showing the correct
+`originalUrl` field the frontend now reads. Backend: `tsc --noEmit`
+clean, 83/83 tests pass. Frontend: `tsc --noEmit` clean, `next build`
+succeeds. Test accounts/listings deleted afterward.
+
+**Note on process**: the backend runs as a compiled build
+(`node dist/src/main`, not `--watch`) - the auth.service.ts change here
+needs `npm run build` + a process restart to take effect, same as every
+other backend change this session.
+
 ### RESOLVED — User profile was almost entirely hardcoded placeholder data, and stale across page refreshes
 User-reported: "User profile is static it is showing placeholder data"
 and "selling product not listed in active after approval". Two separate
