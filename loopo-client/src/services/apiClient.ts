@@ -23,37 +23,104 @@ export function setAuthToken(token: string): void {
 export function clearAuthToken(): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem('loopo_access_token');
+  localStorage.removeItem('loopo_refresh_token');
+}
+
+// The access token expires in 15 minutes (JWT_ACCESS_EXPIRATION) and,
+// until now, the refresh token the backend already issues on every
+// login was never stored anywhere - there was no way to get a new
+// access token short of logging in again. Every action taken more than
+// ~15 minutes into a session (e.g. publishing a listing after browsing
+// around for a while) silently 401'd, which - combined with a separate
+// bug already fixed elsewhere (a fake client-side id standing in for a
+// missing real one) - could make a failed save look like a successful
+// "Listing published!" for a listing that was never actually saved.
+export function getRefreshToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem('loopo_refresh_token');
+}
+
+export function setRefreshToken(token: string): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem('loopo_refresh_token', token);
+}
+
+// Endpoints that must never trigger a refresh-and-retry themselves -
+// refreshing here would either loop (refresh failing with its own 401)
+// or refresh a session that doesn't exist yet (login/register).
+const NO_REFRESH_ENDPOINTS = ['/auth/refresh', '/auth/login', '/auth/register'];
+
+// Shared across concurrent 401s so simultaneous requests don't each fire
+// their own refresh call and race to rotate the same refresh token
+// (the backend invalidates the old one on every refresh).
+let refreshPromise: Promise<string | null> | null = null;
+
+async function refreshAccessToken(): Promise<string | null> {
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      const refreshToken = getRefreshToken();
+      if (!refreshToken) return null;
+      try {
+        const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken }),
+        });
+        const json = await res.json().catch(() => null);
+        if (!res.ok || !json?.data?.accessToken) {
+          clearAuthToken();
+          return null;
+        }
+        setAuthToken(json.data.accessToken);
+        if (json.data.refreshToken) setRefreshToken(json.data.refreshToken);
+        return json.data.accessToken as string;
+      } catch {
+        return null;
+      }
+    })().finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
 }
 
 export async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
-  const token = getAuthToken();
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(options.headers as Record<string, string>),
-  };
-
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   const url = `${API_BASE_URL}${cleanEndpoint}`;
 
-  try {
+  const doFetch = async (bearerToken: string | null) => {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...(options.headers as Record<string, string>),
+    };
+    if (bearerToken) headers['Authorization'] = `Bearer ${bearerToken}`;
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
+    try {
+      const response = await fetch(url, { ...options, headers, signal: controller.signal });
+      return response;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  };
 
+  try {
+    let response = await doFetch(getAuthToken());
 
-    const response = await fetch(url, {
-      ...options,
-      headers,
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
+    // The access token expires in 15 minutes - previously there was no
+    // way to recover from that short of logging in again, so any action
+    // taken later in a session (e.g. publishing a listing after browsing
+    // for a while) silently failed. Refresh once and retry transparently.
+    if (response.status === 401 && !NO_REFRESH_ENDPOINTS.includes(cleanEndpoint) && getRefreshToken()) {
+      const newToken = await refreshAccessToken();
+      if (newToken) {
+        response = await doFetch(newToken);
+      }
+    }
 
     const json = await response.json().catch(() => null);
 

@@ -1,4 +1,4 @@
-import { apiClient, setAuthToken, clearAuthToken, ApiResponse } from './apiClient';
+import { apiClient, setAuthToken, setRefreshToken, clearAuthToken, ApiResponse } from './apiClient';
 
 export interface LoginPayload {
   email: string;
@@ -31,6 +31,11 @@ export const authApi = {
     const res = await apiClient.post<AuthResponseData>('/auth/login', payload);
     if (res.success && res.data?.accessToken) {
       setAuthToken(res.data.accessToken);
+      // The refresh token was already being returned here and simply
+      // discarded - with no way to renew the access token, every session
+      // silently stopped working 15 minutes in (JWT_ACCESS_EXPIRATION),
+      // with no way to recover short of logging in again.
+      if (res.data.refreshToken) setRefreshToken(res.data.refreshToken);
     }
     return res;
   },
@@ -39,6 +44,7 @@ export const authApi = {
     const res = await apiClient.post<AuthResponseData>('/auth/register', payload);
     if (res.success && res.data?.accessToken) {
       setAuthToken(res.data.accessToken);
+      if (res.data.refreshToken) setRefreshToken(res.data.refreshToken);
     }
     return res;
   },
@@ -67,6 +73,7 @@ export const authApi = {
     const res = await apiClient.post<AuthResponseData>('/auth/phone/verify-otp', { phone, otp });
     if (res.success && res.data?.accessToken) {
       setAuthToken(res.data.accessToken);
+      if (res.data.refreshToken) setRefreshToken(res.data.refreshToken);
     }
     return res;
   },
