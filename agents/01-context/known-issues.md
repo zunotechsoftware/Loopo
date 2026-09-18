@@ -6,6 +6,51 @@ last_verified: 2026-09-13
 
 ## OPEN
 
+### RESOLVED — Root cause of "phantom" published listings: no token refresh + a fake-id fallback masking failed creates
+User-reported: a listing published via the sell wizard showed a
+"Published successfully!" detail page but never appeared in the admin
+panel, and a direct DB check confirmed it was never created at all.
+Investigated live (not reproducible via a direct API call with a fresh
+token - only via a real browser session), leading to two compounding
+root causes:
+
+1. **No token refresh existed anywhere in loopo-client.** The access
+   token expires in 15 minutes; the backend already returns a real
+   refresh token on every login, but the frontend discarded it (never
+   stored). Any action taken more than ~15 minutes into a session -
+   exactly the kind of thing that happens after browsing around before
+   publishing a listing - silently 401'd, with no way to recover short
+   of a manual re-login.
+2. **A failed create could still look like a success.** `normaliseProduct`
+   falls back to a client-generated `p-${Date.now()}` id when a real one
+   is missing (a reasonable safety net for *displaying* data), but
+   `createProductThunk` trusted that fallback blindly, and
+   `sell/preview/page.tsx` had a *second*, independent
+   `'prod-'+Date.now()` fallback on top of it. Combined with (1): once a
+   publish request 401'd, if the response still resolved in a way that
+   satisfied the "success" check, the wizard would show "Listing
+   published successfully!" and navigate to a detail page for an id that
+   was never in the database - which then falls back to rendering
+   whatever unrelated product happened to already be cached
+   (`ProductDetailView`'s own `products[0]` last-resort), explaining the
+   "wrong title showing up" symptom exactly.
+
+**Fixed:** added real refresh-token storage + a transparent
+refresh-and-retry on 401 in `apiClient.ts` (mirrors the backend's
+already-correct `/auth/refresh` contract); `createProductThunk` now
+requires a real id in the response and rejects otherwise, and the
+redundant fake-id fallback in the preview page was removed now that a
+"fulfilled" create always carries a real one.
+
+**Verified live:** simulated the exact 401 -> refresh -> retry sequence
+end to end against the real backend (a deliberately invalid access token
+correctly 401s, refresh via the real refresh token succeeds, the retried
+request with the new token succeeds). `tsc --noEmit` clean, `next build`
+succeeds. Also independently re-verified the whole create -> pending ->
+approve -> sold admin pipeline still works correctly end to end (a fresh
+test listing was actually approved live by a real Super Admin session
+during this investigation). Test accounts/listings deleted afterward.
+
 ### RESOLVED — Batch: fake admin listings panel, missing confirm-password/toggle, fake OTP everywhere, and a real image field-name bug
 User-reported batch (4 items), all fixed and verified live:
 
