@@ -3,8 +3,9 @@ import { apiClient, ApiResponse } from './apiClient';
 export interface Notification {
   id: string;
   title: string;
-  body: string;
+  message: string;
   type: string;
+  link?: string;
   isRead: boolean;
   createdAt: string;
   metadata?: Record<string, any>;

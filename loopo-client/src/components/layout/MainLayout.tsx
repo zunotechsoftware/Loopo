@@ -16,9 +16,11 @@ import AddressModal from '@/components/ui/AddressModal';
 import AuthModal from '@/components/ui/AuthModal';
 
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
-import { clearToast } from '@/redux/slices/uiSlice';
+import { clearToast, showToast } from '@/redux/slices/uiSlice';
 import { initAuthThunk } from '@/redux/slices/authSlice';
 import { fetchFavoritesThunk } from '@/redux/slices/productsSlice';
+import { fetchNotificationsThunk } from '@/redux/slices/notificationsSlice';
+import { useNotificationSocket } from '@/hooks/useNotificationSocket';
 import { X, Sparkles } from 'lucide-react';
 import { ROUTES } from '@/routes/routes';
 
@@ -45,6 +47,28 @@ export default function MainLayout({ children }: MainLayoutProps) {
       dispatch(fetchFavoritesThunk());
     }
   }, [isAuthenticated, dispatch]);
+
+  // Same for notifications - previously only fetched once the user opened
+  // the dedicated /notifications page, so the header bell's unread badge
+  // stayed at 0 everywhere else even with real unread notifications waiting.
+  useEffect(() => {
+    if (isAuthenticated) {
+      dispatch(fetchNotificationsThunk());
+    }
+  }, [isAuthenticated, dispatch]);
+
+  // Real-time push for the two system events that matter most to a logged
+  // in user (their listing got approved/rejected) plus any admin broadcast -
+  // refetches the inbox so the bell badge and list update without a reload.
+  useNotificationSocket({
+    enabled: isAuthenticated,
+    onNotification: (notification) => {
+      dispatch(fetchNotificationsThunk());
+      if (notification?.title) {
+        dispatch(showToast(notification.title));
+      }
+    },
+  });
 
   useEffect(() => {
     if (toastMessage) {

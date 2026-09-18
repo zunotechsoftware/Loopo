@@ -14,10 +14,12 @@ import { AppleStrategy } from './strategies/apple.strategy';
 import { EmailProcessor } from '../../shared/queues/processors/email.processor';
 import { SmsProcessor } from '../../shared/queues/processors/sms.processor';
 import { NotificationProcessor } from '../../shared/queues/processors/notification.processor';
+import { UserNotificationsModule } from '../user-notifications/user-notifications.module';
 
 @Module({
   imports: [
     UsersModule,
+    UserNotificationsModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],

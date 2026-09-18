@@ -31,6 +31,8 @@ import { OrdersModule } from './modules/orders/orders.module';
 import { BrandsModule } from './modules/brands/brands.module';
 import { EmailTemplatesModule } from './modules/email-templates/email-templates.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { UserNotificationsModule } from './modules/user-notifications/user-notifications.module';
+import { SocketEmitterModule } from './shared/websocket/socket-emitter.module';
 import { SupportModule } from './modules/support/support.module';
 import { ComplaintsModule } from './modules/complaints/complaints.module';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
@@ -52,6 +54,7 @@ import { AuditLogInterceptor } from './shared/common/interceptors/audit-log.inte
     PrismaModule,
     RedisModule,
     QueuesModule,
+    SocketEmitterModule,
     S3Module,
     RbacModule,
     UsersModule,
@@ -79,6 +82,7 @@ import { AuditLogInterceptor } from './shared/common/interceptors/audit-log.inte
     BrandsModule,
     EmailTemplatesModule,
     NotificationsModule,
+    UserNotificationsModule,
     SupportModule,
     ComplaintsModule,
   ],

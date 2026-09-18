@@ -19,6 +19,7 @@ const initialState: NotificationsState = {
 /** Map backend notification type string to frontend NotificationType */
 function mapType(type: string): NotificationType {
   const t = (type || '').toLowerCase();
+  if (t.includes('listing')) return 'listing';
   if (t.includes('offer') || t.includes('price')) return 'offer';
   if (t.includes('chat') || t.includes('message')) return 'chat';
   if (t.includes('kyc') || t.includes('verification')) return 'kyc';
@@ -54,6 +55,7 @@ export const fetchNotificationsThunk = createAsyncThunk(
         image: n.metadata?.image || n.image,
         targetTab: n.metadata?.targetTab,
         targetId: n.metadata?.targetId,
+        link: n.link,
       }));
       return { items, unreadCount: data?.unreadCount ?? items.filter((i) => !i.isRead).length };
     }

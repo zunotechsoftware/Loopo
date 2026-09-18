@@ -4,6 +4,7 @@ import {
   SubscribeMessage,
   OnGatewayConnection,
   OnGatewayDisconnect,
+  OnGatewayInit,
   MessageBody,
   ConnectedSocket,
 } from '@nestjs/websockets';
@@ -14,13 +15,14 @@ import { ChatService } from '../services/chat.service';
 import { AuthenticatedSocket } from '../interfaces/chat.interfaces';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { SocketEmitterService } from '../../../shared/websocket/socket-emitter.service';
 
 @WebSocketGateway({
   cors: {
     origin: '*',
   },
 })
-export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit {
   private readonly logger = new Logger(ChatGateway.name);
 
   @WebSocketServer()
@@ -30,7 +32,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private readonly chatService: ChatService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly socketEmitter: SocketEmitterService,
   ) {}
+
+  afterInit(server: Server) {
+    this.socketEmitter.setServer(server);
+  }
 
   async handleConnection(client: AuthenticatedSocket) {
     try {

@@ -23,24 +23,24 @@ enum UserStatus {
 }
 
 model User {
-  id               String      @id @default(uuid()) @db.Uuid
-  email            String?     @unique
-  phone            String?     @unique
-  password         String?
-  firstName        String?
-  lastName         String?
-  profileImage     String?
-  isEmailVerified  Boolean     @default(false)
-  isPhoneVerified  Boolean     @default(false)
-  status           UserStatus  @default(PENDING)
-  provider         Provider    @default(LOCAL)
-  providerId       String?     @unique
-  lastLoginAt      DateTime?
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
-  deletedAt        DateTime?
-  createdBy        String?
-  updatedBy        String?
+  id              String     @id @default(uuid()) @db.Uuid
+  email           String?    @unique
+  phone           String?    @unique
+  password        String?
+  firstName       String?
+  lastName        String?
+  profileImage    String?
+  isEmailVerified Boolean    @default(false)
+  isPhoneVerified Boolean    @default(false)
+  status          UserStatus @default(PENDING)
+  provider        Provider   @default(LOCAL)
+  providerId      String?    @unique
+  lastLoginAt     DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  deletedAt       DateTime?
+  createdBy       String?
+  updatedBy       String?
 
   roles                   UserRole[]
   refreshTokens           RefreshToken[]
@@ -51,6 +51,7 @@ model User {
   profile                 Profile?
   addresses               Address[]
   notificationSettings    NotificationSetting?
+  notifications           UserNotification[]
   kycDocuments            KycDocument[]
   auditLogs               AuditLog[]
   mediaFiles              MediaFile[]
@@ -62,12 +63,12 @@ model User {
   recentSearches          RecentSearch[]
   recentlyViewed          RecentlyViewed[]
   searchLogs              SearchLog[]
-  buyerConversations      Conversation[]            @relation("BuyerConversations")
-  sellerConversations     Conversation[]            @relation("SellerConversations")
+  buyerConversations      Conversation[]           @relation("BuyerConversations")
+  sellerConversations     Conversation[]           @relation("SellerConversations")
   messages                Message[]
   messageReactions        MessageReaction[]
-  blockedUsers            BlockedUser[]             @relation("Blocker")
-  blockedBy               BlockedUser[]             @relation("Blocked")
+  blockedUsers            BlockedUser[]            @relation("Blocker")
+  blockedBy               BlockedUser[]            @relation("Blocked")
   presence                UserPresence?
   payments                Payment[]
   subscriptions           Subscription[]
@@ -75,40 +76,40 @@ model User {
   boosts                  UserBoost[]
   couponRedemptions       CouponRedemption[]
   paymentAuditLogs        PaymentAuditLog[]
-  refundsCreated          Refund[]                  @relation("AdminRefunds")
-  reportsFiled            Report[]                  @relation("ReporterUser")
-  assignedCases           ModerationCase[]          @relation("ModeratorUser")
-  caseAssignments         CaseAssignment[]          @relation("CaseModerator")
-  caseAssignmentsBy       CaseAssignment[]          @relation("CaseAssigner")
-  warningsReceived        WarningHistory[]          @relation("UserWarnings")
-  warningsCreated         WarningHistory[]          @relation("AdminWarnings")
-  strikesReceived         UserStrike[]              @relation("UserStrikes")
-  actionsExecuted         ModerationAction[]        @relation("ModeratorActions")
-  notesWritten            ModerationNote[]          @relation("ModeratorNotes")
-  blockedItems            BlockedContent[]          @relation("BlockedByAdmin")
-  reviewsWritten          Review[]                  @relation("ReviewsWritten")
-  reviewsReceived         Review[]                  @relation("ReviewsReceived")
+  refundsCreated          Refund[]                 @relation("AdminRefunds")
+  reportsFiled            Report[]                 @relation("ReporterUser")
+  assignedCases           ModerationCase[]         @relation("ModeratorUser")
+  caseAssignments         CaseAssignment[]         @relation("CaseModerator")
+  caseAssignmentsBy       CaseAssignment[]         @relation("CaseAssigner")
+  warningsReceived        WarningHistory[]         @relation("UserWarnings")
+  warningsCreated         WarningHistory[]         @relation("AdminWarnings")
+  strikesReceived         UserStrike[]             @relation("UserStrikes")
+  actionsExecuted         ModerationAction[]       @relation("ModeratorActions")
+  notesWritten            ModerationNote[]         @relation("ModeratorNotes")
+  blockedItems            BlockedContent[]         @relation("BlockedByAdmin")
+  reviewsWritten          Review[]                 @relation("ReviewsWritten")
+  reviewsReceived         Review[]                 @relation("ReviewsReceived")
   reviewReactions         ReviewReaction[]
-  sellerStatistics        SellerStatistics?         @relation("SellerStats")
-  buyerStatistics         BuyerStatistics?          @relation("BuyerStats")
-  reputationScore         ReputationScore?          @relation("ReputationScore")
-  trustScore              TrustScore?               @relation("TrustScore")
+  sellerStatistics        SellerStatistics?        @relation("SellerStats")
+  buyerStatistics         BuyerStatistics?         @relation("BuyerStats")
+  reputationScore         ReputationScore?         @relation("ReputationScore")
+  trustScore              TrustScore?              @relation("TrustScore")
   sellerProfile           SellerProfile?
-  buyerOrders             Order[]                   @relation("BuyerOrders")
-  sellerOrders            Order[]                   @relation("SellerOrders")
+  buyerOrders             Order[]                  @relation("BuyerOrders")
+  sellerOrders            Order[]                  @relation("SellerOrders")
 
   // Admin Module Relations
-  adminSessions           AdminSession[]            @relation("AdminSessions")
-  adminNotifications      AdminNotification[]       @relation("AdminNotifications")
-  announcementsCreated    SystemAnnouncement[]      @relation("AnnouncementsCreated")
-  supportTicketsCreated   SupportTicket[]           @relation("UserSupportTickets")
-  supportTicketsAssigned  SupportTicket[]           @relation("AssignedSupportTickets")
-  ticketMessagesSent      TicketMessage[]
-  ticketNotesCreated      TicketInternalNote[]
-  complaintsCreated       Complaint[]               @relation("UserComplaints")
-  complaintsAssigned      Complaint[]               @relation("AssignedComplaints")
-  complaintMessagesSent   ComplaintMessage[]
-  complaintNotesCreated   ComplaintInvestigationNote[]
+  adminSessions          AdminSession[]               @relation("AdminSessions")
+  adminNotifications     AdminNotification[]          @relation("AdminNotifications")
+  announcementsCreated   SystemAnnouncement[]         @relation("AnnouncementsCreated")
+  supportTicketsCreated  SupportTicket[]              @relation("UserSupportTickets")
+  supportTicketsAssigned SupportTicket[]              @relation("AssignedSupportTickets")
+  ticketMessagesSent     TicketMessage[]
+  ticketNotesCreated     TicketInternalNote[]
+  complaintsCreated      Complaint[]                  @relation("UserComplaints")
+  complaintsAssigned     Complaint[]                  @relation("AssignedComplaints")
+  complaintMessagesSent  ComplaintMessage[]
+  complaintNotesCreated  ComplaintInvestigationNote[]
 
   @@index([email])
   @@index([phone])
@@ -156,7 +157,7 @@ model RefreshToken {
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt       DateTime
   revokedAt       DateTime?
-  replacedByToken String?   // Replaced by token string/id for rotation
+  replacedByToken String? // Replaced by token string/id for rotation
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -195,7 +196,7 @@ model PasswordResetToken {
 
 model PhoneOtp {
   id         String    @id @default(uuid()) @db.Uuid
-  otp        String    // Hashed OTP
+  otp        String // Hashed OTP
   phone      String
   userId     String    @db.Uuid
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -210,14 +211,14 @@ model PhoneOtp {
 }
 
 model Session {
-  id        String    @id @default(uuid()) @db.Uuid
-  userId    String    @db.Uuid
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   ipAddress String?
   userAgent String?
   expiresAt DateTime
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId])
   @@map("sessions")
@@ -388,10 +389,10 @@ model KycDocument {
   createdBy      String?
   updatedBy      String?
 
-  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  frontImage MediaFile  @relation("KycFront", fields: [frontImageId], references: [id], onDelete: Cascade)
-  backImage  MediaFile? @relation("KycBack", fields: [backImageId], references: [id], onDelete: SetNull)
-  selfieImage MediaFile @relation("KycSelfie", fields: [selfieImageId], references: [id], onDelete: Cascade)
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  frontImage  MediaFile  @relation("KycFront", fields: [frontImageId], references: [id], onDelete: Cascade)
+  backImage   MediaFile? @relation("KycBack", fields: [backImageId], references: [id], onDelete: SetNull)
+  selfieImage MediaFile  @relation("KycSelfie", fields: [selfieImageId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("kyc_documents")
@@ -486,14 +487,14 @@ model Category {
   updatedAt      DateTime  @updatedAt
   deletedAt      DateTime?
 
-  parent       Category?  @relation("CategoryToCategory", fields: [parentId], references: [id], onDelete: Cascade)
-  children     Category[] @relation("CategoryToCategory")
+  parent   Category?  @relation("CategoryToCategory", fields: [parentId], references: [id], onDelete: Cascade)
+  children Category[] @relation("CategoryToCategory")
 
-  attributes        CategoryAttribute[]
-  attributeGroups   CategoryAttributeGroup[]
-  translations      CategoryTranslation[]
-  products          Product[]
-  brands            Brand[]
+  attributes      CategoryAttribute[]
+  attributeGroups CategoryAttributeGroup[]
+  translations    CategoryTranslation[]
+  products        Product[]
+  brands          Brand[]
 
   @@index([parentId])
   @@index([slug])
@@ -502,14 +503,14 @@ model Category {
 }
 
 model CategoryAttributeGroup {
-  id         String    @id @default(uuid()) @db.Uuid
-  categoryId String    @db.Uuid
+  id         String   @id @default(uuid()) @db.Uuid
+  categoryId String   @db.Uuid
   name       String
-  sortOrder  Int       @default(0)
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  category   Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  category   Category            @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   attributes CategoryAttribute[]
 
   @@index([categoryId])
@@ -521,7 +522,7 @@ model CategoryAttribute {
   categoryId   String        @db.Uuid
   groupId      String?       @db.Uuid
   name         String
-  slug         String        // Attribute key (e.g. brand, model)
+  slug         String // Attribute key (e.g. brand, model)
   type         AttributeType
   isRequired   Boolean       @default(false)
   minLength    Int?
@@ -541,10 +542,10 @@ model CategoryAttribute {
   updatedAt    DateTime      @updatedAt
   deletedAt    DateTime?
 
-  category     Category                @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  group        CategoryAttributeGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
-  options      AttributeOption[]
-  values       CategoryAttributeValue[]
+  category          Category                 @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  group             CategoryAttributeGroup?  @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  options           AttributeOption[]
+  values            CategoryAttributeValue[]
   productAttributes ProductAttribute[]
 
   @@index([categoryId])
@@ -562,7 +563,7 @@ model AttributeOption {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  attribute   CategoryAttribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+  attribute CategoryAttribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
 
   @@index([attributeId])
   @@map("attribute_options")
@@ -576,7 +577,7 @@ model CategoryAttributeValue {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  attribute   CategoryAttribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+  attribute CategoryAttribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
 
   @@index([listingId])
   @@index([attributeId])
@@ -594,7 +595,7 @@ model CategoryTranslation {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  category       Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
   @@unique([categoryId, locale])
   @@index([categoryId])
@@ -631,7 +632,7 @@ model Product {
   slug            String           @unique
   description     String
   condition       ProductCondition
-  price           Float            // Using Float for ease of calculations in JS
+  price           Float // Using Float for ease of calculations in JS
   currency        String           @default("INR")
   negotiable      Boolean          @default(false)
   quantity        Int              @default(1)
@@ -650,27 +651,26 @@ model Product {
   updatedAt       DateTime         @updatedAt
   deletedAt       DateTime?
 
-  seller      User      @relation(fields: [sellerId], references: [id], onDelete: Cascade)
-  category    Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  brand       Brand?    @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  seller   User     @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  brand    Brand?   @relation(fields: [brandId], references: [id], onDelete: SetNull)
 
-  attributes    ProductAttribute[]
-  images        ProductImage[]
-  videos        ProductVideo[]
-  location      ProductLocation?
-  statusHistory ProductStatusHistory[]
-  featuredAds   FeaturedProduct[]
-  boostedAds    BoostedProduct[]
-  views         ProductView[]
-  statistics    ProductStatistics?
-  favorites     Favorite[]
-  wishlistItems WishlistItem[]
+  attributes     ProductAttribute[]
+  images         ProductImage[]
+  videos         ProductVideo[]
+  location       ProductLocation?
+  statusHistory  ProductStatusHistory[]
+  featuredAds    FeaturedProduct[]
+  boostedAds     BoostedProduct[]
+  views          ProductView[]
+  statistics     ProductStatistics?
+  favorites      Favorite[]
+  wishlistItems  WishlistItem[]
   recentlyViewed RecentlyViewed[]
   conversations  Conversation[]
   payments       Payment[]
   reviews        Review[]
   orders         Order[]
-
 
   @@index([sellerId])
   @@index([categoryId])
@@ -707,7 +707,7 @@ model ProductImage {
   mimeType     String?
   width        Int?
   height       Int?
-  fileKey      String?  // S3 path for cleanup
+  fileKey      String? // S3 path for cleanup
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -728,7 +728,7 @@ model ProductVideo {
   width        Int?
   height       Int?
   duration     Float?
-  fileKey      String?  // S3 path for cleanup
+  fileKey      String? // S3 path for cleanup
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -853,12 +853,12 @@ model Favorite {
 }
 
 model Wishlist {
-  id        String   @id @default(uuid()) @db.Uuid
-  userId    String   @db.Uuid
-  name      String   @default("Default Wishlist")
-  isDefault Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  name      String    @default("Default Wishlist")
+  isDefault Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
   user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -967,15 +967,15 @@ enum MessageStatus {
 }
 
 model Conversation {
-  id          String   @id @default(uuid()) @db.Uuid
-  productId   String?  @db.Uuid
-  buyerId     String   @db.Uuid
-  sellerId    String   @db.Uuid
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  deletedAt   DateTime?
-  createdBy   String?
-  updatedBy   String?
+  id        String    @id @default(uuid()) @db.Uuid
+  productId String?   @db.Uuid
+  buyerId   String    @db.Uuid
+  sellerId  String    @db.Uuid
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  createdBy String?
+  updatedBy String?
 
   product      Product?                  @relation(fields: [productId], references: [id], onDelete: Cascade)
   buyer        User                      @relation("BuyerConversations", fields: [buyerId], references: [id], onDelete: Cascade)
@@ -1190,80 +1190,80 @@ enum TransactionType {
 }
 
 model PaymentProvider {
-  id          String    @id @default(uuid()) @db.Uuid
-  name        String    @unique
-  code        String    @unique
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
-  createdBy   String?
-  updatedBy   String?
+  id        String    @id @default(uuid()) @db.Uuid
+  name      String    @unique
+  code      String    @unique
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  createdBy String?
+  updatedBy String?
 
-  payments    Payment[]
+  payments Payment[]
 
   @@map("payment_providers")
 }
 
 model SubscriptionPlan {
-  id                  String               @id @default(uuid()) @db.Uuid
-  name                String               @unique
-  description         String?
-  price               Float
-  currency            String               @default("INR")
-  duration            SubscriptionDuration
-  isActive            Boolean              @default(true)
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
-  deletedAt           DateTime?
-  createdBy           String?
-  updatedBy           String?
+  id          String               @id @default(uuid()) @db.Uuid
+  name        String               @unique
+  description String?
+  price       Float
+  currency    String               @default("INR")
+  duration    SubscriptionDuration
+  isActive    Boolean              @default(true)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  deletedAt   DateTime?
+  createdBy   String?
+  updatedBy   String?
 
-  features            SubscriptionFeature?
-  subscriptions       Subscription[]
-  userSubscriptions   UserSubscription[]
+  features          SubscriptionFeature?
+  subscriptions     Subscription[]
+  userSubscriptions UserSubscription[]
 
   @@map("subscription_plans")
 }
 
 model SubscriptionFeature {
-  id               String           @id @default(uuid()) @db.Uuid
-  planId           String           @unique @db.Uuid
-  maxListings      Int              @default(5)
-  featuredListings Int              @default(0)
-  boostCredits     Int              @default(0)
-  imageLimits      Int              @default(5)
-  videoUpload      Boolean          @default(false)
-  prioritySupport  Boolean          @default(false)
-  analyticsAccess  Boolean          @default(false)
-  chatLimits       Int              @default(100)
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  id               String   @id @default(uuid()) @db.Uuid
+  planId           String   @unique @db.Uuid
+  maxListings      Int      @default(5)
+  featuredListings Int      @default(0)
+  boostCredits     Int      @default(0)
+  imageLimits      Int      @default(5)
+  videoUpload      Boolean  @default(false)
+  prioritySupport  Boolean  @default(false)
+  analyticsAccess  Boolean  @default(false)
+  chatLimits       Int      @default(100)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  plan             SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  plan SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
 
   @@map("subscription_features")
 }
 
 model Subscription {
-  id                     String           @id @default(uuid()) @db.Uuid
-  userId                 String           @db.Uuid
-  planId                 String           @db.Uuid
+  id                     String    @id @default(uuid()) @db.Uuid
+  userId                 String    @db.Uuid
+  planId                 String    @db.Uuid
   status                 String
   provider               String
-  providerSubscriptionId String?          @unique
+  providerSubscriptionId String?   @unique
   currentPeriodStart     DateTime
   currentPeriodEnd       DateTime
-  cancelAtPeriodEnd      Boolean          @default(false)
+  cancelAtPeriodEnd      Boolean   @default(false)
   canceledAt             DateTime?
-  createdAt              DateTime         @default(now())
-  updatedAt              DateTime         @updatedAt
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
   deletedAt              DateTime?
 
-  user                   User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  plan                   SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
-  payments               Payment[]
-  userSubscriptions      UserSubscription[]
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan              SubscriptionPlan   @relation(fields: [planId], references: [id], onDelete: Cascade)
+  payments          Payment[]
+  userSubscriptions UserSubscription[]
 
   @@index([userId])
   @@index([providerSubscriptionId])
@@ -1271,25 +1271,25 @@ model Subscription {
 }
 
 model UserSubscription {
-  id               String           @id @default(uuid()) @db.Uuid
-  userId           String           @unique @db.Uuid
-  subscriptionId   String?          @db.Uuid
-  planId           String           @db.Uuid
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String    @unique @db.Uuid
+  subscriptionId   String?   @db.Uuid
+  planId           String    @db.Uuid
   maxListings      Int
   featuredListings Int
   boostCredits     Int
   imageLimits      Int
-  videoUpload      Boolean          @default(false)
-  prioritySupport  Boolean          @default(false)
-  analyticsAccess  Boolean          @default(false)
+  videoUpload      Boolean   @default(false)
+  prioritySupport  Boolean   @default(false)
+  analyticsAccess  Boolean   @default(false)
   chatLimits       Int
   expiresAt        DateTime?
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  subscription     Subscription?    @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
-  plan             SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscription Subscription?    @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  plan         SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
 
   @@map("user_subscriptions")
 }
@@ -1307,120 +1307,120 @@ model FeaturedPackage {
   updatedAt    DateTime     @updatedAt
   deletedAt    DateTime?
 
-  payments     Payment[]
+  payments Payment[]
 
   @@map("featured_packages")
 }
 
 model BoostPackage {
-  id             String      @id @default(uuid()) @db.Uuid
-  name           String
-  price          Float
-  currency       String      @default("INR")
-  durationDays   Int
-  creditAmount   Int         @default(1)
-  priorityRanking Int         @default(1)
-  isActive       Boolean     @default(true)
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
-  deletedAt      DateTime?
+  id              String    @id @default(uuid()) @db.Uuid
+  name            String
+  price           Float
+  currency        String    @default("INR")
+  durationDays    Int
+  creditAmount    Int       @default(1)
+  priorityRanking Int       @default(1)
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
 
-  payments       Payment[]
-  userBoosts     UserBoost[]
+  payments   Payment[]
+  userBoosts UserBoost[]
 
   @@map("boost_packages")
 }
 
 model UserBoost {
-  id             String       @id @default(uuid()) @db.Uuid
-  userId         String       @db.Uuid
-  packageId      String       @db.Uuid
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @db.Uuid
+  packageId      String   @db.Uuid
   creditsGranted Int
-  creditsUsed    Int          @default(0)
+  creditsUsed    Int      @default(0)
   expiresAt      DateTime
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  package        BoostPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  package BoostPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("user_boosts")
 }
 
 model Coupon {
-  id             String             @id @default(uuid()) @db.Uuid
-  code           String             @unique
-  name           String
-  type           CouponType
-  value          Float
-  minPurchase    Float?             @default(0)
-  maxDiscount    Float?
-  usageLimit     Int?
-  usageCount     Int                @default(0)
-  perUserLimit   Int                @default(1)
-  expiresAt      DateTime?
-  isActive       Boolean            @default(true)
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
-  deletedAt      DateTime?
+  id           String     @id @default(uuid()) @db.Uuid
+  code         String     @unique
+  name         String
+  type         CouponType
+  value        Float
+  minPurchase  Float?     @default(0)
+  maxDiscount  Float?
+  usageLimit   Int?
+  usageCount   Int        @default(0)
+  perUserLimit Int        @default(1)
+  expiresAt    DateTime?
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  deletedAt    DateTime?
 
-  payments       Payment[]
-  redemptions    CouponRedemption[]
+  payments    Payment[]
+  redemptions CouponRedemption[]
 
   @@index([code])
   @@map("coupons")
 }
 
 model CouponRedemption {
-  id        String   @id @default(uuid()) @db.Uuid
-  couponId  String   @db.Uuid
-  userId    String   @db.Uuid
-  paymentId String?  @db.Uuid
+  id         String   @id @default(uuid()) @db.Uuid
+  couponId   String   @db.Uuid
+  userId     String   @db.Uuid
+  paymentId  String?  @db.Uuid
   redeemedAt DateTime @default(now())
 
-  coupon    Coupon   @relation(fields: [couponId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  payment   Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  coupon  Coupon   @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payment Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
 
   @@unique([userId, couponId, paymentId])
   @@map("coupon_redemptions")
 }
 
 model Payment {
-  id                   String            @id @default(uuid()) @db.Uuid
-  userId               String            @db.Uuid
-  providerId           String            @db.Uuid
-  subscriptionId       String?           @db.Uuid
-  featuredPackageId    String?           @db.Uuid
-  boostPackageId       String?           @db.Uuid
-  productId            String?           @db.Uuid
-  amount               Float
-  currency             String            @default("INR")
-  status               PaymentStatus     @default(PENDING)
-  providerPaymentId    String?           @unique
-  providerOrderId      String?           @unique
-  metadata             Json?
-  description          String?
-  couponId             String?           @db.Uuid
-  discountAmount       Float             @default(0)
-  netAmount            Float
-  ipAddress            String?
-  userAgent            String?
-  createdAt            DateTime          @default(now())
-  updatedAt            DateTime          @updatedAt
-  deletedAt            DateTime?
+  id                String        @id @default(uuid()) @db.Uuid
+  userId            String        @db.Uuid
+  providerId        String        @db.Uuid
+  subscriptionId    String?       @db.Uuid
+  featuredPackageId String?       @db.Uuid
+  boostPackageId    String?       @db.Uuid
+  productId         String?       @db.Uuid
+  amount            Float
+  currency          String        @default("INR")
+  status            PaymentStatus @default(PENDING)
+  providerPaymentId String?       @unique
+  providerOrderId   String?       @unique
+  metadata          Json?
+  description       String?
+  couponId          String?       @db.Uuid
+  discountAmount    Float         @default(0)
+  netAmount         Float
+  ipAddress         String?
+  userAgent         String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  deletedAt         DateTime?
 
-  user                 User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  provider             PaymentProvider   @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  subscription         Subscription?     @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
-  featuredPackage      FeaturedPackage?  @relation(fields: [featuredPackageId], references: [id], onDelete: SetNull)
-  boostPackage         BoostPackage?     @relation(fields: [boostPackageId], references: [id], onDelete: SetNull)
-  product              Product?          @relation(fields: [productId], references: [id], onDelete: SetNull)
-  coupon               Coupon?           @relation(fields: [couponId], references: [id], onDelete: SetNull)
-  transactions         PaymentTransaction[]
-  refunds              Refund[]
-  redemptions          CouponRedemption[]
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider        PaymentProvider      @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  subscription    Subscription?        @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  featuredPackage FeaturedPackage?     @relation(fields: [featuredPackageId], references: [id], onDelete: SetNull)
+  boostPackage    BoostPackage?        @relation(fields: [boostPackageId], references: [id], onDelete: SetNull)
+  product         Product?             @relation(fields: [productId], references: [id], onDelete: SetNull)
+  coupon          Coupon?              @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  transactions    PaymentTransaction[]
+  refunds         Refund[]
+  redemptions     CouponRedemption[]
 
   @@index([userId])
   @@index([providerPaymentId])
@@ -1428,16 +1428,16 @@ model Payment {
 }
 
 model PaymentTransaction {
-  id                  String          @id @default(uuid()) @db.Uuid
-  paymentId           String          @db.Uuid
-  transactionType     TransactionType @default(CHARGE)
-  amount              Float
-  status              String
+  id                    String          @id @default(uuid()) @db.Uuid
+  paymentId             String          @db.Uuid
+  transactionType       TransactionType @default(CHARGE)
+  amount                Float
+  status                String
   providerTransactionId String?
-  rawResponse         Json?
-  createdAt           DateTime        @default(now())
+  rawResponse           Json?
+  createdAt             DateTime        @default(now())
 
-  payment             Payment         @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
 
   @@index([paymentId])
   @@map("payment_transactions")
@@ -1455,8 +1455,8 @@ model Refund {
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 
-  payment          Payment      @relation(fields: [paymentId], references: [id], onDelete: Cascade)
-  createdBy        User?        @relation("AdminRefunds", fields: [createdById], references: [id], onDelete: SetNull)
+  payment   Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  createdBy User?   @relation("AdminRefunds", fields: [createdById], references: [id], onDelete: SetNull)
 
   @@index([paymentId])
   @@map("refunds")
@@ -1489,7 +1489,7 @@ model PaymentAuditLog {
   newValues Json?
   createdAt DateTime @default(now())
 
-  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@map("payment_audit_logs")
@@ -1536,37 +1536,37 @@ enum ModerationActionType {
 }
 
 model ReportReason {
-  id          String           @id @default(uuid()) @db.Uuid
-  code        String           @unique
-  label       String
-  isActive    Boolean          @default(true)
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  id        String   @id @default(uuid()) @db.Uuid
+  code      String   @unique
+  label     String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  reports     Report[]
+  reports Report[]
 
   @@map("report_reasons")
 }
 
 model Report {
-  id            String           @id @default(uuid()) @db.Uuid
-  reporterId    String           @db.Uuid
-  targetType    ReportTargetType
-  targetId      String
-  reasonCode    String
-  customReason  String?
-  details       String
-  status        ReportStatus     @default(OPEN)
-  priority      PriorityLevel    @default(MEDIUM)
-  caseId        String?          @db.Uuid
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
-  deletedAt     DateTime?
+  id           String           @id @default(uuid()) @db.Uuid
+  reporterId   String           @db.Uuid
+  targetType   ReportTargetType
+  targetId     String
+  reasonCode   String
+  customReason String?
+  details      String
+  status       ReportStatus     @default(OPEN)
+  priority     PriorityLevel    @default(MEDIUM)
+  caseId       String?          @db.Uuid
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  deletedAt    DateTime?
 
-  reporter      User             @relation("ReporterUser", fields: [reporterId], references: [id], onDelete: Cascade)
-  reason        ReportReason     @relation(fields: [reasonCode], references: [code], onDelete: Restrict)
-  case          ModerationCase?  @relation(fields: [caseId], references: [id], onDelete: SetNull)
-  evidence      ReportEvidence[]
+  reporter User             @relation("ReporterUser", fields: [reporterId], references: [id], onDelete: Cascade)
+  reason   ReportReason     @relation(fields: [reasonCode], references: [code], onDelete: Restrict)
+  case     ModerationCase?  @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  evidence ReportEvidence[]
 
   @@index([reporterId])
   @@index([targetId])
@@ -1575,35 +1575,35 @@ model Report {
 }
 
 model ReportEvidence {
-  id          String   @id @default(uuid()) @db.Uuid
-  reportId    String   @db.Uuid
-  type        String
-  fileUrl     String?
-  textNotes   String?
-  createdAt   DateTime @default(now())
+  id        String   @id @default(uuid()) @db.Uuid
+  reportId  String   @db.Uuid
+  type      String
+  fileUrl   String?
+  textNotes String?
+  createdAt DateTime @default(now())
 
-  report      Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  report Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
 
   @@index([reportId])
   @@map("report_evidence")
 }
 
 model ModerationCase {
-  id                 String           @id @default(uuid()) @db.Uuid
-  title              String
-  description        String?
-  status             ReportStatus     @default(OPEN)
-  priority           PriorityLevel    @default(MEDIUM)
-  assignedModeratorId String?         @db.Uuid
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
-  deletedAt          DateTime?
+  id                  String        @id @default(uuid()) @db.Uuid
+  title               String
+  description         String?
+  status              ReportStatus  @default(OPEN)
+  priority            PriorityLevel @default(MEDIUM)
+  assignedModeratorId String?       @db.Uuid
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  deletedAt           DateTime?
 
-  assignedModerator  User?            @relation("ModeratorUser", fields: [assignedModeratorId], references: [id], onDelete: SetNull)
-  reports            Report[]
-  actions            ModerationAction[]
-  notes              ModerationNote[]
-  assignments        CaseAssignment[]
+  assignedModerator User?              @relation("ModeratorUser", fields: [assignedModeratorId], references: [id], onDelete: SetNull)
+  reports           Report[]
+  actions           ModerationAction[]
+  notes             ModerationNote[]
+  assignments       CaseAssignment[]
 
   @@index([assignedModeratorId])
   @@map("moderation_cases")
@@ -1616,65 +1616,65 @@ model CaseAssignment {
   assignedById String   @db.Uuid
   assignedAt   DateTime @default(now())
 
-  case         ModerationCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  moderator    User           @relation("CaseModerator", fields: [moderatorId], references: [id], onDelete: Cascade)
-  assignedBy   User           @relation("CaseAssigner", fields: [assignedById], references: [id], onDelete: Cascade)
+  case       ModerationCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  moderator  User           @relation("CaseModerator", fields: [moderatorId], references: [id], onDelete: Cascade)
+  assignedBy User           @relation("CaseAssigner", fields: [assignedById], references: [id], onDelete: Cascade)
 
   @@map("case_assignments")
 }
 
 model ModerationNote {
-  id           String   @id @default(uuid()) @db.Uuid
-  caseId       String   @db.Uuid
-  moderatorId  String   @db.Uuid
-  note         String
-  createdAt    DateTime @default(now())
+  id          String   @id @default(uuid()) @db.Uuid
+  caseId      String   @db.Uuid
+  moderatorId String   @db.Uuid
+  note        String
+  createdAt   DateTime @default(now())
 
-  case         ModerationCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  moderator    User           @relation("ModeratorNotes", fields: [moderatorId], references: [id], onDelete: Cascade)
+  case      ModerationCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  moderator User           @relation("ModeratorNotes", fields: [moderatorId], references: [id], onDelete: Cascade)
 
   @@map("moderation_notes")
 }
 
 model ModerationAction {
-  id           String               @id @default(uuid()) @db.Uuid
-  caseId       String?              @db.Uuid
-  moderatorId  String               @db.Uuid
-  actionType   ModerationActionType
-  targetType   String
-  targetId     String
-  reason       String
-  createdAt    DateTime             @default(now())
+  id          String               @id @default(uuid()) @db.Uuid
+  caseId      String?              @db.Uuid
+  moderatorId String               @db.Uuid
+  actionType  ModerationActionType
+  targetType  String
+  targetId    String
+  reason      String
+  createdAt   DateTime             @default(now())
 
-  case         ModerationCase?      @relation(fields: [caseId], references: [id], onDelete: SetNull)
-  moderator    User                 @relation("ModeratorActions", fields: [moderatorId], references: [id], onDelete: Cascade)
+  case      ModerationCase? @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  moderator User            @relation("ModeratorActions", fields: [moderatorId], references: [id], onDelete: Cascade)
 
   @@map("moderation_actions")
 }
 
 model BlockedContent {
-  id           String   @id @default(uuid()) @db.Uuid
-  type         String
-  targetId     String   @unique
-  reason       String
-  blockedById  String   @db.Uuid
-  createdAt    DateTime @default(now())
+  id          String   @id @default(uuid()) @db.Uuid
+  type        String
+  targetId    String   @unique
+  reason      String
+  blockedById String   @db.Uuid
+  createdAt   DateTime @default(now())
 
-  blockedBy    User     @relation("BlockedByAdmin", fields: [blockedById], references: [id], onDelete: Cascade)
+  blockedBy User @relation("BlockedByAdmin", fields: [blockedById], references: [id], onDelete: Cascade)
 
   @@map("blocked_content")
 }
 
 model WarningHistory {
-  id          String   @id @default(uuid()) @db.Uuid
-  userId      String   @db.Uuid
-  caseId      String?  @db.Uuid
-  reason      String
-  warnedById  String   @db.Uuid
-  createdAt   DateTime @default(now())
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @db.Uuid
+  caseId     String?  @db.Uuid
+  reason     String
+  warnedById String   @db.Uuid
+  createdAt  DateTime @default(now())
 
-  user        User     @relation("UserWarnings", fields: [userId], references: [id], onDelete: Cascade)
-  warnedBy    User     @relation("AdminWarnings", fields: [warnedById], references: [id], onDelete: Cascade)
+  user     User @relation("UserWarnings", fields: [userId], references: [id], onDelete: Cascade)
+  warnedBy User @relation("AdminWarnings", fields: [warnedById], references: [id], onDelete: Cascade)
 
   @@map("warning_history")
 }
@@ -1688,7 +1688,7 @@ model UserStrike {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  user        User     @relation("UserStrikes", fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation("UserStrikes", fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_strikes")
 }
@@ -1703,26 +1703,26 @@ enum ReviewType {
 }
 
 model Review {
-  id              String       @id @default(uuid()) @db.Uuid
-  reviewerId      String       @db.Uuid
-  targetUserId    String?      @db.Uuid
-  productId       String?      @db.Uuid
-  paymentId       String?      @db.Uuid
-  reviewType      ReviewType
-  title           String?
-  content         String
-  isVerified      Boolean      @default(false)
-  isVisible       Boolean      @default(true)
-  editableUntil   DateTime?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-  deletedAt       DateTime?
+  id            String     @id @default(uuid()) @db.Uuid
+  reviewerId    String     @db.Uuid
+  targetUserId  String?    @db.Uuid
+  productId     String?    @db.Uuid
+  paymentId     String?    @db.Uuid
+  reviewType    ReviewType
+  title         String?
+  content       String
+  isVerified    Boolean    @default(false)
+  isVisible     Boolean    @default(true)
+  editableUntil DateTime?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  deletedAt     DateTime?
 
-  reviewer        User         @relation("ReviewsWritten", fields: [reviewerId], references: [id], onDelete: Cascade)
-  targetUser      User?        @relation("ReviewsReceived", fields: [targetUserId], references: [id], onDelete: SetNull)
-  product         Product?     @relation(fields: [productId], references: [id], onDelete: SetNull)
-  ratings         ReviewRating[]
-  reactions       ReviewReaction[]
+  reviewer   User             @relation("ReviewsWritten", fields: [reviewerId], references: [id], onDelete: Cascade)
+  targetUser User?            @relation("ReviewsReceived", fields: [targetUserId], references: [id], onDelete: SetNull)
+  product    Product?         @relation(fields: [productId], references: [id], onDelete: SetNull)
+  ratings    ReviewRating[]
+  reactions  ReviewReaction[]
 
   @@unique([reviewerId, productId, reviewType])
   @@index([targetUserId])
@@ -1732,95 +1732,95 @@ model Review {
 }
 
 model ReviewRating {
-  id                  String   @id @default(uuid()) @db.Uuid
-  reviewId            String   @unique @db.Uuid
-  overall             Int
-  communication       Int?
-  responseTime        Int?
-  productAccuracy     Int?
-  deliveryExperience  Int?
-  behaviour           Int?
-  valueForMoney       Int?
-  wouldRecommend      Boolean?
-  createdAt           DateTime @default(now())
+  id                 String   @id @default(uuid()) @db.Uuid
+  reviewId           String   @unique @db.Uuid
+  overall            Int
+  communication      Int?
+  responseTime       Int?
+  productAccuracy    Int?
+  deliveryExperience Int?
+  behaviour          Int?
+  valueForMoney      Int?
+  wouldRecommend     Boolean?
+  createdAt          DateTime @default(now())
 
-  review              Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
 
   @@map("review_ratings")
 }
 
 model ReviewReaction {
-  id         String   @id @default(uuid()) @db.Uuid
-  reviewId   String   @db.Uuid
-  userId     String   @db.Uuid
-  type       String
-  createdAt  DateTime @default(now())
+  id        String   @id @default(uuid()) @db.Uuid
+  reviewId  String   @db.Uuid
+  userId    String   @db.Uuid
+  type      String
+  createdAt DateTime @default(now())
 
-  review     Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([reviewId, userId, type])
   @@map("review_reactions")
 }
 
 model SellerStatistics {
-  id               String   @id @default(uuid()) @db.Uuid
-  userId           String   @unique @db.Uuid
-  averageRating    Float    @default(0)
-  totalReviews     Int      @default(0)
-  positivePercent  Float    @default(0)
-  negativePercent  Float    @default(0)
-  recentTrend      Float    @default(0)
-  updatedAt        DateTime @updatedAt
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @unique @db.Uuid
+  averageRating   Float    @default(0)
+  totalReviews    Int      @default(0)
+  positivePercent Float    @default(0)
+  negativePercent Float    @default(0)
+  recentTrend     Float    @default(0)
+  updatedAt       DateTime @updatedAt
 
-  user             User     @relation("SellerStats", fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation("SellerStats", fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("seller_statistics")
 }
 
 model BuyerStatistics {
-  id               String   @id @default(uuid()) @db.Uuid
-  userId           String   @unique @db.Uuid
-  averageRating    Float    @default(0)
-  totalReviews     Int      @default(0)
-  positivePercent  Float    @default(0)
-  negativePercent  Float    @default(0)
-  updatedAt        DateTime @updatedAt
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @unique @db.Uuid
+  averageRating   Float    @default(0)
+  totalReviews    Int      @default(0)
+  positivePercent Float    @default(0)
+  negativePercent Float    @default(0)
+  updatedAt       DateTime @updatedAt
 
-  user             User     @relation("BuyerStats", fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation("BuyerStats", fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("buyer_statistics")
 }
 
 model ReputationScore {
-  id               String   @id @default(uuid()) @db.Uuid
-  userId           String   @unique @db.Uuid
-  sellerScore      Float    @default(0)
-  buyerScore       Float    @default(0)
-  overallScore     Float    @default(0)
-  verifiedBadge    Boolean  @default(false)
-  updatedAt        DateTime @updatedAt
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @unique @db.Uuid
+  sellerScore   Float    @default(0)
+  buyerScore    Float    @default(0)
+  overallScore  Float    @default(0)
+  verifiedBadge Boolean  @default(false)
+  updatedAt     DateTime @updatedAt
 
-  user             User     @relation("ReputationScore", fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation("ReputationScore", fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("reputation_scores")
 }
 
 model TrustScore {
-  id                    String   @id @default(uuid()) @db.Uuid
-  userId                String   @unique @db.Uuid
-  score                 Float    @default(50)
-  averageRatingFactor   Float    @default(0)
-  transactionFactor     Float    @default(0)
-  cancellationPenalty   Float    @default(0)
-  reportPenalty         Float    @default(0)
-  accountAgeFactor      Float    @default(0)
-  kycBonus              Float    @default(0)
-  responseTimeFactor    Float    @default(0)
-  strikePenalty         Float    @default(0)
-  updatedAt             DateTime @updatedAt
+  id                  String   @id @default(uuid()) @db.Uuid
+  userId              String   @unique @db.Uuid
+  score               Float    @default(50)
+  averageRatingFactor Float    @default(0)
+  transactionFactor   Float    @default(0)
+  cancellationPenalty Float    @default(0)
+  reportPenalty       Float    @default(0)
+  accountAgeFactor    Float    @default(0)
+  kycBonus            Float    @default(0)
+  responseTimeFactor  Float    @default(0)
+  strikePenalty       Float    @default(0)
+  updatedAt           DateTime @updatedAt
 
-  user                  User     @relation("TrustScore", fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation("TrustScore", fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("trust_scores")
 }
@@ -1828,16 +1828,16 @@ model TrustScore {
 // --- NEW ANALYTICS MODELS (PHASE 11) ---
 
 model DailyUserMetric {
-  id             String   @id @default(uuid()) @db.Uuid
-  date           DateTime @db.Date
-  newUsers       Int      @default(0)
-  activeUsers    Int      @default(0)
-  verifiedUsers  Int      @default(0)
-  churnedUsers   Int      @default(0)
-  kycApprovals   Int      @default(0)
-  kycRejections  Int      @default(0)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id            String   @id @default(uuid()) @db.Uuid
+  date          DateTime @db.Date
+  newUsers      Int      @default(0)
+  activeUsers   Int      @default(0)
+  verifiedUsers Int      @default(0)
+  churnedUsers  Int      @default(0)
+  kycApprovals  Int      @default(0)
+  kycRejections Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@unique([date])
   @@index([date])
@@ -1845,16 +1845,16 @@ model DailyUserMetric {
 }
 
 model DailyProductMetric {
-  id             String   @id @default(uuid()) @db.Uuid
-  date           DateTime @db.Date
-  productId      String   @db.Uuid
-  views          Int      @default(0)
-  uniqueViews    Int      @default(0)
-  favorites      Int      @default(0)
-  shares         Int      @default(0)
-  chatRequests   Int      @default(0)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id           String   @id @default(uuid()) @db.Uuid
+  date         DateTime @db.Date
+  productId    String   @db.Uuid
+  views        Int      @default(0)
+  uniqueViews  Int      @default(0)
+  favorites    Int      @default(0)
+  shares       Int      @default(0)
+  chatRequests Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@unique([date, productId])
   @@index([date])
@@ -1863,13 +1863,13 @@ model DailyProductMetric {
 }
 
 model DailySearchMetric {
-  id             String   @id @default(uuid()) @db.Uuid
-  date           DateTime @db.Date
-  query          String
-  searchCount    Int      @default(0)
-  zeroResults    Int      @default(0)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id          String   @id @default(uuid()) @db.Uuid
+  date        DateTime @db.Date
+  query       String
+  searchCount Int      @default(0)
+  zeroResults Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@unique([date, query])
   @@index([date])
@@ -1878,16 +1878,16 @@ model DailySearchMetric {
 }
 
 model DailyPaymentMetric {
-  id             String   @id @default(uuid()) @db.Uuid
-  date           DateTime @db.Date
-  totalRevenue   Float    @default(0)
-  subscriptions  Int      @default(0)
-  boostPurchases Int      @default(0)
-  featuredPurchases Int   @default(0)
-  refunds        Int      @default(0)
-  successRate    Float    @default(0) // Percentage 0-100
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                String   @id @default(uuid()) @db.Uuid
+  date              DateTime @db.Date
+  totalRevenue      Float    @default(0)
+  subscriptions     Int      @default(0)
+  boostPurchases    Int      @default(0)
+  featuredPurchases Int      @default(0)
+  refunds           Int      @default(0)
+  successRate       Float    @default(0) // Percentage 0-100
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   @@unique([date])
   @@index([date])
@@ -1895,13 +1895,13 @@ model DailyPaymentMetric {
 }
 
 model DailyChatMetric {
-  id             String   @id @default(uuid()) @db.Uuid
-  date           DateTime @db.Date
-  messagesSent   Int      @default(0)
-  conversationsStarted Int @default(0)
-  avgResponseTime Float   @default(0) // in seconds
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                   String   @id @default(uuid()) @db.Uuid
+  date                 DateTime @db.Date
+  messagesSent         Int      @default(0)
+  conversationsStarted Int      @default(0)
+  avgResponseTime      Float    @default(0) // in seconds
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   @@unique([date])
   @@index([date])
@@ -1909,14 +1909,14 @@ model DailyChatMetric {
 }
 
 model DailyNotificationMetric {
-  id             String   @id @default(uuid()) @db.Uuid
-  date           DateTime @db.Date
-  emailsSent     Int      @default(0)
-  pushDelivered  Int      @default(0)
-  pushOpened     Int      @default(0)
-  smsDelivered   Int      @default(0)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id            String   @id @default(uuid()) @db.Uuid
+  date          DateTime @db.Date
+  emailsSent    Int      @default(0)
+  pushDelivered Int      @default(0)
+  pushOpened    Int      @default(0)
+  smsDelivered  Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@unique([date])
   @@index([date])
@@ -1924,14 +1924,14 @@ model DailyNotificationMetric {
 }
 
 model DailyReviewMetric {
-  id             String   @id @default(uuid()) @db.Uuid
-  date           DateTime @db.Date
-  totalReviews   Int      @default(0)
-  avgRating      Float    @default(0)
-  positivePercent Float   @default(0)
-  negativePercent Float   @default(0)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id              String   @id @default(uuid()) @db.Uuid
+  date            DateTime @db.Date
+  totalReviews    Int      @default(0)
+  avgRating       Float    @default(0)
+  positivePercent Float    @default(0)
+  negativePercent Float    @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@unique([date])
   @@index([date])
@@ -1939,14 +1939,14 @@ model DailyReviewMetric {
 }
 
 model DailyCategoryMetric {
-  id             String   @id @default(uuid()) @db.Uuid
-  date           DateTime @db.Date
-  categoryId     String   @db.Uuid
-  views          Int      @default(0)
-  newListings    Int      @default(0)
-  soldListings   Int      @default(0)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id           String   @id @default(uuid()) @db.Uuid
+  date         DateTime @db.Date
+  categoryId   String   @db.Uuid
+  views        Int      @default(0)
+  newListings  Int      @default(0)
+  soldListings Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@unique([date, categoryId])
   @@index([date])
@@ -1955,12 +1955,12 @@ model DailyCategoryMetric {
 }
 
 model PlatformStatistic {
-  id             String   @id @default(uuid()) @db.Uuid
-  totalUsers     Int      @default(0)
-  totalProducts  Int      @default(0)
-  totalRevenue   Float    @default(0)
-  activeChats    Int      @default(0)
-  updatedAt      DateTime @updatedAt
+  id            String   @id @default(uuid()) @db.Uuid
+  totalUsers    Int      @default(0)
+  totalProducts Int      @default(0)
+  totalRevenue  Float    @default(0)
+  activeChats   Int      @default(0)
+  updatedAt     DateTime @updatedAt
 
   @@map("platform_statistics")
 }
@@ -2003,21 +2003,21 @@ enum BannerType {
 }
 
 model Banner {
-  id          String     @id @default(uuid()) @db.Uuid
-  title       String
-  type        BannerType @default(HOMEPAGE)
-  imageUrl    String
-  targetUrl   String?
-  sortOrder   Int        @default(0)
-  isActive    Boolean    @default(true)
-  startDate   DateTime?
-  endDate     DateTime?
-  audience    String?    // ALL, LOGGED_IN, GUEST
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  deletedAt   DateTime?
-  createdBy   String?    @db.Uuid
-  updatedBy   String?    @db.Uuid
+  id        String     @id @default(uuid()) @db.Uuid
+  title     String
+  type      BannerType @default(HOMEPAGE)
+  imageUrl  String
+  targetUrl String?
+  sortOrder Int        @default(0)
+  isActive  Boolean    @default(true)
+  startDate DateTime?
+  endDate   DateTime?
+  audience  String? // ALL, LOGGED_IN, GUEST
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  deletedAt DateTime?
+  createdBy String?    @db.Uuid
+  updatedBy String?    @db.Uuid
 
   @@index([type])
   @@index([isActive])
@@ -2065,36 +2065,36 @@ model Advertisement {
 }
 
 model CmsPage {
-  id              String   @id @default(uuid()) @db.Uuid
-  title           String
-  slug            String   @unique
-  content         String   @db.Text
-  seoTitle        String?
-  seoDescription  String?
-  isPublished     Boolean  @default(false)
-  publishedAt     DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  deletedAt       DateTime?
-  createdBy       String?  @db.Uuid
-  updatedBy       String?  @db.Uuid
+  id             String    @id @default(uuid()) @db.Uuid
+  title          String
+  slug           String    @unique
+  content        String    @db.Text
+  seoTitle       String?
+  seoDescription String?
+  isPublished    Boolean   @default(false)
+  publishedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+  createdBy      String?   @db.Uuid
+  updatedBy      String?   @db.Uuid
 
   @@index([slug])
   @@map("cms_pages")
 }
 
 model AdminSession {
-  id        String   @id @default(uuid()) @db.Uuid
-  userId    String   @db.Uuid
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
   ipAddress String?
   userAgent String?
-  token     String   @unique
+  token     String    @unique
   expiresAt DateTime
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   revokedAt DateTime?
 
-  user      User     @relation("AdminSessions", fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation("AdminSessions", fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([token])
@@ -2102,17 +2102,17 @@ model AdminSession {
 }
 
 model AdminNotification {
-  id          String   @id @default(uuid()) @db.Uuid
-  title       String
-  message     String
-  type        String   @default("SYSTEM") // SYSTEM, ALERT, REPORT, KYC
-  isRead      Boolean  @default(false)
-  targetUserId String? @db.Uuid // If null, broadcasts to all admins
-  actionUrl   String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(uuid()) @db.Uuid
+  title        String
+  message      String
+  type         String   @default("SYSTEM") // SYSTEM, ALERT, REPORT, KYC
+  isRead       Boolean  @default(false)
+  targetUserId String?  @db.Uuid // If null, broadcasts to all admins
+  actionUrl    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  targetUser  User?    @relation("AdminNotifications", fields: [targetUserId], references: [id], onDelete: Cascade)
+  targetUser User? @relation("AdminNotifications", fields: [targetUserId], references: [id], onDelete: Cascade)
 
   @@index([targetUserId])
   @@index([isRead])
@@ -2120,19 +2120,19 @@ model AdminNotification {
 }
 
 model SystemAnnouncement {
-  id          String   @id @default(uuid()) @db.Uuid
-  title       String
-  message     String   @db.Text
-  isActive    Boolean  @default(true)
-  startDate   DateTime?
-  endDate     DateTime?
-  targetRole  String?  // ALL, CUSTOMER, SELLER
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  deletedAt   DateTime?
-  createdBy   String?  @db.Uuid
+  id         String    @id @default(uuid()) @db.Uuid
+  title      String
+  message    String    @db.Text
+  isActive   Boolean   @default(true)
+  startDate  DateTime?
+  endDate    DateTime?
+  targetRole String? // ALL, CUSTOMER, SELLER
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+  createdBy  String?   @db.Uuid
 
-  creator     User?    @relation("AnnouncementsCreated", fields: [createdBy], references: [id], onDelete: SetNull)
+  creator User? @relation("AnnouncementsCreated", fields: [createdBy], references: [id], onDelete: SetNull)
 
   @@map("system_announcements")
 }
@@ -2147,44 +2147,44 @@ enum OrderStatus {
 }
 
 model SellerProfile {
-  id                  String           @id @default(uuid()) @db.Uuid
-  userId              String           @unique @db.Uuid
+  id                  String    @id @default(uuid()) @db.Uuid
+  userId              String    @unique @db.Uuid
   displayName         String
   storeName           String?
   bio                 String?
   profileImage        String?
-  verificationStatus  String           @default("PENDING") // PENDING, VERIFIED, SUSPENDED
-  kycStatus           KycStatus        @default(DRAFT)
-  trustScore          Float            @default(50.0)
-  sellerRating        Float            @default(0.0)
-  totalSales          Int              @default(0)
-  totalListings       Int              @default(0)
-  responseRate        Float            @default(0.0)
-  averageResponseTime Float            @default(0.0) // in seconds
-  createdAt           DateTime         @default(now())
-  updatedAt           DateTime         @updatedAt
+  verificationStatus  String    @default("PENDING") // PENDING, VERIFIED, SUSPENDED
+  kycStatus           KycStatus @default(DRAFT)
+  trustScore          Float     @default(50.0)
+  sellerRating        Float     @default(0.0)
+  totalSales          Int       @default(0)
+  totalListings       Int       @default(0)
+  responseRate        Float     @default(0.0)
+  averageResponseTime Float     @default(0.0) // in seconds
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
-  user                User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("seller_profiles")
 }
 
 model Order {
-  id           String      @id @default(uuid()) @db.Uuid
-  buyerId      String      @db.Uuid
-  sellerId     String      @db.Uuid
-  productId    String      @db.Uuid
-  quantity     Int         @default(1)
-  price        Float
-  totalAmount  Float
-  currency     String      @default("INR")
-  status       OrderStatus @default(PENDING)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  id          String      @id @default(uuid()) @db.Uuid
+  buyerId     String      @db.Uuid
+  sellerId    String      @db.Uuid
+  productId   String      @db.Uuid
+  quantity    Int         @default(1)
+  price       Float
+  totalAmount Float
+  currency    String      @default("INR")
+  status      OrderStatus @default(PENDING)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
-  buyer        User        @relation("BuyerOrders", fields: [buyerId], references: [id], onDelete: Restrict)
-  seller       User        @relation("SellerOrders", fields: [sellerId], references: [id], onDelete: Restrict)
-  product      Product     @relation(fields: [productId], references: [id], onDelete: Restrict)
+  buyer   User    @relation("BuyerOrders", fields: [buyerId], references: [id], onDelete: Restrict)
+  seller  User    @relation("SellerOrders", fields: [sellerId], references: [id], onDelete: Restrict)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
 
   @@map("orders")
 }
@@ -2212,8 +2212,8 @@ model Brand {
   updatedAt        DateTime  @updatedAt
   deletedAt        DateTime?
 
-  category  Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  products  Product[]
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  products Product[]
 
   @@index([categoryId])
   @@index([slug])
@@ -2274,22 +2274,47 @@ enum NotificationStatus {
 }
 
 model Notification {
-  id             String             @id @default(uuid()) @db.Uuid
-  title          String
-  message        String
-  type           NotificationType   @default(PROMOTION)
-  audience       String
-  sentScheduled  DateTime?
-  status         NotificationStatus @default(DRAFT)
-  deliveryRate   Float?             @default(0.0)
-  iconBg         String?
-  iconColor      String?
-  iconName       String?
+  id            String             @id @default(uuid()) @db.Uuid
+  title         String
+  message       String
+  type          NotificationType   @default(PROMOTION)
+  audience      String
+  sentScheduled DateTime?
+  status        NotificationStatus @default(DRAFT)
+  deliveryRate  Float?             @default(0.0)
+  iconBg        String?
+  iconColor     String?
+  iconName      String?
 
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("notifications")
+}
+
+/// Per-user delivered notification (a real inbox row) - distinct from
+/// `Notification` above, which is a marketing *campaign* record with no
+/// per-recipient tracking at all (no userId, no read state). This is what
+/// actually powers a user's "My Notifications" list, unread badge, and
+/// real-time delivery for both system-generated events (a listing was
+/// approved/rejected, etc.) and admin broadcast campaigns once fanned out
+/// to their resolved audience.
+model UserNotification {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  type      String
+  title     String
+  message   String
+  link      String?
+  isRead    Boolean  @default(false)
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, isRead])
+  @@map("user_notifications")
 }
 
 enum TicketPriority {
@@ -2321,19 +2346,19 @@ enum TicketSenderType {
 }
 
 model SupportTicket {
-  id                 String               @id @default(uuid()) @db.Uuid
-  ticketNumber       String               @unique // e.g. TKT-0001254
-  userId             String?              @db.Uuid
-  userName           String
-  userEmail          String
-  userPhone          String?
-  subject            String
-  category           String
-  priority           TicketPriority       @default(MEDIUM)
-  status             TicketStatus         @default(OPEN)
-  channel            TicketChannel        @default(WEB)
-  assignedAgent      String?
-  assignedToId       String?              @db.Uuid
+  id            String         @id @default(uuid()) @db.Uuid
+  ticketNumber  String         @unique // e.g. TKT-0001254
+  userId        String?        @db.Uuid
+  userName      String
+  userEmail     String
+  userPhone     String?
+  subject       String
+  category      String
+  priority      TicketPriority @default(MEDIUM)
+  status        TicketStatus   @default(OPEN)
+  channel       TicketChannel  @default(WEB)
+  assignedAgent String?
+  assignedToId  String?        @db.Uuid
 
   // Related order / product context
   relatedOrderId     String?
@@ -2341,16 +2366,16 @@ model SupportTicket {
   relatedAmount      String?
   relatedOrderStatus String?
 
-  lastReplyAt        DateTime             @default(now())
-  createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @updatedAt
+  lastReplyAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  user               User?                @relation("UserSupportTickets", fields: [userId], references: [id], onDelete: SetNull)
-  assignedTo         User?                @relation("AssignedSupportTickets", fields: [assignedToId], references: [id], onDelete: SetNull)
+  user       User? @relation("UserSupportTickets", fields: [userId], references: [id], onDelete: SetNull)
+  assignedTo User? @relation("AssignedSupportTickets", fields: [assignedToId], references: [id], onDelete: SetNull)
 
-  messages           TicketMessage[]
-  internalNotes      TicketInternalNote[]
-  activityLogs       TicketActivityLog[]
+  messages      TicketMessage[]
+  internalNotes TicketInternalNote[]
+  activityLogs  TicketActivityLog[]
 
   @@index([status])
   @@index([priority])
@@ -2367,39 +2392,39 @@ model TicketMessage {
   senderType  TicketSenderType @default(USER)
   senderName  String
   message     String           @db.Text
-  attachments Json?            // Array of { name: string, url: string, size: string }
+  attachments Json? // Array of { name: string, url: string, size: string }
   createdAt   DateTime         @default(now())
 
-  ticket      SupportTicket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  sender      User?            @relation(fields: [senderId], references: [id], onDelete: SetNull)
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  sender User?         @relation(fields: [senderId], references: [id], onDelete: SetNull)
 
   @@index([ticketId])
   @@map("ticket_messages")
 }
 
 model TicketInternalNote {
-  id         String        @id @default(uuid()) @db.Uuid
-  ticketId   String        @db.Uuid
-  authorId   String?       @db.Uuid
+  id         String   @id @default(uuid()) @db.Uuid
+  ticketId   String   @db.Uuid
+  authorId   String?  @db.Uuid
   authorName String
-  note       String        @db.Text
-  createdAt  DateTime      @default(now())
+  note       String   @db.Text
+  createdAt  DateTime @default(now())
 
-  ticket     SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  author     User?         @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author User?         @relation(fields: [authorId], references: [id], onDelete: SetNull)
 
   @@index([ticketId])
   @@map("ticket_internal_notes")
 }
 
 model TicketActivityLog {
-  id        String        @id @default(uuid()) @db.Uuid
-  ticketId  String        @db.Uuid
+  id        String   @id @default(uuid()) @db.Uuid
+  ticketId  String   @db.Uuid
   operator  String
   action    String
-  createdAt DateTime      @default(now())
+  createdAt DateTime @default(now())
 
-  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 
   @@index([ticketId])
   @@map("ticket_activity_logs")
@@ -2442,42 +2467,42 @@ enum ComplaintMessageType {
 }
 
 model Complaint {
-  id                 String                       @id @default(uuid()) @db.Uuid
-  complaintNumber    String                       @unique // e.g. CMP-0001248
-  userId             String?                      @db.Uuid
-  userName           String
-  userEmail          String
-  userPhone          String?
-  vendorId           String?                      @db.Uuid
-  vendorName         String?
+  id              String  @id @default(uuid()) @db.Uuid
+  complaintNumber String  @unique // e.g. CMP-0001248
+  userId          String? @db.Uuid
+  userName        String
+  userEmail       String
+  userPhone       String?
+  vendorId        String? @db.Uuid
+  vendorName      String?
 
   relatedOrderId     String?
   relatedAmount      String?
   relatedOrderStatus String?
 
   subjectTitle       String
-  subjectDescription String                       @db.Text
-  category           String                       // Orders, Payments, Refunds, Technical, Account, Sellers, Delivery
-  priority           ComplaintPriority            @default(MEDIUM)
-  severity           ComplaintSeverity            @default(MODERATE)
-  status             ComplaintStatus              @default(SUBMITTED)
-  channel            ComplaintChannel             @default(EMAIL)
+  subjectDescription String            @db.Text
+  category           String // Orders, Payments, Refunds, Technical, Account, Sellers, Delivery
+  priority           ComplaintPriority @default(MEDIUM)
+  severity           ComplaintSeverity @default(MODERATE)
+  status             ComplaintStatus   @default(SUBMITTED)
+  channel            ComplaintChannel  @default(EMAIL)
 
-  assignedDepartment String?                      // Support, Billing, Fraud, Logistics, Seller Relations, Technical
+  assignedDepartment String? // Support, Billing, Fraud, Logistics, Seller Relations, Technical
   assignedAgent      String?
-  assignedToId       String?                      @db.Uuid
+  assignedToId       String? @db.Uuid
 
   targetResolutionAt DateTime?
   resolvedAt         DateTime?
   closedAt           DateTime?
 
-  evidenceFiles      Json?                        // Array of { name: string, url: string, size: string }
+  evidenceFiles Json? // Array of { name: string, url: string, size: string }
 
-  createdAt          DateTime                     @default(now())
-  updatedAt          DateTime                     @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  user               User?                        @relation("UserComplaints", fields: [userId], references: [id], onDelete: SetNull)
-  assignedTo         User?                        @relation("AssignedComplaints", fields: [assignedToId], references: [id], onDelete: SetNull)
+  user       User? @relation("UserComplaints", fields: [userId], references: [id], onDelete: SetNull)
+  assignedTo User? @relation("AssignedComplaints", fields: [assignedToId], references: [id], onDelete: SetNull)
 
   messages           ComplaintMessage[]
   investigationNotes ComplaintInvestigationNote[]
@@ -2499,59 +2524,57 @@ model ComplaintMessage {
   senderType  ComplaintMessageType @default(CUSTOMER) // CUSTOMER, VENDOR, INTERNAL
   senderName  String
   message     String               @db.Text
-  attachments Json?                // Array of { name: string, url: string, size: string }
+  attachments Json? // Array of { name: string, url: string, size: string }
   createdAt   DateTime             @default(now())
 
-  complaint   Complaint            @relation(fields: [complaintId], references: [id], onDelete: Cascade)
-  sender      User?                @relation(fields: [senderId], references: [id], onDelete: SetNull)
+  complaint Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  sender    User?     @relation(fields: [senderId], references: [id], onDelete: SetNull)
 
   @@index([complaintId])
   @@map("complaint_messages")
 }
 
 model ComplaintInvestigationNote {
-  id          String    @id @default(uuid()) @db.Uuid
-  complaintId String    @db.Uuid
-  authorId    String?   @db.Uuid
+  id          String   @id @default(uuid()) @db.Uuid
+  complaintId String   @db.Uuid
+  authorId    String?  @db.Uuid
   authorName  String
-  findings    String    @db.Text
-  remarks     String?   @db.Text
-  createdAt   DateTime  @default(now())
+  findings    String   @db.Text
+  remarks     String?  @db.Text
+  createdAt   DateTime @default(now())
 
-  complaint   Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
-  author      User?     @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  complaint Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  author    User?     @relation(fields: [authorId], references: [id], onDelete: SetNull)
 
   @@index([complaintId])
   @@map("complaint_investigation_notes")
 }
 
 model ComplaintResolution {
-  id             String    @id @default(uuid()) @db.Uuid
-  complaintId    String    @db.Uuid
-  resolutionType String    // REFUND, CREDIT, VENDOR_PENALTY, REPLACEMENT, REJECTION, EXPLANATION
+  id             String   @id @default(uuid()) @db.Uuid
+  complaintId    String   @db.Uuid
+  resolutionType String // REFUND, CREDIT, VENDOR_PENALTY, REPLACEMENT, REJECTION, EXPLANATION
   amount         String?
-  summary        String    @db.Text
+  summary        String   @db.Text
   approvedBy     String
-  approvedAt     DateTime  @default(now())
+  approvedAt     DateTime @default(now())
 
-  complaint      Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  complaint Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
 
   @@index([complaintId])
   @@map("complaint_resolutions")
 }
 
 model ComplaintActivityLog {
-  id          String    @id @default(uuid()) @db.Uuid
-  complaintId String    @db.Uuid
+  id          String   @id @default(uuid()) @db.Uuid
+  complaintId String   @db.Uuid
   operator    String
   action      String
   details     String?
-  createdAt   DateTime  @default(now())
+  createdAt   DateTime @default(now())
 
-  complaint   Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  complaint Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
 
   @@index([complaintId])
   @@map("complaint_activity_logs")
 }
-
-
