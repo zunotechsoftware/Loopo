@@ -6,6 +6,107 @@ last_verified: 2026-09-18
 
 ## OPEN
 
+### RESOLVED — P0 production-deploy risk: three entire feature areas' tables (Support, Complaints, and now Notifications) existed only via `prisma db push`, invisible to the real migration history `prisma migrate deploy` uses
+Found while answering "will this work when I build the project" for the
+notification feature above. This repo has real, git-tracked migrations
+(`prisma/migrations/`, checked via `git ls-files` - not gitignored), which
+is exactly what a real deployment is expected to run via `prisma migrate
+deploy` against a fresh production database. But this session (and,
+looking at the gap's contents, at least one earlier one) used `prisma db
+push` directly against the shared dev database for schema changes -
+correct for keeping local dev unblocked (`migrate dev` had already been
+rejected earlier for demanding a full dev-DB reset over unrelated drift),
+but it **only updates the live database - it never writes a migration
+file**. Confirmed the actual size of the gap with `prisma migrate diff`
+(from the migrations history vs. the live schema, via a temporary shadow
+database): three full feature areas' worth of tables were missing from
+migration history entirely - `email_templates.body` (added in an earlier
+session's Email Templates fix), the new `user_notifications` table (this
+session), and, unexpectedly, the **entire Support Tickets and Complaints
+schema** (7 tables: `support_tickets`, `ticket_messages`,
+`ticket_internal_notes`, `ticket_activity_logs`, `complaints`,
+`complaint_messages`, `complaint_investigation_notes`,
+`complaint_resolutions`, `complaint_activity_logs` + their enums) - a
+larger, pre-existing gap this investigation happened to surface, not
+something introduced this session. Any real `prisma migrate deploy` run
+against a fresh production database would have created neither the
+notifications feature's table nor the entire Support/Complaints admin
+modules' tables - all three would 500 on first real use in production
+with a literal "relation does not exist" error, despite working perfectly
+in local dev (which only ever saw `db push`'s live-synced schema, never
+the migration files a real deploy actually depends on).
+
+**Fixed:** generated the missing migration for real via `prisma migrate
+diff --from-migrations ./prisma/migrations --to-schema-datamodel
+./prisma/schema.prisma` against a temporary shadow database (not guessed
+by hand) and added it as a proper migration
+(`20260918183706_sync_support_complaints_notifications`). Since the dev
+database already has this schema live (via the earlier `db push`s), the
+new migration was registered as already-applied via `prisma migrate
+resolve --applied` rather than re-run - this only updates Prisma's
+`_prisma_migrations` bookkeeping table, it does not touch or duplicate any
+real data.
+
+**Verified, not assumed:** re-ran the same `migrate diff` against a fresh
+shadow database afterward and got "This is an empty migration" (zero
+remaining drift, confirming `schema.prisma` and the migration history now
+agree exactly); separately, ran `prisma migrate deploy` against a
+brand-new, completely empty database end to end - all 3 migrations
+(`init`, `update_schema`, and the new sync migration) applied cleanly with
+no errors, proving a real from-scratch production deploy will now
+actually work. Temporary databases dropped afterward; the running dev
+database was never touched beyond the migrations bookkeeping update.
+
+**Root-cause takeaway for future schema changes in this repo:** `prisma db
+push` is fine for iterating locally, but **every** `db push` used this way
+leaves a silent gap in migration history until a corresponding migration
+file is generated afterward (via `migrate diff` against a shadow database,
+as done here, or by resetting to `migrate dev` once the dev DB's
+unrelated pre-existing drift is dealt with) - worth doing right after each
+schema change rather than letting it accumulate across sessions again.
+
+### RESOLVED — loopo-client/.env.production pointed at the Swagger docs page, not the real API; loopo-admin had no production API URL configured at all
+Same investigation ("will this work when I build the project"). Two real,
+independent config gaps, both invisible during this session's own local
+testing for the same reason:
+
+1. **`loopo-client/.env.production`** had `NEXT_PUBLIC_API_BASE_URL=
+   https://loopo-api.zunotechsoftware.com/api/docs` - `/api/docs` is the
+   Swagger UI page, not the real `/api/v1` REST API. Every real request
+   made from a genuine production build would 404. This went unnoticed
+   during this session's own `next build` verification because
+   `.env.local` (git-ignored, this machine only, already pointed at the
+   correct local backend from the earlier login-bug investigation) takes
+   precedence over `.env.production` in Next.js's env-file load order -
+   confirmed empirically by grepping the compiled output of a real `next
+   build` run on this machine, which had `localhost:5000` baked in
+   despite `.env.production`'s broken value. A real deployment server
+   without that machine-local file would hit the broken value directly.
+2. **`loopo-admin` had no `.env.production` (or any env file) at all.**
+   Every API call and both Socket.IO hooks fall back to a hardcoded
+   `http://localhost:5000` default when `NEXT_PUBLIC_API_URL` is unset -
+   fine for local dev, but a real deployed build would have the entire
+   admin app trying to reach its own server's localhost instead of the
+   real backend, failing completely.
+
+**Fixed:** corrected the client's `.env.production` path, and added a new
+`loopo-admin/.env.production` pointing at the same backend domain the
+client already uses (`https://loopo-api.zunotechsoftware.com`) - inferred
+from the sibling app's existing config, not verified against a real infra
+document, so flagged clearly to the user in case the real intended domain
+differs.
+
+**Important caveat, not fully resolvable from this session alone:** both
+files match this repo's own `.env*` gitignore pattern (confirmed via `git
+check-ignore -v`), same as every other env file this session has touched -
+so neither fix is committed or will reach a deploy pulling fresh from git.
+If the real deployment process copies these particular files onto the
+server by hand (plausible, since `loopo-client`'s file already had a real,
+specific hostname rather than a placeholder), this fix matters there too
+and needs to be applied on that machine directly; if the real deploy sets
+these vars another way (CI/CD secrets, server-level env vars), this fix
+only helps future local production-build testing on this machine.
+
 ### RESOLVED — Built a real notification system (there was none): seller submits → admin notified, admin decides → seller notified, admin broadcasts → real audience targeting
 User request: "implement notification system in bot client and admin like
 for example if a seller post add admin must be notified and the admin's
