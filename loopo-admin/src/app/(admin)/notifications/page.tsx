@@ -73,15 +73,20 @@ export default function NotificationsPage() {
           message: notif.body,
           audience: notif.type,
           type: notif.category,
+          targetUserIds: notif.targetUserIds,
         });
         setSuccessType('update');
       } else {
-        // Create new notification
+        // Create new notification - this is what actually fans out real
+        // UserNotification rows to the resolved audience (All/Sellers/
+        // Buyers query real user data; Segmented Users uses the hand-picked
+        // targetUserIds from the dialog's recipient picker).
         await notificationsService.create({
           title: notif.title,
           message: notif.body,
           audience: notif.type,
           type: notif.category,
+          targetUserIds: notif.targetUserIds,
         });
         setSuccessType('create');
       }

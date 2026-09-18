@@ -1,10 +1,95 @@
 ---
-last_verified: 2026-09-13
+last_verified: 2026-09-18
 ---
 
 # Known Issues
 
 ## OPEN
+
+### RESOLVED — Built a real notification system (there was none): seller submits → admin notified, admin decides → seller notified, admin broadcasts → real audience targeting
+User request: "implement notification system in bot client and admin like
+for example if a seller post add admin must be notified and the admin's
+action must be notified to client" + "Admin notification--must go to
+targetted set of audience like sellers, buyers, etc implement this
+flawlessely."
+
+Before this, nothing here was real: `ProductsService` already called
+`notificationQueue.add('send', {...})` at the exact right trigger points
+(listing submitted/approved/rejected), but `NotificationProcessor` only
+logged a line and dropped every job on the floor - no row was ever
+persisted, no one was ever actually notified. `loopo-client`'s
+`notificationsApi.ts`/`notificationsSlice.ts` were already fully built
+against a `GET/PATCH /notifications` contract that didn't exist anywhere
+on the backend. `loopo-admin`'s broadcast composer (`NotificationDialog.tsx`)
+already had 4 audience options in its UI (All/Segmented/Buyers/Sellers) but
+saved `audience` as a free-text label with zero targeting logic behind it -
+`NotificationsController.create()` set `status: DELIVERED` immediately
+with no fan-out to anyone. There is also no "seller" role or flag anywhere
+in the schema (the `SellerProfile` model exists but is never created) -
+the working definition used throughout is: a seller is any user with
+`products: { some: {} }`; a buyer is everyone else.
+
+**Built:** a new `UserNotification` Prisma model (per-user inbox row -
+distinct from the pre-existing `Notification` model, which is a
+campaign-only record with no `userId`/read-state at all) via `prisma db
+push`. A new `@Global()` `SocketEmitterModule`/`SocketEmitterService`
+(`shared/websocket/`) holds the Socket.IO server reference so any module
+can push a real-time event to a user's existing `user:${userId}` room
+(joined on connect, per the existing chat gateway) without importing
+`ChatModule` directly - avoids a real circular-dependency risk
+(`ProductsModule -> Notifications -> ChatModule -> ProductsModule`, since
+`ChatModule` already imports `ProductsModule`). `ChatGateway` now
+implements `OnGatewayInit` and registers itself into it once on startup.
+
+A new `UserNotificationsModule` (`modules/user-notifications/`, importless
+- `PrismaService`/`SocketEmitterService` are both already global) exposes
+`notifyUser`/`notifyUsers`/`notifyAdmins`/`resolveAudience(audience,
+targetUserIds?)`/`findMyNotifications`/`markRead`/`markAllRead`, backing a
+new plain `/notifications` controller (`GET ?page&limit`, `PATCH
+/:id/read`, `PATCH /read-all`, `JwtAuthGuard` only - a user only ever
+touches their own rows) that matches loopo-client's already-built contract
+exactly. `NotificationProcessor` (previously a 100%-stub) now actually
+calls this service per job type, so the existing queue calls in
+`products.service.ts` needed no new wiring - only a data-shape fix
+(`LISTING_SUBMITTED` was queuing `userId: sellerId`, i.e. a seller
+"notifying" themselves; fixed to notify admins/super-admins instead). The
+admin broadcast `NotificationsService.create()`/`update()` now resolve
+`audience` into real user ids and fan out for real via the same service,
+recording a real `deliveryRate` instead of leaving it a cosmetic label; a
+new optional `targetUserIds?: string[]` on `CreateNotificationDto` backs
+"Segmented Users". `loopo-admin`'s `NotificationDialog.tsx` gained a real
+debounced user-search `Autocomplete` (hits the real `GET /admin/users`)
+that only appears for that audience and is required before sending.
+
+Frontend wiring: `loopo-client`'s `MainLayout.tsx` now dispatches
+`fetchNotificationsThunk` globally on auth (previously only fetched once
+the user opened the dedicated `/notifications` page, so the header bell's
+unread badge stayed at 0 everywhere else) and listens for a
+`notification:new` socket push via a new `useNotificationSocket` hook to
+refetch + toast in real time; `NotificationsView.tsx` now navigates via
+the real `link` field on click. `loopo-admin`'s header bell
+(`layouts/Header.tsx`) was a fully static `badgeContent={3}` with no
+click behavior at all - replaced with a real `useMyNotifications` hook
+(fetch + the same real-time socket push) backing a real dropdown (title/
+message/relative time, mark-read on click and navigate via `link`, mark-
+all-read).
+
+**Verified live end to end, not simulated:** a real seller account created
+a real listing -> a real Super Admin account's `GET /notifications`
+immediately showed a real `UserNotification` row (`LISTING_SUBMITTED`,
+correct title/link/metadata); approving it via the real `PATCH
+/admin/products/:id/approve` immediately produced a real `LISTING_APPROVED`
+row in the seller's own inbox. Broadcast audience targeting confirmed for
+all four labels against real accounts: a "Sellers" broadcast reached an
+account with a real product but not one without; a "Buyers" broadcast
+correctly excluded that same seller account; a "Segmented Users" broadcast
+with one explicit `targetUserIds` entry reached only that account.
+Cross-user access confirmed denied (marking another user's notification
+id as read correctly 404s; an unauthenticated request correctly 401s).
+Backend: clean build, clean startup (no DI/module-graph errors). Both
+frontends: `tsc --noEmit` clean. All test listings/campaigns/notifications
+created for this verification were deleted from the real shared dev DB
+afterward.
 
 ### RESOLVED — Root cause of "phantom" published listings: no token refresh + a fake-id fallback masking failed creates
 User-reported: a listing published via the sell wizard showed a

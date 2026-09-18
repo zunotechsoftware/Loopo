@@ -2,10 +2,14 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../shared/database/prisma.service';
 import { CreateNotificationDto, UpdateNotificationDto } from '../dto/notification.dto';
 import { Prisma } from '@prisma/client';
+import { UserNotificationsService } from '../../user-notifications/services/user-notifications.service';
 
 @Injectable()
 export class NotificationsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly userNotifications: UserNotificationsService,
+  ) {}
 
   async findAll(params: {
     skip?: number;
@@ -44,17 +48,39 @@ export class NotificationsService {
     return notification;
   }
 
+  /** Creates the campaign record (as before) and, unlike before, actually
+   * fans it out: resolves `audience` into real user ids (All/Sellers/Buyers
+   * query the DB; Segmented Users uses the hand-picked `targetUserIds`) and
+   * writes a real UserNotification row + real-time push to each one, then
+   * records the real delivered count instead of leaving `deliveryRate`
+   * unset. */
   async create(data: CreateNotificationDto) {
-    return this.prisma.notification.create({
-      data,
+    const { targetUserIds, ...campaignData } = data;
+
+    const notification = await this.prisma.notification.create({
+      data: campaignData,
+    });
+
+    const userIds = await this.userNotifications.resolveAudience(data.audience, targetUserIds);
+    const delivered = await this.userNotifications.notifyUsers(userIds, {
+      type: notification.type,
+      title: notification.title,
+      message: notification.message,
+      metadata: { campaignId: notification.id },
+    });
+
+    return this.prisma.notification.update({
+      where: { id: notification.id },
+      data: { deliveryRate: userIds.length > 0 ? (delivered / userIds.length) * 100 : 0 },
     });
   }
 
   async update(id: string, data: UpdateNotificationDto) {
     await this.findOne(id); // verify existence
+    const { targetUserIds, ...campaignData } = data;
     return this.prisma.notification.update({
       where: { id },
-      data,
+      data: campaignData,
     });
   }
 

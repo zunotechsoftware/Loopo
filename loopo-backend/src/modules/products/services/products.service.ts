@@ -83,7 +83,16 @@ export class ProductsService {
 
     // 6. Queue Search Index & Notifications
     await this.searchIndexQueue.add('index', { action: 'CREATE', productId: product!.id });
-    await this.notificationQueue.add('send', { type: 'LISTING_SUBMITTED', userId: sellerId, listingId: product!.id });
+    // Notifies admins that a listing needs review - NOT the seller who
+    // created it (this previously targeted `userId: sellerId`, so a seller
+    // submitting a listing "notified" themselves and no admin ever heard
+    // about it at all).
+    await this.notificationQueue.add('send', {
+      type: 'LISTING_SUBMITTED',
+      listingId: product!.id,
+      sellerId,
+      title: product!.title,
+    });
 
     // 7. Emit product created event for auto-creating seller profile
     this.eventEmitter.emit('product.created', {
@@ -460,7 +469,12 @@ export class ProductsService {
 
     await this.invalidateListingCache(id, product.slug);
     await this.searchIndexQueue.add('index', { action: 'UPDATE', productId: id });
-    await this.notificationQueue.add('send', { type: 'LISTING_APPROVED', userId: product.sellerId, listingId: id });
+    await this.notificationQueue.add('send', {
+      type: 'LISTING_APPROVED',
+      userId: product.sellerId,
+      listingId: id,
+      title: product.title,
+    });
 
     return updated;
   }
@@ -492,6 +506,7 @@ export class ProductsService {
       type: 'LISTING_REJECTED',
       userId: product.sellerId,
       listingId: id,
+      title: product.title,
       metadata: { reason },
     });
 

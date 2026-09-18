@@ -93,7 +93,8 @@ export type NotificationType =
   | 'price_drop'
   | 'kyc'
   | 'ad_boost'
-  | 'security';
+  | 'security'
+  | 'listing';
 
 
 export interface NotificationItem {
@@ -106,6 +107,7 @@ export interface NotificationItem {
   image?: string;
   targetTab?: string;
   targetId?: string;
+  link?: string;
 }
 
 export interface Transaction {
