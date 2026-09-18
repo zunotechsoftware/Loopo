@@ -126,10 +126,18 @@ export const createProductThunk = createAsyncThunk(
   'products/createProduct',
   async (payload: CreateProductPayload, { rejectWithValue }) => {
     const res = await productsApi.createProduct(payload);
-    if (res.success && res.data) {
-      return normaliseProduct(res.data);
+    // Require a real id from the backend - normaliseProduct's own
+    // `p-${Date.now()}` fallback exists for safely *displaying* already-
+    // fetched data, but silently accepting it here would let a malformed
+    // "successful" response (e.g. a 2xx with an unexpected/empty body)
+    // create a fake, client-only "listing" - the UI would still show
+    // "Published successfully!" and navigate to a detail page for an id
+    // that doesn't exist in the database at all, with no way to tell
+    // afterward that it never actually saved.
+    if (!res.success || !res.data || !(res.data as any).id) {
+      return rejectWithValue(res.error || 'Server did not confirm the listing was saved. Please try again.');
     }
-    return rejectWithValue(res.error || 'Failed to save product to database');
+    return normaliseProduct(res.data);
   }
 );
 

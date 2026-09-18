@@ -72,7 +72,12 @@ export default function SellPreviewPage() {
       );
 
       if (createProductThunk.fulfilled.match(res)) {
-        const listingId = res.payload?.id || 'prod-' + Date.now();
+        // createProductThunk now rejects if the backend didn't return a
+        // real id, so this is always real - no more fabricating a fake
+        // client-only id ("prod-<timestamp>") that made a failed save
+        // look like a successful "Listing published!" for a listing that
+        // was never actually in the database.
+        const listingId = res.payload.id;
         dispatch(setPublishedListingId(listingId));
 
         // Photos were only ever kept in Redux as data URLs and never
