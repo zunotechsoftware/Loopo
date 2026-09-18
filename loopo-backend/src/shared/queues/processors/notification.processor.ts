@@ -24,7 +24,12 @@ export class NotificationProcessor extends WorkerHost {
           type: 'LISTING_SUBMITTED',
           title: 'New listing awaiting review',
           message: `"${data.title || 'A new listing'}" was submitted and needs approval.`,
-          link: `/admin/listings/${data.listingId}`,
+          // loopo-admin (the real staff tool ADMIN/SUPER_ADMIN accounts use)
+          // has no per-listing deep link - review happens via a dialog off
+          // its pending-queue list, so this points there rather than at
+          // loopo-client's secondary `/admin/listings/:id` panel, which
+          // wouldn't resolve inside loopo-admin's own router at all.
+          link: `/listings/pending`,
           metadata: { listingId: data.listingId, sellerId: data.sellerId },
         });
         break;
