@@ -1,40 +1,42 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 
-import { useAppDispatch, useAppSelector } from '@/redux/hooks';
-import { setAuthModalOpen, showToast } from '@/redux/slices/uiSlice';
-import { LogIn, ShieldAlert } from 'lucide-react';
+import { useAppSelector } from '@/redux/hooks';
+import { Loader2 } from 'lucide-react';
+import { ROUTES } from '@/routes/routes';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
+/**
+ * This used to show an inline "Login Required" card whose only action
+ * opened AuthModal - a separate, parallel login/signup implementation
+ * from the real /login and /register pages, with several genuinely
+ * broken/fake pieces (a "Forgot Password" that never called the real
+ * API, an OTP step that logged in as a fake user for ANY input, and
+ * fully fabricated Google/Apple "login" buttons). For a full-page
+ * protected route like /sell or /my-listings, redirecting to the real,
+ * fully-functional login page (with a return path) is both simpler and
+ * avoids depending on that parallel surface at all.
+ */
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const dispatch = useAppDispatch();
-  const { isAuthenticated } = useAppSelector((state) => state.auth);
+  const router = useRouter();
+  const pathname = usePathname();
+  const { isAuthenticated, loading } = useAppSelector((state) => state.auth);
 
-
+  useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      router.replace(`${ROUTES.LOGIN}?redirect=${encodeURIComponent(pathname)}`);
+    }
+  }, [loading, isAuthenticated, pathname, router]);
 
   if (!isAuthenticated) {
     return (
-      <div className="max-w-md mx-auto my-12 p-8 bg-white rounded-3xl border border-slate-100 shadow-xl text-center space-y-5 animate-in fade-in zoom-in-95 duration-200">
-        <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto shadow-sm">
-          <ShieldAlert className="w-7 h-7" />
-        </div>
-        <div className="space-y-1.5">
-          <h2 className="text-xl font-black text-slate-900">Login Required</h2>
-          <p className="text-xs text-slate-500 font-medium leading-relaxed">
-            Please log in or create an account to access this feature on Loopo.
-          </p>
-        </div>
-        <button
-          onClick={() => dispatch(setAuthModalOpen(true))}
-          className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 transition-all"
-        >
-          <LogIn className="w-4 h-4" />
-          <span>Log In / Create Account</span>
-        </button>
+      <div className="flex items-center justify-center py-24">
+        <Loader2 className="w-6 h-6 text-emerald-600 animate-spin" />
       </div>
     );
   }

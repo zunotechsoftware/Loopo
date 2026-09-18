@@ -34,7 +34,11 @@ function VerifyOtpContent() {
     const res = await dispatch(sendPhoneOtpThunk(phone));
     setSending(false);
     if (sendPhoneOtpThunk.fulfilled.match(res)) {
-      dispatch(showToast(`OTP sent to ${phone}`));
+      // No real SMS gateway is configured in this environment - outside
+      // production the backend echoes the real code back here so the flow
+      // is actually testable. This never happens in production.
+      const devOtp = (res.payload as any)?.devOtp;
+      dispatch(showToast(devOtp ? `[DEV MODE] Your OTP is ${devOtp}` : `OTP sent to ${phone}`));
       startCooldown();
     } else {
       dispatch(showToast((res.payload as string) || 'Could not send OTP'));

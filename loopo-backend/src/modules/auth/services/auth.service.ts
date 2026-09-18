@@ -382,9 +382,21 @@ export class AuthService {
     await this.authRepository.savePhoneOtp(user.id, hashedOtp, phone, expiry);
     await this.smsQueue.add('send-otp', { phone, otp });
 
+    // No real SMS gateway is configured anywhere in this codebase yet
+    // (SmsProcessor only logs the code) - outside production, echo the
+    // real OTP back in the response so this flow is actually testable
+    // without shelling into the backend's logs. Never do this in
+    // production: it would let anyone log into any phone number's
+    // account without ever receiving the real SMS.
+    const isProduction = this.configService.get<string>('NODE_ENV') === 'production';
+
     // Never reveal whether this phone number already has an account -
     // same response either way.
-    return { success: true, message: 'An OTP has been sent to your phone number.' };
+    return {
+      success: true,
+      message: 'An OTP has been sent to your phone number.',
+      ...(isProduction ? {} : { devOtp: otp }),
+    };
   }
 
   async verifyPhoneLoginOtp(phone: string, otp: string, ipAddress?: string, userAgent?: string) {
