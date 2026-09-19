@@ -12,6 +12,7 @@ import 'step6_location.dart';
 import 'step7_seller_contact.dart';
 import 'step8_review_listing.dart';
 import 'step9_published.dart';
+import '../product_detail_screen.dart';
 
 class SellFlowScreen extends StatefulWidget {
   const SellFlowScreen({super.key});
@@ -49,7 +50,8 @@ class _SellFlowScreenState extends State<SellFlowScreen> {
       },
       child: PageView(
         controller: _ctrl.pageController,
-        physics: const NeverScrollableScrollPhysics(), // driven only by controller
+        physics:
+            const NeverScrollableScrollPhysics(), // driven only by controller
         children: [
           // Step 1
           SellHomeScreen(controller: _ctrl),
@@ -71,15 +73,20 @@ class _SellFlowScreenState extends State<SellFlowScreen> {
           ListingPublishedScreen(
             onGoHome: () => Navigator.of(context).popUntil((r) => r.isFirst),
             onViewListing: () {
-              // TODO: Navigate to listing detail
+              final id = _ctrl.data.publishedListingId;
               Navigator.of(context).popUntil((r) => r.isFirst);
+              if (id != null && id.isNotEmpty) {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => ProductDetailScreen(product: {'id': id}),
+                  ),
+                );
+              }
             },
             onSellAnother: () {
               // Restart by replacing this route
               Navigator.of(context).pushReplacement(
-                MaterialPageRoute(
-                  builder: (_) => const SellFlowScreen(),
-                ),
+                MaterialPageRoute(builder: (_) => const SellFlowScreen()),
               );
             },
           ),

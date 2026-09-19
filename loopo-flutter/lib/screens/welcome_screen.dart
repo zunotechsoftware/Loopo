@@ -5,10 +5,6 @@ import 'package:loopo/screens/signup_screen.dart';
 
 import '../theme/app_colors.dart';
 
-// TODO: [Backend Integration] Support OAuth2 Social logins (Google / Apple Sign-In) via POST /api/v1/auth/social
-// TODO: [Backend Integration] Auto-restore session token on launch via GET /api/v1/users/me
-
-
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
 
@@ -116,24 +112,12 @@ class WelcomeScreen extends StatelessWidget {
 
                         SizedBox(height: height * 0.025),
 
-                        // Social Buttons
-                        _SocialButton(
-                          image: "assets/images/google_button.png",
-                          text: "Continue with Google",
-                          callBack: () {},
-                        ),
-
-                        const SizedBox(height: 10),
-
-                        _SocialButton(
-                          image: "assets/images/apple_button.png",
-                          imageWidth: 20,
-                          text: "Continue with Apple",
-                          callBack: () {},
-                        ),
-
-                        const SizedBox(height: 10),
-
+                        // No real OAuth (Google/Apple) integration exists in
+                        // this backend - those buttons used to be here with
+                        // empty no-op callbacks, a dead end for anyone who
+                        // tapped them. Removed rather than left reachable,
+                        // matching how the equivalent fake buttons were
+                        // handled on the web client.
                         _SocialButton(
                           icon: Icons.phone_android,
                           text: "Continue with Mobile Number",

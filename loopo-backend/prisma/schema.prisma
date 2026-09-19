@@ -97,6 +97,9 @@ model User {
   sellerProfile           SellerProfile?
   buyerOrders             Order[]                  @relation("BuyerOrders")
   sellerOrders            Order[]                  @relation("SellerOrders")
+  buyerOffers             Offer[]                  @relation("BuyerOffers")
+  sellerOffers            Offer[]                  @relation("SellerOffers")
+  savedSearches           SavedSearch[]
 
   // Admin Module Relations
   adminSessions          AdminSession[]               @relation("AdminSessions")
@@ -495,6 +498,7 @@ model Category {
   translations    CategoryTranslation[]
   products        Product[]
   brands          Brand[]
+  savedSearches   SavedSearch[]
 
   @@index([parentId])
   @@index([slug])
@@ -671,6 +675,7 @@ model Product {
   payments       Payment[]
   reviews        Review[]
   orders         Order[]
+  offers         Offer[]
 
   @@index([sellerId])
   @@index([categoryId])
@@ -892,6 +897,61 @@ model RecentSearch {
 
   @@index([userId])
   @@map("recent_searches")
+}
+
+enum OfferStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+}
+
+/// A real bargain/negotiation offer a buyer makes on a listing - previously
+/// both loopo-client's and loopo-flutter's "Offers" screens showed
+/// hardcoded fake offers with no backend feature behind them at all.
+model Offer {
+  id          String      @id @default(uuid()) @db.Uuid
+  productId   String      @db.Uuid
+  buyerId     String      @db.Uuid
+  sellerId    String      @db.Uuid
+  amount      Float
+  message     String?
+  status      OfferStatus @default(PENDING)
+  respondedAt DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  buyer   User    @relation("BuyerOffers", fields: [buyerId], references: [id], onDelete: Cascade)
+  seller  User    @relation("SellerOffers", fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([buyerId])
+  @@index([sellerId])
+  @@index([status])
+  @@map("offers")
+}
+
+/// A saved search with an opt-in alert - distinct from RecentSearch above,
+/// which is just a plain search-history log with no persistence beyond
+/// that or any notification hook. Both client apps' "Saved Searches"
+/// screens previously showed hardcoded fake entries with nothing real
+/// behind them.
+model SavedSearch {
+  id                   String   @id @default(uuid()) @db.Uuid
+  userId               String   @db.Uuid
+  query                String
+  categoryId           String?  @db.Uuid
+  city                 String?
+  notificationsEnabled Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@map("saved_searches")
 }
 
 model RecentlyViewed {
