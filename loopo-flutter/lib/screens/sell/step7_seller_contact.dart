@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
+import '../../services/user_service.dart';
 import 'sell_widgets.dart';
 import 'sell_flow_controller.dart';
 
@@ -15,13 +16,13 @@ class SellerContactScreen extends StatefulWidget {
 }
 
 class _SellerContactScreenState extends State<SellerContactScreen> {
+  final UserService _userService = UserService();
   bool _allowChat = true;
   bool _allowCall = true;
   final _emailCtrl = TextEditingController();
 
-  // Simulated – in a real app, read from user profile
-  final bool _isVerified = false;
-  final String _mobileNumber = '+91 98765 43210';
+  bool _isVerified = false;
+  String _mobileNumber = 'Not set';
 
   bool _skipVerification = false;
 
@@ -32,6 +33,23 @@ class _SellerContactScreenState extends State<SellerContactScreen> {
     _allowChat = d.allowChat;
     _allowCall = d.allowCall;
     _emailCtrl.text = d.email ?? '';
+    _loadContactInfo();
+  }
+
+  Future<void> _loadContactInfo() async {
+    try {
+      final me = await _userService.getMe();
+      final phone = me['phone']?.toString();
+      if (!mounted) return;
+      setState(() {
+        _mobileNumber = (phone != null && phone.isNotEmpty)
+            ? phone
+            : 'No mobile number on file';
+        _isVerified = me['isPhoneVerified'] == true;
+      });
+    } catch (_) {
+      // Keep the honest "Not set" default rather than a fabricated number.
+    }
   }
 
   @override
@@ -128,7 +146,13 @@ class _SellerContactScreenState extends State<SellerContactScreen> {
                   if (!_isVerified && !_skipVerification)
                     _VerifiedSellerCard(
                       onVerify: () {
-                        // TODO: navigate to verification flow
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Phone verification from the sell flow is coming soon.',
+                            ),
+                          ),
+                        );
                       },
                       onSkip: () => setState(() => _skipVerification = true),
                     ),
@@ -152,10 +176,7 @@ class _MobileNumberCard extends StatelessWidget {
   final String number;
   final bool isVerified;
 
-  const _MobileNumberCard({
-    required this.number,
-    required this.isVerified,
-  });
+  const _MobileNumberCard({required this.number, required this.isVerified});
 
   @override
   Widget build(BuildContext context) {
@@ -182,8 +203,11 @@ class _MobileNumberCard extends StatelessWidget {
               color: const Color(0xFFECFDF5),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.smartphone_rounded,
-                color: AppColors.appGreen, size: 22),
+            child: const Icon(
+              Icons.smartphone_rounded,
+              color: AppColors.appGreen,
+              size: 22,
+            ),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -212,17 +236,21 @@ class _MobileNumberCard extends StatelessWidget {
           ),
           if (isVerified)
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
                 color: const Color(0xFFECFDF5),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.appGreen.withValues(alpha: 0.3)),
+                border: Border.all(
+                  color: AppColors.appGreen.withValues(alpha: 0.3),
+                ),
               ),
               child: const Row(
                 children: [
-                  Icon(Icons.verified_rounded,
-                      size: 14, color: AppColors.appGreen),
+                  Icon(
+                    Icons.verified_rounded,
+                    size: 14,
+                    color: AppColors.appGreen,
+                  ),
                   SizedBox(width: 4),
                   Text(
                     'Verified',
@@ -269,8 +297,9 @@ class _ContactToggle extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color:
-              value ? iconColor.withValues(alpha: 0.3) : const Color(0xFFE5E7EB),
+          color: value
+              ? iconColor.withValues(alpha: 0.3)
+              : const Color(0xFFE5E7EB),
           width: value ? 1.5 : 1,
         ),
         boxShadow: [
@@ -334,16 +363,19 @@ class _VerifiedSellerCard extends StatelessWidget {
   final VoidCallback onVerify;
   final VoidCallback onSkip;
 
-  const _VerifiedSellerCard({
-    required this.onVerify,
-    required this.onSkip,
-  });
+  const _VerifiedSellerCard({required this.onVerify, required this.onSkip});
 
   @override
   Widget build(BuildContext context) {
     const benefits = [
-      {'icon': Icons.verified_rounded, 'text': 'Verified Badge on your profile'},
-      {'icon': Icons.trending_up_rounded, 'text': 'Better visibility in search'},
+      {
+        'icon': Icons.verified_rounded,
+        'text': 'Verified Badge on your profile',
+      },
+      {
+        'icon': Icons.trending_up_rounded,
+        'text': 'Better visibility in search',
+      },
       {'icon': Icons.thumb_up_rounded, 'text': 'Higher buyer trust'},
     ];
 
@@ -376,8 +408,11 @@ class _VerifiedSellerCard extends StatelessWidget {
                   color: AppColors.appGreen.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.verified_rounded,
-                    color: AppColors.appGreen, size: 24),
+                child: const Icon(
+                  Icons.verified_rounded,
+                  color: AppColors.appGreen,
+                  size: 24,
+                ),
               ),
               const SizedBox(width: 12),
               const Column(
@@ -410,8 +445,11 @@ class _VerifiedSellerCard extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 8),
               child: Row(
                 children: [
-                  Icon(b['icon'] as IconData,
-                      size: 16, color: AppColors.appGreen),
+                  Icon(
+                    b['icon'] as IconData,
+                    size: 16,
+                    color: AppColors.appGreen,
+                  ),
                   const SizedBox(width: 10),
                   Text(
                     b['text'] as String,
@@ -436,7 +474,8 @@ class _VerifiedSellerCard extends StatelessWidget {
                     foregroundColor: Colors.white,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                   child: const Text(
@@ -457,7 +496,8 @@ class _VerifiedSellerCard extends StatelessWidget {
                     foregroundColor: Colors.white60,
                     side: const BorderSide(color: Colors.white24),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                   child: const Text(

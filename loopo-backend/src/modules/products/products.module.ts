@@ -6,6 +6,7 @@ import { ProductsService } from './services/products.service';
 import { ProductsRepository } from './repositories/products.repository';
 import { CategoriesModule } from '../categories/categories.module';
 import { InteractionsModule } from '../interactions/interactions.module';
+import { SavedSearchesModule } from '../saved-searches/saved-searches.module';
 import { PrismaModule } from '../../shared/database/prisma.module';
 import { RedisModule } from '../../shared/redis/redis.module';
 import { BullModule } from '@nestjs/bullmq';
@@ -23,6 +24,7 @@ import {
     RedisModule,
     CategoriesModule,
     InteractionsModule,
+    SavedSearchesModule,
     // Injecting BullMQ queues registered globally in QueuesModule
     BullModule.registerQueue(
       // Named distinctly from chat's 'image-compression'/'thumbnail-generation'

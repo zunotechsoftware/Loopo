@@ -13,7 +13,11 @@ class HelpSupportScreen extends StatelessWidget {
         elevation: 0,
         scrolledUnderElevation: 1,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.appDark, size: 18),
+          icon: const Icon(
+            Icons.arrow_back_ios_new,
+            color: AppColors.appDark,
+            size: 18,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
@@ -59,10 +63,18 @@ class HelpSupportScreen extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  _safetyBullet('Always meet the seller in a safe, public place.'),
-                  _safetyBullet('Inspect the product thoroughly before making payment.'),
-                  _safetyBullet('Never share your UPI PIN or banking OTP with anyone.'),
-                  _safetyBullet('Beware of fake advance payment links or QR codes.'),
+                  _safetyBullet(
+                    'Always meet the seller in a safe, public place.',
+                  ),
+                  _safetyBullet(
+                    'Inspect the product thoroughly before making payment.',
+                  ),
+                  _safetyBullet(
+                    'Never share your UPI PIN or banking OTP with anyone.',
+                  ),
+                  _safetyBullet(
+                    'Beware of fake advance payment links or QR codes.',
+                  ),
                 ],
               ),
             ),
@@ -114,16 +126,29 @@ class HelpSupportScreen extends StatelessWidget {
                   child: OutlinedButton.icon(
                     onPressed: () {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Opening Live Support Chat...')),
+                        const SnackBar(
+                          content: Text('Live chat support is coming soon.'),
+                        ),
                       );
                     },
-                    icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
-                    label: const Text('Live Chat', style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.bold)),
+                    icon: const Icon(
+                      Icons.chat_bubble_outline_rounded,
+                      size: 18,
+                    ),
+                    label: const Text(
+                      'Live Chat',
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       side: const BorderSide(color: AppColors.appGreen),
                       foregroundColor: AppColors.appGreen,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
                   ),
                 ),
@@ -132,16 +157,28 @@ class HelpSupportScreen extends StatelessWidget {
                   child: ElevatedButton.icon(
                     onPressed: () {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Calling Support Helpline (+91 1800-123-4567)...')),
+                        const SnackBar(
+                          content: Text(
+                            'A support call-back option is coming soon.',
+                          ),
+                        ),
                       );
                     },
                     icon: const Icon(Icons.headset_mic_outlined, size: 18),
-                    label: const Text('Call Us', style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.bold)),
+                    label: const Text(
+                      'Call Us',
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       backgroundColor: AppColors.appGreen,
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
                   ),
                 ),
@@ -159,11 +196,21 @@ class HelpSupportScreen extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('• ', style: TextStyle(color: Color(0xFF38BDF8), fontWeight: FontWeight.bold)),
+          const Text(
+            '• ',
+            style: TextStyle(
+              color: Color(0xFF38BDF8),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(fontFamily: 'Poppins', fontSize: 12, color: Color(0xFF94A3B8)),
+              style: const TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 12,
+                color: Color(0xFF94A3B8),
+              ),
             ),
           ),
         ],
@@ -194,7 +241,12 @@ class HelpSupportScreen extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
             child: Text(
               answer,
-              style: TextStyle(fontFamily: 'Poppins', fontSize: 12, color: Colors.grey.shade600, height: 1.4),
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 12,
+                color: Colors.grey.shade600,
+                height: 1.4,
+              ),
             ),
           ),
         ],

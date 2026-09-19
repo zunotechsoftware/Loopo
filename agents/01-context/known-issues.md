@@ -1,10 +1,204 @@
 ---
-last_verified: 2026-09-18
+last_verified: 2026-09-19
 ---
 
 # Known Issues
 
 ## OPEN
+
+### RESOLVED — loopo-flutter production-readiness pass: real auth persistence/refresh, ~15 screens de-faked, 2 new backend features (Offers, Saved Searches), real production builds
+User request: "implement all missing gaps in loopo-flutter production ready make it
+fetch from production api and give production build." A full-app audit (26+ files)
+found the exact same "looks real, is actually fake" bug class already fixed
+repeatedly on the web apps this session, present throughout the Flutter app too.
+Fixed all of it; two items (Offers, Saved Searches) had no backend anywhere in the
+platform at all, and were built for real per explicit user choice ("build both
+features for real, right now") rather than hidden.
+
+**Foundational (nothing else could be trusted without this):**
+- `auth_session.dart` held the access token in a **plain in-memory static field,
+  never persisted, and never captured a refresh token at all** - every app restart
+  silently logged the user out, and any 401 after the access token's real 15-minute
+  expiry had no recovery path (identical to the bug already found and fixed on
+  loopo-client earlier this session). Fixed: `AuthSession.init()` restores a
+  persisted session via `shared_preferences` (already a dependency) at startup;
+  `setTokens`/`clear` persist in the background. `auth_service.dart`'s
+  login/register/OTP-verify now all capture and store the real refresh token
+  (previously discarded).
+- New `lib/services/api_client.dart` - a shared HTTP wrapper every service now
+  goes through instead of calling `package:http` directly with its own duplicated
+  `_authHeaders` getter (9 services all had this exact duplication). Attaches the
+  Authorization header automatically and, on a 401 from any non-auth endpoint,
+  calls the real `POST /auth/refresh` and retries once - mirrors apiClient.ts's
+  already-proven pattern exactly. Migrated: `product_service.dart`, `user_service.dart`,
+  `chat_service.dart`, `favorites_service.dart`, `address_service.dart`,
+  `report_service.dart`, `order_service.dart`, `kyc_service.dart`, plus the two new
+  services below.
+- `ProductService.getPublicListings`'s `search` param was sent as `?search=`, but
+  the real backend's `ListingSearchQueryDto` field is `keyword` - combined with the
+  app-wide `forbidNonWhitelisted` validation pipe, this would have 400'd every
+  request that included a search term the moment anything called it (nothing did
+  yet, but `home_screen.dart`'s feed and `seller_profile_screen.dart` both do now).
+  Fixed to send `keyword`.
+
+**P0 - looked fully functional, was actually fake or a silent no-op:**
+- `product_detail_screen.dart` (the screen every listing tap lands on) never
+  fetched the real product at all: seller was hardcoded "Alex Johnson"/4.8★, the
+  description/specs were literally the iPhone 14 Pro Max's copy for every listing,
+  images were colored gradient placeholders, favorite/chat/offer buttons only
+  touched local state or did nothing. Full rewrite: real `GET /products/:id`,
+  real seller via `GET /users/public/:id`, real favorite toggle (`POST/DELETE
+  /interactions/favorites`), real chat start (`POST /chat/conversations`), real
+  offers (`POST /offers`, only shown when the listing is actually negotiable),
+  real images, real dynamic specs from the product's real attributes.
+- `chat_conversation_screen.dart` never called `ChatService` at all (which was
+  already fully real) - messages were 4 hardcoded strings and sending one just
+  appended locally plus a `Future.delayed` fake auto-reply. Rewired to the real
+  `GET/POST /chat/messages`.
+- `seller_profile_screen.dart` was 100% hardcoded defaults with no service call.
+  Rewired to `GET /users/public/:id` + the seller's real listings.
+- `report_issue_screen.dart` never called the real, fully-built `ReportService` -
+  `Future.delayed(800ms)` then a fake success toast. Also fixed the same
+  field-name bugs already found and fixed on loopo-client this session:
+  `targetType: 'PRODUCT'` doesn't exist on the backend (`'LISTING'` does), and the
+  real field is `reasonCode` (validated against a real lookup table), not `reason`.
+- `offers_screen.dart` and `saved_searches_screen.dart` - both entirely hardcoded,
+  and neither had any backend anywhere in the platform (loopo-client's equivalent
+  pages are the same two hardcoded lists). Built for real per explicit user
+  decision: new `Offer` and `SavedSearch` Prisma models, `OffersModule`
+  (`POST /offers`, `GET /offers/made|received`, accept/reject/withdraw, with
+  ownership checks - confirmed live: a stranger cannot accept/reject someone
+  else's offer, 403) and `SavedSearchesModule` (real CRUD + a match-on-approval
+  hook in `ProductsService.approveProduct` that alerts saved searches whose
+  category/city/keyword match the newly-live listing) wired through the same
+  `UserNotificationsService` built earlier this session - a buyer's offer and a
+  seller's accept/reject now show up as real notifications too.
+- No token-refresh anywhere (see Foundational above) - classified P0 since it
+  silently degrades every other "real" fix above back into "works once, then
+  breaks."
+- `home_screen.dart`'s "Recommended" masonry feed was 6 hardcoded fake listings
+  (fabricated titles/prices/a fake per-listing "rating" star) - `ProductService`
+  already existed and was simply never called from here. Wired to real
+  `GET /products`, with real images (falls back to the existing icon/gradient
+  placeholder only when a listing genuinely has none) and a real "posted Xh/d ago"
+  in place of the fabricated rating.
+
+**P1 - visibly incomplete, not masquerading as real:**
+- `blocked_users_screen.dart` was a single hardcoded fake blocked user with a
+  fabricated "reason" the real `BlockedUser` model doesn't even have a column for.
+  Wired to the real `GET /users/blocked` + `POST/DELETE /chat/block/:userId`
+  (already used correctly elsewhere in this app).
+- `my_ads_screen.dart`/`product_service.dart`/`user_service.dart` silently
+  substituted fake data (5 mock listings / a "Demo User" profile) on **any**
+  network error or non-200, not just a `DebugConfig` bypass path - a real backend
+  outage would have looked like a normal, successful load. Removed all of it;
+  real errors now surface via the real (already-built, previously unreachable)
+  error/Retry UI. Also fixed the same `img.originalUrl`-vs-`img.url` field-name
+  bug already fixed multiple times on the web client this session, independently
+  present in `my_ads_screen.dart`'s own image mapping.
+- `my_ads_screen.dart`'s "Boost" button showed an instant fake "Ad Boosted!"
+  success with no API call. Investigated the real backend boost flow
+  (`GET /boost/packages`, `POST /boost/purchase`) to wire it for real, and found
+  a **separate, pre-existing backend gap**: `PurchaseBoostDto` has no `productId`
+  field at all - the real endpoint has no way to associate a purchase with a
+  specific listing yet, so there is nothing real to wire this button to without
+  first extending the backend feature itself (out of scope for this pass). Left
+  as an honest "coming soon" rather than a fake success or a half-wired dead end.
+- `welcome_screen.dart`'s "Continue with Google"/"Continue with Apple" had empty
+  `callBack: () {}` - literal no-ops. No real OAuth integration exists anywhere in
+  this backend. Removed both buttons rather than leave a dead end, matching how
+  the equivalent fake social-login buttons were already handled on loopo-client.
+- `help_support_screen.dart`'s "Live Chat"/"Call Us" claimed to be taking a real
+  action ("Calling Support Helpline (+91 1800-123-4567)...") with no real number
+  or integration behind it. Changed to honest "coming soon" messaging.
+- `subcategory_items_screen.dart` fell back to a hardcoded, unrelated product
+  catalog whenever the real search API returned zero results - indistinguishable
+  from genuine results. Now honestly returns empty (the real empty-state UI
+  already existed, just was unreachable).
+- `sell_flow_screen.dart`'s Step 9 "View Listing" button was a bare TODO that just
+  navigated home. The real created listing's id was being discarded entirely by
+  Step 8 (`createListing`'s response was never captured). Fixed both: threaded
+  a real `publishedListingId` through `SellFlowController`, "View Listing" now
+  opens the real listing.
+- **Found while fixing the above**: Step 8's create payload hardcoded
+  `'state': 'Karnataka'` for every single listing regardless of the seller's real
+  selected city - the exact same "city/state wrong for every listing" bug class
+  already found and fixed on loopo-client this session, independently present
+  here. Added the same real parsing logic (handles both the "City, State" and
+  "Area, City, State" shapes the two location-entry paths in this app produce).
+- `step7_seller_contact.dart` showed a hardcoded fake `+91 98765 43210` /
+  "not verified" regardless of the real logged-in user. Wired to
+  `GET /users/me`'s real `phone`/`isPhoneVerified`. "Verify Now" was a bare
+  no-op TODO - now an honest "coming soon" (real phone verification would need
+  routing this into the existing pre-auth OTP flow, a larger change deferred here).
+- `kyc_verification_screen.dart` never checked for an existing application on
+  open - a user who already submitted, was approved, or was rejected saw a blank
+  form every time with no way to tell their real status. Now calls the real
+  `GET /kyc/me` first and shows the real status (with resubmission support via
+  the existing `isUpdate` path for a REJECTED application).
+- `home_screen.dart`'s trending-search chips had no `onTap` at all.  Wired to
+  `SearchScreen(initialQuery: ...)`.
+
+**P2 - cosmetic:** removed stale "TODO: Backend Integration" header comments in
+`categories_screen.dart`/`home_screen.dart`/`subcategory_items_screen.dart`
+claiming fetching wasn't implemented, when the real services already did it (or,
+for the feed, now do); removed a dead, duplicate local-only tap handler in
+`notification_list_screen.dart`'s card widget that sat on top of the real one;
+fixed the same real backend field-name bug found on the client web app's
+notifications this session (`message`, not `body`/`description`).
+
+**Also fixed in the same pass (found while verifying "will this build for
+production" for the notification system, not Flutter-specific):**
+1. **Migration history was silently missing 3 entire feature areas.**
+   `prisma/migrations/` is git-tracked and is what a real `prisma migrate deploy`
+   applies, but schema changes this session (and at least one earlier one) only
+   ever went through `prisma db push`, which updates the database but never
+   writes a migration file. Confirmed via `prisma migrate diff` against a
+   temporary shadow database: `email_templates.body`, `user_notifications`, and
+   the entire pre-existing Support Tickets + Complaints schema (9 tables) were
+   all invisible to migration history - a fresh production database would never
+   get any of them. Generated the real missing migration and registered it as
+   already-applied via `prisma migrate resolve --applied` (the dev database
+   already had this schema live via `db push`); the new Offers/SavedSearches
+   models added in this same pass were migrated correctly from the start this
+   time. Verified twice: `migrate diff` now returns "This is an empty migration"
+   (zero drift), and `prisma migrate deploy` against a brand-new empty database
+   applies all 4 migrations cleanly end to end.
+2. **loopo-client's `.env.production` pointed at `/api/docs` (the Swagger page),
+   not `/api/v1`** - every real request from a genuine production build would
+   404. Only unnoticed because `.env.local` (git-ignored, this machine only)
+   takes precedence in Next.js's env load order and already had the correct
+   local value. **loopo-admin had no production env file at all** - would have
+   silently fallen back to `localhost:5000` in a real deployed build. Fixed both;
+   **caveat**: both files are git-ignored (same pattern as every env file in this
+   repo), so neither fix reaches a deploy that pulls fresh from git - only helps
+   this machine and needs re-applying wherever the real deploy actually happens.
+3. **Two real Android release-build gaps found while producing the requested
+   production build** (not yet fixed - require the user's own credentials/
+   decisions, not something to fabricate): `android/app/build.gradle.kts`
+   release build type still signs with the debug key (`TODO: Add your own
+   signing config` - never addressed since the default Flutter template), and
+   `applicationId`/`namespace` is still `com.example.loopo`, the default
+   template value. Both must be real before this could ever go on the Play
+   Store; a real release APK builds and runs fine as-is for direct-install/
+   sideloading in the meantime.
+
+**Verified live, not just by reading code:** full Offers lifecycle (buyer creates
+-> real row in seller's "received" list + real notification -> seller accepts ->
+real notification to buyer -> double-accept correctly 400s -> a non-owner
+correctly 403s on accept/reject) against real seeded accounts; full Saved
+Searches CRUD lifecycle (create -> list -> toggle notifications -> delete ->
+confirmed gone); notification delete-one/delete-all. Backend: clean build,
+83/83 tests pass (one spec file needed a new mock for `SavedSearchesService`,
+now added). Flutter: `flutter analyze` clean across the whole project (only
+pre-existing-style info/warning notes, 0 errors, matching this project's already-
+established tolerance level) - both a release APK (`flutter build apk --release
+--dart-define=APP_ENV=production`, confirmed the real production API URL baked
+into the bundled `.env.production`) and a release web build (`flutter build web
+--release --dart-define=APP_ENV=production`, served locally and confirmed it
+loads) were produced successfully. All test data (offers, saved searches, test
+notifications) created for this verification was deleted from the real shared
+dev database afterward.
 
 ### RESOLVED — P0 production-deploy risk: three entire feature areas' tables (Support, Complaints, and now Notifications) existed only via `prisma db push`, invisible to the real migration history `prisma migrate deploy` uses
 Found while answering "will this work when I build the project" for the

@@ -43,8 +43,12 @@ class AuthService {
           final token = (tokens is Map ? tokens['accessToken'] : null) ??
               data['accessToken'] ??
               data['token'];
+          final refreshToken = (tokens is Map ? tokens['refreshToken'] : null) ?? data['refreshToken'];
           if (token != null) {
-            AuthSession.setToken(token.toString());
+            AuthSession.setTokens(
+              accessToken: token.toString(),
+              refreshToken: refreshToken?.toString(),
+            );
           }
         }
         return responseData;
@@ -84,8 +88,12 @@ class AuthService {
           final token = (tokens is Map ? tokens['accessToken'] : null) ??
               data['accessToken'] ??
               data['token'];
+          final refreshToken = (tokens is Map ? tokens['refreshToken'] : null) ?? data['refreshToken'];
           if (token != null) {
-            AuthSession.setToken(token.toString());
+            AuthSession.setTokens(
+              accessToken: token.toString(),
+              refreshToken: refreshToken?.toString(),
+            );
           }
         }
         return responseData;
@@ -183,7 +191,10 @@ class AuthService {
       if (data is Map) {
         final token = data['accessToken'] ?? data['token'];
         if (token != null) {
-          AuthSession.setToken(token.toString());
+          AuthSession.setTokens(
+            accessToken: token.toString(),
+            refreshToken: data['refreshToken']?.toString(),
+          );
         }
       }
       return responseData;

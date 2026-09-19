@@ -3,11 +3,6 @@ import '../services/category_service.dart';
 import '../theme/app_colors.dart';
 import 'subcategory_items_screen.dart';
 
-// TODO: [Backend Integration] Fetch root categories from GET /api/v1/categories
-// TODO: [Backend Integration] Fetch nested category tree from GET /api/v1/categories/tree
-// TODO: [Backend Integration] Filter products by selected category via GET /api/v1/products?categoryId=:id
-
-
 class CategoriesScreen extends StatefulWidget {
   const CategoriesScreen({super.key});
 

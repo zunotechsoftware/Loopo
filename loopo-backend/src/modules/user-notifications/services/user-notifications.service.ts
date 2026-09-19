@@ -157,4 +157,21 @@ export class UserNotificationsService {
     });
     return { success: true };
   }
+
+  async deleteOne(userId: string, id: string) {
+    const result = await this.prisma.userNotification.deleteMany({ where: { id, userId } });
+    if (result.count === 0) {
+      throw new NotFoundException('Notification not found');
+    }
+    return { success: true };
+  }
+
+  /// Backs "Clear all" - both loopo-client's and loopo-flutter's
+  /// notification screens already had this button, but it only ever
+  /// cleared local in-memory state; the real rows still existed and would
+  /// reappear on the next fetch.
+  async deleteAll(userId: string) {
+    await this.prisma.userNotification.deleteMany({ where: { userId } });
+    return { success: true };
+  }
 }

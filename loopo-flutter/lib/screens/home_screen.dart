@@ -9,14 +9,16 @@ import 'favorites_screen.dart';
 import 'search_screen.dart';
 import '../services/category_service.dart';
 import '../services/location_service.dart';
+import '../services/product_service.dart';
 import '../theme/app_colors.dart';
 import 'sell/sell_flow_screen.dart';
 import 'my_ads_screen.dart';
 
-// TODO: [Backend Integration] Fetch products/listings from GET /api/v1/products?categories=...&search=...&page=1
-// TODO: [Backend Integration] Fetch active promotional banners from GET /api/v1/admin/announcements or banners API
-// TODO: [Backend Integration] Fetch recommended user feed from GET /api/v1/analytics/recommendations
-// TODO: [Backend Integration] Wire search bar filter query parameters to GET /api/v1/search/products
+// Promotional banners remain static creative content (no admin
+// banner-management API exists in this backend yet) - the "Recommended"
+// masonry feed below is now real (GET /api/v1/products), which is what
+// the "Backend Integration" TODOs that used to sit here were actually
+// about.
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -30,11 +32,24 @@ class _HomeScreenState extends State<HomeScreen>
   int _selectedIndex = 0;
   final CategoryService _categoryService = CategoryService();
   final LocationService _locationService = LocationService();
+  final ProductService _productService = ProductService();
   List<dynamic> _categories = [];
   bool _isLoadingCategories = true;
   bool _isDetectingLocation = false;
   late AnimationController _bannerController;
   int _activeBanner = 0;
+
+  List<Map<String, dynamic>> _feedListings = [];
+  bool _isLoadingFeed = true;
+
+  static const List<Color> _feedAccents = [
+    Color(0xFF5C6BC0),
+    Color(0xFFEF5350),
+    Color(0xFF26A69A),
+    Color(0xFFFFA726),
+    Color(0xFFAB47BC),
+    Color(0xFF29B6F6),
+  ];
 
   // Selected filter categories for search context (starts empty)
   final List<String> _selectedFilterCategories = [];
@@ -75,63 +90,6 @@ class _HomeScreenState extends State<HomeScreen>
   ];
 
   // Masonry data — varied heights create the staggered grid effect
-  static const List<Map<String, dynamic>> _masonryListings = [
-    {
-      'title': 'iPhone 14 Pro Max',
-      'price': '₹78,500',
-      'location': 'Koramangala',
-      'category': 'Mobiles',
-      'rating': '4.9',
-      'tall': true,
-      'accent': Color(0xFF5C6BC0),
-    },
-    {
-      'title': 'Honda Civic 2020',
-      'price': '₹14,25,000',
-      'location': 'Indiranagar',
-      'category': 'Cars',
-      'rating': '4.7',
-      'tall': false,
-      'accent': Color(0xFFEF5350),
-    },
-    {
-      'title': 'Royal Enfield Classic 350',
-      'price': '₹1,65,000',
-      'location': 'HSR Layout',
-      'category': 'Bikes',
-      'rating': '4.8',
-      'tall': false,
-      'accent': Color(0xFF26A69A),
-    },
-    {
-      'title': 'Sony 65" OLED 4K TV',
-      'price': '₹1,20,000',
-      'location': 'Whitefield',
-      'category': 'Electronics',
-      'rating': '4.6',
-      'tall': true,
-      'accent': Color(0xFFFFA726),
-    },
-    {
-      'title': 'L-Shape Sofa Set',
-      'price': '₹32,000',
-      'location': 'JP Nagar',
-      'category': 'Furniture',
-      'rating': '4.5',
-      'tall': false,
-      'accent': Color(0xFFAB47BC),
-    },
-    {
-      'title': 'MacBook Pro M2',
-      'price': '₹1,35,000',
-      'location': 'MG Road',
-      'category': 'Electronics',
-      'rating': '5.0',
-      'tall': true,
-      'accent': Color(0xFF29B6F6),
-    },
-  ];
-
   static const List<Map<String, dynamic>> _trendingSearches = [
     {'label': 'iPhone 14', 'icon': Icons.phone_iphone_outlined},
     {'label': 'Used Cars', 'icon': Icons.directions_car_outlined},
@@ -145,16 +103,18 @@ class _HomeScreenState extends State<HomeScreen>
     super.initState();
     _locationService.addListener(_onLocationChanged);
     _loadCategories();
+    _loadFeed();
     _detectLocationOnLaunch();
-    _bannerController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 4),
-    )..addStatusListener((s) {
-        if (s == AnimationStatus.completed) {
-          setState(() => _activeBanner = (_activeBanner + 1) % _banners.length);
-          _bannerController.forward(from: 0);
-        }
-      });
+    _bannerController =
+        AnimationController(vsync: this, duration: const Duration(seconds: 4))
+          ..addStatusListener((s) {
+            if (s == AnimationStatus.completed) {
+              setState(
+                () => _activeBanner = (_activeBanner + 1) % _banners.length,
+              );
+              _bannerController.forward(from: 0);
+            }
+          });
     _bannerController.forward();
   }
 
@@ -196,16 +156,75 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
+  Future<void> _loadFeed() async {
+    setState(() => _isLoadingFeed = true);
+    try {
+      final result = await _productService.getPublicListings(limit: 12);
+      final items = result['items'] is List ? result['items'] as List : [];
+      final mapped = <Map<String, dynamic>>[];
+      for (var i = 0; i < items.length; i++) {
+        final p = items[i] as Map;
+        final category = p['category'] is Map
+            ? (p['category']['name'] ?? 'General').toString()
+            : 'General';
+        final images = p['images'] is List ? p['images'] as List : [];
+        String imageUrl = '';
+        if (images.isNotEmpty && images.first is Map) {
+          final first = images.first as Map;
+          imageUrl = (first['thumbnailUrl'] ?? first['originalUrl'] ?? '')
+              .toString();
+        }
+        final locationMap = p['location'] is Map ? p['location'] as Map : {};
+        final currency = (p['currency'] ?? 'INR') == 'INR'
+            ? '₹'
+            : '${p['currency']} ';
+        mapped.add({
+          'id': p['id']?.toString() ?? '',
+          'title': (p['title'] ?? 'Untitled Listing').toString(),
+          'price': '$currency${p['price'] ?? 0}',
+          'location': (locationMap['city'] ?? 'Unknown').toString(),
+          'category': category,
+          'imageUrl': imageUrl,
+          'createdAt': p['createdAt'],
+          'tall': i % 3 == 0,
+          'accent': _feedAccents[i % _feedAccents.length],
+        });
+      }
+      if (!mounted) return;
+      setState(() {
+        _feedListings = mapped;
+        _isLoadingFeed = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _feedListings = [];
+        _isLoadingFeed = false;
+      });
+    }
+  }
+
+  String _feedTimeAgo(dynamic iso) {
+    final dt = iso is String ? DateTime.tryParse(iso) : null;
+    if (dt == null) return '';
+    final diff = DateTime.now().difference(dt);
+    if (diff.inHours < 1) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
+  }
+
   IconData _getIconData(String? key) {
     final k = (key ?? '').toLowerCase();
     if (k.contains('phone') || k.contains('mobile')) return Icons.phone_android;
-    if (k.contains('car') || k.contains('direction')) return Icons.directions_car;
+    if (k.contains('car') || k.contains('direction'))
+      return Icons.directions_car;
     if (k.contains('bike') || k.contains('motorcycle')) return Icons.motorcycle;
     if (k.contains('tv') || k.contains('electronic')) return Icons.tv;
     if (k.contains('chair') || k.contains('furniture')) return Icons.chair;
     if (k.contains('bag') || k.contains('fashion')) return Icons.shopping_bag;
     if (k.contains('book')) return Icons.book;
-    if (k.contains('bulb') || k.contains('home') || k.contains('living')) return Icons.lightbulb;
+    if (k.contains('bulb') || k.contains('home') || k.contains('living'))
+      return Icons.lightbulb;
     return Icons.grid_view_rounded;
   }
 
@@ -225,18 +244,24 @@ class _HomeScreenState extends State<HomeScreen>
 
   void _onItemTapped(int index) {
     if (index == 1) {
-      Navigator.push(context,
-          MaterialPageRoute(builder: (_) => const MyAdsScreen()));
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const MyAdsScreen()),
+      );
       return;
     }
     if (index == 3) {
-      Navigator.push(context,
-          MaterialPageRoute(builder: (_) => const ChatListScreen()));
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const ChatListScreen()),
+      );
       return;
     }
     if (index == 4) {
-      Navigator.push(context,
-          MaterialPageRoute(builder: (_) => const ProfileScreen()));
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const ProfileScreen()),
+      );
       return;
     }
     setState(() => _selectedIndex = index);
@@ -303,36 +328,56 @@ class _HomeScreenState extends State<HomeScreen>
                   const SizedBox(height: 16),
                   Expanded(
                     child: ListView.separated(
-                      itemCount: (_categories.isNotEmpty ? _categories : _staticCategories).length,
+                      itemCount:
+                          (_categories.isNotEmpty
+                                  ? _categories
+                                  : _staticCategories)
+                              .length,
                       separatorBuilder: (_, _) => const Divider(height: 1),
                       itemBuilder: (context, index) {
-                        final catList = _categories.isNotEmpty ? _categories : _staticCategories;
+                        final catList = _categories.isNotEmpty
+                            ? _categories
+                            : _staticCategories;
                         final cat = catList[index];
-                        final label = (cat['name'] ?? cat['label'] ?? 'Category').toString();
+                        final label =
+                            (cat['name'] ?? cat['label'] ?? 'Category')
+                                .toString();
                         final IconData icon = cat['icon'] is IconData
                             ? cat['icon']
-                            : _getIconData((cat['icon'] ?? cat['name'])?.toString());
-                        final isSelected = _selectedFilterCategories.contains(label);
+                            : _getIconData(
+                                (cat['icon'] ?? cat['name'])?.toString(),
+                              );
+                        final isSelected = _selectedFilterCategories.contains(
+                          label,
+                        );
 
                         return CheckboxListTile(
                           value: isSelected,
                           activeColor: AppColors.appGreen,
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                           secondary: Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: _categoryAccent(label).withValues(alpha: 0.1),
+                              color: _categoryAccent(
+                                label,
+                              ).withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(10),
                             ),
-                            child: Icon(icon, size: 20, color: _categoryAccent(label)),
+                            child: Icon(
+                              icon,
+                              size: 20,
+                              color: _categoryAccent(label),
+                            ),
                           ),
                           title: Text(
                             label,
                             style: TextStyle(
                               fontSize: 14,
-                              fontWeight:
-                                  isSelected ? FontWeight.bold : FontWeight.w500,
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.w500,
                               color: isSelected
                                   ? AppColors.appGreen
                                   : AppColors.appDark,
@@ -341,7 +386,9 @@ class _HomeScreenState extends State<HomeScreen>
                           onChanged: (checked) {
                             setState(() {
                               if (checked == true) {
-                                if (!_selectedFilterCategories.contains(label)) {
+                                if (!_selectedFilterCategories.contains(
+                                  label,
+                                )) {
                                   _selectedFilterCategories.add(label);
                                 }
                               } else {
@@ -363,7 +410,8 @@ class _HomeScreenState extends State<HomeScreen>
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.appGreen,
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16)),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                       ),
                       child: Text(
                         'Apply Filters (${_selectedFilterCategories.length})',
@@ -441,7 +489,8 @@ class _HomeScreenState extends State<HomeScreen>
                       onTap: () async {
                         Navigator.pop(context);
                         setState(() => _isDetectingLocation = true);
-                        final loc = await _locationService.detectCurrentLocation();
+                        final loc = await _locationService
+                            .detectCurrentLocation();
                         if (mounted && context.mounted) {
                           setState(() => _isDetectingLocation = false);
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -462,11 +511,17 @@ class _HomeScreenState extends State<HomeScreen>
                         decoration: BoxDecoration(
                           color: AppColors.appGreen.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppColors.appGreen.withValues(alpha: 0.3)),
+                          border: Border.all(
+                            color: AppColors.appGreen.withValues(alpha: 0.3),
+                          ),
                         ),
                         child: Row(
                           children: const [
-                            Icon(Icons.my_location_rounded, color: AppColors.appGreen, size: 22),
+                            Icon(
+                              Icons.my_location_rounded,
+                              color: AppColors.appGreen,
+                              size: 22,
+                            ),
                             SizedBox(width: 12),
                             Expanded(
                               child: Column(
@@ -483,12 +538,19 @@ class _HomeScreenState extends State<HomeScreen>
                                   SizedBox(height: 2),
                                   Text(
                                     'Using IP & Device GPS for precise city',
-                                    style: TextStyle(fontSize: 11, color: Colors.black45),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.black45,
+                                    ),
                                   ),
                                 ],
                               ),
                             ),
-                            Icon(Icons.chevron_right, color: AppColors.appGreen, size: 20),
+                            Icon(
+                              Icons.chevron_right,
+                              color: AppColors.appGreen,
+                              size: 20,
+                            ),
                           ],
                         ),
                       ),
@@ -508,16 +570,18 @@ class _HomeScreenState extends State<HomeScreen>
                     // Popular Cities Grid
                     Expanded(
                       child: GridView.builder(
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          childAspectRatio: 2.8,
-                          crossAxisSpacing: 10,
-                          mainAxisSpacing: 10,
-                        ),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              childAspectRatio: 2.8,
+                              crossAxisSpacing: 10,
+                              mainAxisSpacing: 10,
+                            ),
                         itemCount: LocationService.popularCities.length,
                         itemBuilder: (context, index) {
                           final c = LocationService.popularCities[index];
-                          final isSelected = c['city'] == _locationService.currentCity;
+                          final isSelected =
+                              c['city'] == _locationService.currentCity;
 
                           return InkWell(
                             onTap: () {
@@ -531,7 +595,9 @@ class _HomeScreenState extends State<HomeScreen>
                               Navigator.pop(context);
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: Text('Location changed to ${c['city']}'),
+                                  content: Text(
+                                    'Location changed to ${c['city']}',
+                                  ),
                                   backgroundColor: AppColors.appGreen,
                                   duration: const Duration(seconds: 1),
                                 ),
@@ -540,12 +606,19 @@ class _HomeScreenState extends State<HomeScreen>
                             borderRadius: BorderRadius.circular(14),
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 200),
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
                               decoration: BoxDecoration(
-                                color: isSelected ? AppColors.appGreen.withValues(alpha: 0.12) : const Color(0xFFF8FAFC),
+                                color: isSelected
+                                    ? AppColors.appGreen.withValues(alpha: 0.12)
+                                    : const Color(0xFFF8FAFC),
                                 borderRadius: BorderRadius.circular(14),
                                 border: Border.all(
-                                  color: isSelected ? AppColors.appGreen : Colors.grey.shade200,
+                                  color: isSelected
+                                      ? AppColors.appGreen
+                                      : Colors.grey.shade200,
                                   width: isSelected ? 1.5 : 1,
                                 ),
                               ),
@@ -554,13 +627,17 @@ class _HomeScreenState extends State<HomeScreen>
                                   Icon(
                                     Icons.location_city_rounded,
                                     size: 18,
-                                    color: isSelected ? AppColors.appGreen : Colors.black45,
+                                    color: isSelected
+                                        ? AppColors.appGreen
+                                        : Colors.black45,
                                   ),
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
                                         Text(
                                           c['city']!,
@@ -568,15 +645,22 @@ class _HomeScreenState extends State<HomeScreen>
                                           overflow: TextOverflow.ellipsis,
                                           style: TextStyle(
                                             fontSize: 13,
-                                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                                            color: isSelected ? AppColors.appGreen : AppColors.appDark,
+                                            fontWeight: isSelected
+                                                ? FontWeight.bold
+                                                : FontWeight.w600,
+                                            color: isSelected
+                                                ? AppColors.appGreen
+                                                : AppColors.appDark,
                                           ),
                                         ),
                                         Text(
                                           c['state']!,
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(fontSize: 10, color: Colors.black38),
+                                          style: const TextStyle(
+                                            fontSize: 10,
+                                            color: Colors.black38,
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -623,7 +707,10 @@ class _HomeScreenState extends State<HomeScreen>
                   height: 32,
                   fit: BoxFit.contain,
                   errorBuilder: (_, _, _) => Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.appGreen,
                       borderRadius: BorderRadius.circular(8),
@@ -631,9 +718,10 @@ class _HomeScreenState extends State<HomeScreen>
                     child: const Text(
                       'LOOP-O',
                       style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14),
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
                     ),
                   ),
                 ),
@@ -646,17 +734,27 @@ class _HomeScreenState extends State<HomeScreen>
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.location_on, size: 12, color: AppColors.appGreen),
+                          const Icon(
+                            Icons.location_on,
+                            size: 12,
+                            color: AppColors.appGreen,
+                          ),
                           const SizedBox(width: 2),
                           Text(
-                            _isDetectingLocation ? 'Locating...' : _locationService.formattedLocation,
+                            _isDetectingLocation
+                                ? 'Locating...'
+                                : _locationService.formattedLocation,
                             style: const TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
                               color: AppColors.appDark,
                             ),
                           ),
-                          const Icon(Icons.keyboard_arrow_down, size: 14, color: Colors.black45),
+                          const Icon(
+                            Icons.keyboard_arrow_down,
+                            size: 14,
+                            color: Colors.black45,
+                          ),
                         ],
                       ),
                     ],
@@ -668,7 +766,8 @@ class _HomeScreenState extends State<HomeScreen>
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (_) => const NotificationsListScreen()),
+                      builder: (_) => const NotificationsListScreen(),
+                    ),
                   ),
                   child: Stack(
                     clipBehavior: Clip.none,
@@ -679,8 +778,11 @@ class _HomeScreenState extends State<HomeScreen>
                           color: const Color(0xFFF5F7FA),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Icon(Icons.notifications_outlined,
-                            size: 22, color: AppColors.appDark),
+                        child: const Icon(
+                          Icons.notifications_outlined,
+                          size: 22,
+                          color: AppColors.appDark,
+                        ),
                       ),
                       Positioned(
                         top: 6,
@@ -700,8 +802,10 @@ class _HomeScreenState extends State<HomeScreen>
                 const SizedBox(width: 10),
                 // Profile Avatar shortcut
                 GestureDetector(
-                  onTap: () => Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => const ProfileScreen())),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                  ),
                   child: Container(
                     width: 38,
                     height: 38,
@@ -712,8 +816,11 @@ class _HomeScreenState extends State<HomeScreen>
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Center(
-                      child: Icon(Icons.person_outline,
-                          size: 20, color: Colors.white),
+                      child: Icon(
+                        Icons.person_outline,
+                        size: 20,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ),
@@ -737,17 +844,23 @@ class _HomeScreenState extends State<HomeScreen>
                             child: GestureDetector(
                               onTap: () => Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (_) => const SearchScreen()),
+                                MaterialPageRoute(
+                                  builder: (_) => const SearchScreen(),
+                                ),
                               ),
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 12),
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
                                 decoration: BoxDecoration(
                                   color: Colors.white,
                                   borderRadius: BorderRadius.circular(18),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.05),
+                                      color: Colors.black.withValues(
+                                        alpha: 0.05,
+                                      ),
                                       blurRadius: 16,
                                       offset: const Offset(0, 4),
                                     ),
@@ -755,8 +868,11 @@ class _HomeScreenState extends State<HomeScreen>
                                 ),
                                 child: Row(
                                   children: [
-                                    const Icon(Icons.search_rounded,
-                                        color: AppColors.appGreen, size: 22),
+                                    const Icon(
+                                      Icons.search_rounded,
+                                      color: AppColors.appGreen,
+                                      size: 22,
+                                    ),
                                     const SizedBox(width: 12),
                                     Expanded(
                                       child: Text(
@@ -766,11 +882,13 @@ class _HomeScreenState extends State<HomeScreen>
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
-                                          color: _selectedFilterCategories.isEmpty
+                                          color:
+                                              _selectedFilterCategories.isEmpty
                                               ? Colors.black38
                                               : AppColors.appDark,
                                           fontSize: 13,
-                                          fontWeight: _selectedFilterCategories.isEmpty
+                                          fontWeight:
+                                              _selectedFilterCategories.isEmpty
                                               ? FontWeight.normal
                                               : FontWeight.w500,
                                         ),
@@ -789,7 +907,9 @@ class _HomeScreenState extends State<HomeScreen>
                               decoration: BoxDecoration(
                                 color: _selectedFilterCategories.isNotEmpty
                                     ? AppColors.appGreen
-                                    : AppColors.appGreen.withValues(alpha: 0.12),
+                                    : AppColors.appGreen.withValues(
+                                        alpha: 0.12,
+                                      ),
                                 borderRadius: BorderRadius.circular(16),
                               ),
                               child: Icon(
@@ -825,8 +945,11 @@ class _HomeScreenState extends State<HomeScreen>
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(_getIconData(catLabel),
-                                        size: 13, color: accent),
+                                    Icon(
+                                      _getIconData(catLabel),
+                                      size: 13,
+                                      color: accent,
+                                    ),
                                     const SizedBox(width: 5),
                                     Text(
                                       catLabel,
@@ -840,7 +963,9 @@ class _HomeScreenState extends State<HomeScreen>
                                     GestureDetector(
                                       onTap: () {
                                         setState(() {
-                                          _selectedFilterCategories.remove(catLabel);
+                                          _selectedFilterCategories.remove(
+                                            catLabel,
+                                          );
                                         });
                                       },
                                       child: Container(
@@ -849,8 +974,11 @@ class _HomeScreenState extends State<HomeScreen>
                                           color: accent.withValues(alpha: 0.2),
                                           shape: BoxShape.circle,
                                         ),
-                                        child: Icon(Icons.close_rounded,
-                                            size: 12, color: accent),
+                                        child: Icon(
+                                          Icons.close_rounded,
+                                          size: 12,
+                                          color: accent,
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -874,8 +1002,11 @@ class _HomeScreenState extends State<HomeScreen>
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Row(
                     children: const [
-                      Icon(Icons.local_fire_department_rounded,
-                          size: 16, color: Color(0xFFFFA726)),
+                      Icon(
+                        Icons.local_fire_department_rounded,
+                        size: 16,
+                        color: Color(0xFFFFA726),
+                      ),
                       SizedBox(width: 6),
                       Text(
                         'Trending',
@@ -898,33 +1029,50 @@ class _HomeScreenState extends State<HomeScreen>
                     itemCount: _trendingSearches.length,
                     itemBuilder: (_, i) {
                       final t = _trendingSearches[i];
-                      return Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.04),
-                              blurRadius: 8,
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(t['icon'] as IconData,
-                                size: 14, color: AppColors.appBlue),
-                            const SizedBox(width: 6),
-                            Text(
-                              t['label'] as String,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.appDark,
+                      return GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => SearchScreen(
+                                initialQuery: t['label'] as String,
                               ),
                             ),
-                          ],
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.04),
+                                blurRadius: 8,
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                t['icon'] as IconData,
+                                size: 14,
+                                color: AppColors.appBlue,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                t['label'] as String,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.appDark,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       );
                     },
@@ -950,7 +1098,8 @@ class _HomeScreenState extends State<HomeScreen>
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (_) => const CategoriesScreen()),
+                            builder: (_) => const CategoriesScreen(),
+                          ),
                         ),
                         child: const Text(
                           'See all →',
@@ -970,7 +1119,8 @@ class _HomeScreenState extends State<HomeScreen>
                         child: Padding(
                           padding: EdgeInsets.all(20),
                           child: CircularProgressIndicator(
-                              color: AppColors.appGreen),
+                            color: AppColors.appGreen,
+                          ),
                         ),
                       )
                     : _buildCategoryScroll(),
@@ -1032,7 +1182,12 @@ class _HomeScreenState extends State<HomeScreen>
             child: Row(
               children: [
                 _navItem(0, Icons.home_filled, Icons.home_outlined, 'Home'),
-                _navItem(1, Icons.inventory_2_rounded, Icons.inventory_2_outlined, 'My Ads'),
+                _navItem(
+                  1,
+                  Icons.inventory_2_rounded,
+                  Icons.inventory_2_outlined,
+                  'My Ads',
+                ),
                 _sellButton(),
                 _navItem(3, Icons.message, Icons.message_outlined, 'Messages'),
                 _navItem(4, Icons.person, Icons.person_outline, 'Profile'),
@@ -1140,7 +1295,9 @@ class _HomeScreenState extends State<HomeScreen>
                           const SizedBox(height: 12),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 6),
+                              horizontal: 14,
+                              vertical: 6,
+                            ),
                             decoration: BoxDecoration(
                               color: accent,
                               borderRadius: BorderRadius.circular(20),
@@ -1164,7 +1321,9 @@ class _HomeScreenState extends State<HomeScreen>
                         color: accent.withValues(alpha: 0.2),
                         shape: BoxShape.circle,
                         border: Border.all(
-                            color: accent.withValues(alpha: 0.4), width: 2),
+                          color: accent.withValues(alpha: 0.4),
+                          width: 2,
+                        ),
                       ),
                       child: Icon(icon, color: accent, size: 28),
                     ),
@@ -1241,7 +1400,9 @@ class _HomeScreenState extends State<HomeScreen>
                       color: accent.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(18),
                       border: Border.all(
-                          color: accent.withValues(alpha: 0.2), width: 1),
+                        color: accent.withValues(alpha: 0.2),
+                        width: 1,
+                      ),
                     ),
                     child: Icon(iconData, size: 26, color: accent),
                   ),
@@ -1344,14 +1505,35 @@ class _HomeScreenState extends State<HomeScreen>
   // ── Masonry Grid ─────────────────────────────────────────────────────────
 
   Widget _buildMasonryGrid() {
+    if (_isLoadingFeed) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 40),
+        child: Center(
+          child: CircularProgressIndicator(color: AppColors.appGreen),
+        ),
+      );
+    }
+
+    if (_feedListings.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 16),
+        child: Center(
+          child: Text(
+            'No listings to show right now.',
+            style: TextStyle(color: Colors.grey.shade500),
+          ),
+        ),
+      );
+    }
+
     final leftItems = <Map<String, dynamic>>[];
     final rightItems = <Map<String, dynamic>>[];
 
-    for (var i = 0; i < _masonryListings.length; i++) {
+    for (var i = 0; i < _feedListings.length; i++) {
       if (i % 2 == 0) {
-        leftItems.add(_masonryListings[i]);
+        leftItems.add(_feedListings[i]);
       } else {
-        rightItems.add(_masonryListings[i]);
+        rightItems.add(_feedListings[i]);
       }
     }
 
@@ -1363,10 +1545,12 @@ class _HomeScreenState extends State<HomeScreen>
           Expanded(
             child: Column(
               children: leftItems
-                  .map((item) => Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: _masonryCard(item),
-                      ))
+                  .map(
+                    (item) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _masonryCard(item),
+                    ),
+                  )
                   .toList(),
             ),
           ),
@@ -1375,11 +1559,12 @@ class _HomeScreenState extends State<HomeScreen>
             child: Column(
               children: [
                 const SizedBox(height: 30),
-                ...rightItems
-                    .map((item) => Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: _masonryCard(item),
-                        )),
+                ...rightItems.map(
+                  (item) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _masonryCard(item),
+                  ),
+                ),
               ],
             ),
           ),
@@ -1392,164 +1577,211 @@ class _HomeScreenState extends State<HomeScreen>
     final isTall = item['tall'] == true;
     final accent = item['accent'] as Color;
     final icon = _getIconData(item['category'].toString());
+    final imageUrl = (item['imageUrl'] ?? '').toString();
 
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (_) => ProductDetailScreen(product: item),
-          ),
+          MaterialPageRoute(builder: (_) => ProductDetailScreen(product: item)),
         );
       },
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            height: isTall ? 160 : 110,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  accent.withValues(alpha: 0.15),
-                  accent.withValues(alpha: 0.05),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              height: isTall ? 160 : 110,
+              decoration: BoxDecoration(
+                gradient: imageUrl.isEmpty
+                    ? LinearGradient(
+                        colors: [
+                          accent.withValues(alpha: 0.15),
+                          accent.withValues(alpha: 0.05),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      )
+                    : null,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(20),
+                ),
               ),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-            ),
-            child: Stack(
-              children: [
-                Positioned(
-                  right: -10,
-                  top: -10,
-                  child: Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: accent.withValues(alpha: 0.08),
-                    ),
-                  ),
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(20),
                 ),
-                Center(
-                  child: Icon(icon, size: isTall ? 48 : 36, color: accent),
-                ),
-                Positioned(
-                  top: 10,
-                  left: 10,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: accent.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      item['category'].toString(),
-                      style: TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.bold,
-                        color: accent,
-                      ),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const FavoritesScreen()),
-                      );
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(5),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.9),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.favorite_border,
-                          size: 13, color: Colors.black38),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item['price'].toString(),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                    color: AppColors.appGreen,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  item['title'].toString(),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.appDark,
-                    height: 1.3,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Row(
+                child: Stack(
                   children: [
-                    const Icon(Icons.star_rounded,
-                        size: 12, color: Colors.orange),
-                    const SizedBox(width: 3),
-                    Text(
-                      item['rating'].toString(),
-                      style: const TextStyle(
-                          fontSize: 11, fontWeight: FontWeight.bold),
+                    if (imageUrl.isNotEmpty)
+                      Positioned.fill(
+                        child: Image.network(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => Center(
+                            child: Icon(
+                              icon,
+                              size: isTall ? 48 : 36,
+                              color: accent,
+                            ),
+                          ),
+                        ),
+                      )
+                    else ...[
+                      Positioned(
+                        right: -10,
+                        top: -10,
+                        child: Container(
+                          width: 60,
+                          height: 60,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: accent.withValues(alpha: 0.08),
+                          ),
+                        ),
+                      ),
+                      Center(
+                        child: Icon(
+                          icon,
+                          size: isTall ? 48 : 36,
+                          color: accent,
+                        ),
+                      ),
+                    ],
+                    Positioned(
+                      top: 10,
+                      left: 10,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: accent.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          item['category'].toString(),
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            color: accent,
+                          ),
+                        ),
+                      ),
                     ),
-                    const Spacer(),
-                    const Icon(Icons.location_on_outlined,
-                        size: 11, color: Colors.black38),
-                    const SizedBox(width: 2),
-                    Flexible(
-                      child: Text(
-                        item['location'].toString(),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            fontSize: 10, color: Colors.black38),
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const FavoritesScreen(),
+                            ),
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.9),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.favorite_border,
+                            size: 13,
+                            color: Colors.black38,
+                          ),
+                        ),
                       ),
                     ),
                   ],
                 ),
-              ],
+              ),
             ),
-          ),
-        ],
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item['price'].toString(),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      color: AppColors.appGreen,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    item['title'].toString(),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.appDark,
+                      height: 1.3,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      if (_feedTimeAgo(item['createdAt']).isNotEmpty) ...[
+                        const Icon(
+                          Icons.access_time_rounded,
+                          size: 11,
+                          color: Colors.black38,
+                        ),
+                        const SizedBox(width: 3),
+                        Text(
+                          _feedTimeAgo(item['createdAt']),
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: Colors.black38,
+                          ),
+                        ),
+                      ],
+                      const Spacer(),
+                      const Icon(
+                        Icons.location_on_outlined,
+                        size: 11,
+                        color: Colors.black38,
+                      ),
+                      const SizedBox(width: 2),
+                      Flexible(
+                        child: Text(
+                          item['location'].toString(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: Colors.black38,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _navItem(int idx, IconData active, IconData inactive, String label) {
     final selected = _selectedIndex == idx;
@@ -1563,7 +1795,10 @@ class _HomeScreenState extends State<HomeScreen>
             children: [
               AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: selected
                       ? AppColors.appGreen.withValues(alpha: 0.12)
@@ -1581,8 +1816,7 @@ class _HomeScreenState extends State<HomeScreen>
                 label,
                 style: TextStyle(
                   fontSize: 10,
-                  fontWeight:
-                      selected ? FontWeight.bold : FontWeight.normal,
+                  fontWeight: selected ? FontWeight.bold : FontWeight.normal,
                   color: selected ? AppColors.appGreen : Colors.black38,
                 ),
               ),
@@ -1597,9 +1831,9 @@ class _HomeScreenState extends State<HomeScreen>
     return Expanded(
       child: GestureDetector(
         onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const SellFlowScreen()),
-          );
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const SellFlowScreen()));
         },
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -1622,8 +1856,11 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 ],
               ),
-              child: const Icon(Icons.add_rounded,
-                  color: Colors.white, size: 28),
+              child: const Icon(
+                Icons.add_rounded,
+                color: Colors.white,
+                size: 28,
+              ),
             ),
             const SizedBox(height: 2),
             const Text(

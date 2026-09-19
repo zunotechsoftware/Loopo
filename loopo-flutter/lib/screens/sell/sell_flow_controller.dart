@@ -36,6 +36,9 @@ class SellFlowData {
   bool allowCall = true;
   String? email;
   bool isVerifiedSeller = false;
+
+  // Step 8 – set after a real, successful POST /api/v1/products
+  String? publishedListingId;
 }
 
 /// Controller that drives the PageView and holds shared [SellFlowData].

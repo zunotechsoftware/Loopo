@@ -12,12 +12,13 @@ class ApiConfig {
   static const String _overrideBaseUrl = String.fromEnvironment('API_BASE_URL');
 
   static const String _devBaseUrl = 'https://loopo-711b.onrender.com';
-  static const String _prodBaseUrl = 'https://loopo-api.zunotechsoftware.com'; // Production API hostname
+  static const String _prodBaseUrl =
+      'https://loopo-api.zunotechsoftware.com'; // Production API hostname
 
   static AppEnvironment get environment =>
       _envString.toLowerCase() == 'production'
-          ? AppEnvironment.production
-          : AppEnvironment.development;
+      ? AppEnvironment.production
+      : AppEnvironment.development;
 
   static String get baseUrl {
     // 1. dart-define takes highest priority (CI/CD overrides)
@@ -30,7 +31,9 @@ class ApiConfig {
     // 2. Value from the loaded dotenv file (.env.development / .env.production)
     final envUrl = dotenv.maybeGet('API_BASE_URL');
     if (envUrl != null && envUrl.isNotEmpty) {
-      return envUrl.endsWith('/') ? envUrl.substring(0, envUrl.length - 1) : envUrl;
+      return envUrl.endsWith('/')
+          ? envUrl.substring(0, envUrl.length - 1)
+          : envUrl;
     }
 
     // 3. Hardcoded fallback based on environment
@@ -46,7 +49,8 @@ class ApiConfig {
   static const String loginEndpoint = '/api/v1/auth/login';
   static const String registerEndpoint = '/api/v1/auth/register';
   static const String sendPhoneLoginOtpEndpoint = '/api/v1/auth/phone/send-otp';
-  static const String verifyPhoneLoginOtpEndpoint = '/api/v1/auth/phone/verify-otp';
+  static const String verifyPhoneLoginOtpEndpoint =
+      '/api/v1/auth/phone/verify-otp';
   static const String forgotPasswordEndpoint = '/api/v1/auth/forgot-password';
   static const String resetPasswordEndpoint = '/api/v1/auth/reset-password';
   static const String refreshTokenEndpoint = '/api/v1/auth/refresh';
@@ -54,7 +58,8 @@ class ApiConfig {
   static const String categoryTreeEndpoint = '/api/v1/categories/tree';
   static const String meEndpoint = '/api/v1/users/me';
   static const String updateProfileEndpoint = '/api/v1/users/me';
-  static const String notificationSettingsEndpoint = '/api/v1/notification-settings';
+  static const String notificationSettingsEndpoint =
+      '/api/v1/notification-settings';
   static const String searchEndpoint = '/api/v1/search';
 
   static const String productsEndpoint = '/api/v1/products';
@@ -72,12 +77,20 @@ class ApiConfig {
   static const String addressesEndpoint = '/api/v1/addresses';
   static const String reportsEndpoint = '/api/v1/reports';
   static const String ordersEndpoint = '/api/v1/orders';
+  static const String publicProfileEndpoint = '/api/v1/users/public';
+  static const String blockedUsersEndpoint = '/api/v1/users/blocked';
+  static const String chatBlockEndpoint = '/api/v1/chat/block';
+  static const String offersEndpoint = '/api/v1/offers';
+  static const String savedSearchesEndpoint = '/api/v1/saved-searches';
+  static const String boostPackagesEndpoint = '/api/v1/boost/packages';
 
   // ── Full URLs ─────────────────────────────────────────────────────────────
   static String get loginUrl => '$baseUrl$loginEndpoint';
   static String get registerUrl => '$baseUrl$registerEndpoint';
-  static String get sendPhoneLoginOtpUrl => '$baseUrl$sendPhoneLoginOtpEndpoint';
-  static String get verifyPhoneLoginOtpUrl => '$baseUrl$verifyPhoneLoginOtpEndpoint';
+  static String get sendPhoneLoginOtpUrl =>
+      '$baseUrl$sendPhoneLoginOtpEndpoint';
+  static String get verifyPhoneLoginOtpUrl =>
+      '$baseUrl$verifyPhoneLoginOtpEndpoint';
   static String get forgotPasswordUrl => '$baseUrl$forgotPasswordEndpoint';
   static String get resetPasswordUrl => '$baseUrl$resetPasswordEndpoint';
   static String get refreshTokenUrl => '$baseUrl$refreshTokenEndpoint';
@@ -85,13 +98,15 @@ class ApiConfig {
   static String get categoryTreeUrl => '$baseUrl$categoryTreeEndpoint';
   static String get meUrl => '$baseUrl$meEndpoint';
   static String get updateProfileUrl => '$baseUrl$updateProfileEndpoint';
-  static String get notificationSettingsUrl => '$baseUrl$notificationSettingsEndpoint';
+  static String get notificationSettingsUrl =>
+      '$baseUrl$notificationSettingsEndpoint';
   static String get searchUrl => '$baseUrl$searchEndpoint';
 
   static String get productsUrl => '$baseUrl$productsEndpoint';
   static String get myProductsUrl => '$baseUrl$myProductsEndpoint';
 
-  static String get chatConversationsUrl => '$baseUrl$chatConversationsEndpoint';
+  static String get chatConversationsUrl =>
+      '$baseUrl$chatConversationsEndpoint';
   static String get chatMessagesUrl => '$baseUrl$chatMessagesEndpoint';
   static String get kycUrl => '$baseUrl$kycEndpoint';
   static String get kycUploadUrlUrl => '$baseUrl$kycUploadUrlEndpoint';
@@ -101,15 +116,34 @@ class ApiConfig {
   static String get addressesUrl => '$baseUrl$addressesEndpoint';
   static String get reportsUrl => '$baseUrl$reportsEndpoint';
   static String get ordersUrl => '$baseUrl$ordersEndpoint';
+  static String get blockedUsersUrl => '$baseUrl$blockedUsersEndpoint';
+  static String get offersUrl => '$baseUrl$offersEndpoint';
+  static String get madeOffersUrl => '$baseUrl$offersEndpoint/made';
+  static String get receivedOffersUrl => '$baseUrl$offersEndpoint/received';
+  static String get savedSearchesUrl => '$baseUrl$savedSearchesEndpoint';
+  static String get boostPackagesUrl => '$baseUrl$boostPackagesEndpoint';
 
   static String productDetailUrl(String id) => '$baseUrl$productsEndpoint/$id';
-  static String publishProductUrl(String id) => '$baseUrl$productsEndpoint/$id/publish';
-  static String pauseProductUrl(String id) => '$baseUrl$productsEndpoint/$id/pause';
-  static String resumeProductUrl(String id) => '$baseUrl$productsEndpoint/$id/resume';
-  static String archiveProductUrl(String id) => '$baseUrl$productsEndpoint/$id/archive';
+  static String publishProductUrl(String id) =>
+      '$baseUrl$productsEndpoint/$id/publish';
+  static String pauseProductUrl(String id) =>
+      '$baseUrl$productsEndpoint/$id/pause';
+  static String resumeProductUrl(String id) =>
+      '$baseUrl$productsEndpoint/$id/resume';
+  static String archiveProductUrl(String id) =>
+      '$baseUrl$productsEndpoint/$id/archive';
   static String conversationMessagesUrl(String conversationId) =>
       '$chatMessagesUrl?conversationId=$conversationId';
   static String notificationReadUrl(String id) => '$notificationsUrl/$id/read';
+  static String notificationDeleteUrl(String id) => '$notificationsUrl/$id';
   static String favoriteDeleteUrl(String id) => '$favoritesUrl/$id';
   static String orderDetailUrl(String id) => '$ordersUrl/$id';
+  static String publicProfileUrl(String userId) =>
+      '$baseUrl$publicProfileEndpoint/$userId';
+  static String chatBlockUrl(String userId) =>
+      '$baseUrl$chatBlockEndpoint/$userId';
+  static String offerAcceptUrl(String id) => '$offersUrl/$id/accept';
+  static String offerRejectUrl(String id) => '$offersUrl/$id/reject';
+  static String offerWithdrawUrl(String id) => '$offersUrl/$id/withdraw';
+  static String savedSearchUrl(String id) => '$savedSearchesUrl/$id';
 }

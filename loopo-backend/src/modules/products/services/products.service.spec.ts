@@ -4,6 +4,7 @@ import { ProductsRepository } from '../repositories/products.repository';
 import { CategoriesService } from '../../categories/services/categories.service';
 import { AttributesService } from '../../categories/services/attributes.service';
 import { InteractionsService } from '../../interactions/services/interactions.service';
+import { SavedSearchesService } from '../../saved-searches/services/saved-searches.service';
 import { RedisService } from '../../../shared/redis/redis.service';
 import { getQueueToken } from '@nestjs/bullmq';
 import { S3Service } from '../../../shared/services/s3.service';
@@ -59,6 +60,10 @@ describe('ProductsService Unit Tests', () => {
       recordRecentlyViewed: jest.fn(),
     };
 
+    const savedSearchesServiceMock = {
+      notifyMatchingSearches: jest.fn().mockResolvedValue(0),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ProductsService,
@@ -68,6 +73,7 @@ describe('ProductsService Unit Tests', () => {
         { provide: RedisService, useValue: redisServiceMock },
         { provide: S3Service, useValue: s3ServiceMock },
         { provide: InteractionsService, useValue: interactionsServiceMock },
+        { provide: SavedSearchesService, useValue: savedSearchesServiceMock },
         { provide: getQueueToken('product-image-compression'), useValue: mockQueue },
         { provide: getQueueToken('product-thumbnail-generation'), useValue: mockQueue },
         { provide: getQueueToken('product-expiration'), useValue: mockQueue },
