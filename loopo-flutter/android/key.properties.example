@@ -1,0 +1,23 @@
+# Copy this file to `android/key.properties` (same folder) and fill in your
+# real values. That file is git-ignored - never commit it or the .jks/.keystore
+# file it points to. Once it exists, `flutter build apk --release` and
+# `flutter build appbundle --release` automatically sign with it instead of
+# the debug key.
+#
+# 1. Generate a real upload keystore (only do this once - back the .jks file
+#    up somewhere safe; losing it means you can never update this app on
+#    Play Store under the same listing again):
+#
+#      keytool -genkey -v -keystore upload-keystore.jks -keyalg RSA \
+#        -keysize 2048 -validity 10000 -alias upload
+#
+#    Put the resulting upload-keystore.jks file somewhere outside version
+#    control (e.g. android/upload-keystore.jks, already covered by the
+#    **/*.jks rule in android/.gitignore).
+#
+# 2. Fill in the real values below and save as android/key.properties:
+
+storePassword=REPLACE_WITH_YOUR_KEYSTORE_PASSWORD
+keyPassword=REPLACE_WITH_YOUR_KEY_PASSWORD
+keyAlias=upload
+storeFile=upload-keystore.jks
