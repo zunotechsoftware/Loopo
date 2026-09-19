@@ -61,7 +61,8 @@ class _LocationScreenState extends State<LocationScreen> {
             children: [
               Center(
                 child: Container(
-                  width: 40, height: 4,
+                  width: 40,
+                  height: 4,
                   decoration: BoxDecoration(
                     color: Colors.grey.shade300,
                     borderRadius: BorderRadius.circular(2),
@@ -74,7 +75,11 @@ class _LocationScreenState extends State<LocationScreen> {
                 children: [
                   const Text(
                     'Select Your City',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.appDark),
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.appDark,
+                    ),
                   ),
                   IconButton(
                     icon: const Icon(Icons.close_rounded, size: 20),
@@ -118,31 +123,60 @@ class _LocationScreenState extends State<LocationScreen> {
                       },
                       borderRadius: BorderRadius.circular(14),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                         decoration: BoxDecoration(
-                          color: isSelected ? AppColors.appGreen.withValues(alpha: 0.12) : const Color(0xFFF8FAFC),
+                          color: isSelected
+                              ? AppColors.appGreen.withValues(alpha: 0.12)
+                              : const Color(0xFFF8FAFC),
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
-                            color: isSelected ? AppColors.appGreen : Colors.grey.shade200,
+                            color: isSelected
+                                ? AppColors.appGreen
+                                : Colors.grey.shade200,
                             width: isSelected ? 1.5 : 1,
                           ),
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.location_city_rounded, size: 18,
-                              color: isSelected ? AppColors.appGreen : Colors.black45),
+                            Icon(
+                              Icons.location_city_rounded,
+                              size: 18,
+                              color: isSelected
+                                  ? AppColors.appGreen
+                                  : Colors.black45,
+                            ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Text(c['city']!, maxLines: 1, overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(fontSize: 13,
-                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                                      color: isSelected ? AppColors.appGreen : AppColors.appDark)),
-                                  Text(c['state']!, maxLines: 1, overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(fontSize: 10, color: Colors.black38)),
+                                  Text(
+                                    c['city']!,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: isSelected
+                                          ? FontWeight.bold
+                                          : FontWeight.w600,
+                                      color: isSelected
+                                          ? AppColors.appGreen
+                                          : AppColors.appDark,
+                                    ),
+                                  ),
+                                  Text(
+                                    c['state']!,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.black38,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
@@ -189,27 +223,53 @@ class _LocationScreenState extends State<LocationScreen> {
                   padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 24),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
+                    // A Column inside a SingleChildScrollView gets *loose*
+                    // width constraints, so without this it shrinks to the
+                    // width of its widest child instead of filling the
+                    // available space - normally masked here by the
+                    // `SizedBox(width: double.infinity)` buttons further
+                    // down forcing it wide, but that didn't reliably happen
+                    // on web, collapsing the title Text to near-zero width
+                    // and wrapping it one character per line.
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       ConstrainedBox(
                         constraints: const BoxConstraints(maxHeight: 220),
-                        child: Image.asset("assets/images/location.png", fit: BoxFit.contain),
+                        child: Image.asset(
+                          "assets/images/location.png",
+                          fit: BoxFit.contain,
+                        ),
                       ),
                       const SizedBox(height: 24),
                       const Text(
                         'Where is your location?',
-                        style: TextStyle(fontFamily: 'Poppins', fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black),
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 12),
                       const Text(
                         'Enjoy a personalized selling and buying experience by telling us your location.',
-                        style: TextStyle(fontSize: 14, color: Colors.black54, height: 1.5),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.black54,
+                          height: 1.5,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 28),
                       SizedBox(
                         width: double.infinity,
-                        child: PrimaryButton(text: _isLoading ? 'Detecting...' : 'Find My Location', onPressed: _onFindLocationPressed),
+                        child: PrimaryButton(
+                          text: _isLoading
+                              ? 'Detecting...'
+                              : 'Find My Location',
+                          onPressed: _onFindLocationPressed,
+                        ),
                       ),
                       const SizedBox(height: 12),
                       SizedBox(
@@ -220,18 +280,30 @@ class _LocationScreenState extends State<LocationScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
-                              side: BorderSide(color: AppColors.appBlue, width: 1.5),
+                              side: BorderSide(
+                                color: AppColors.appBlue,
+                                width: 1.5,
+                              ),
                             ),
                             foregroundColor: AppColors.appBlue,
                           ),
-                          child: const Text('Other Location',
-                            style: TextStyle(fontFamily: 'Poppins', fontSize: 16, fontWeight: FontWeight.w600)),
+                          child: const Text(
+                            'Other Location',
+                            style: TextStyle(
+                              fontFamily: 'Poppins',
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 16),
                       TextButton(
                         onPressed: _onSkipPressed,
-                        child: const Text('Skip for now', style: TextStyle(fontSize: 14, color: Colors.black54)),
+                        child: const Text(
+                          'Skip for now',
+                          style: TextStyle(fontSize: 14, color: Colors.black54),
+                        ),
                       ),
                     ],
                   ),
