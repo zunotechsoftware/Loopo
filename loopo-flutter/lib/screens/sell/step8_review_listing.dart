@@ -47,20 +47,24 @@ class _ReviewListingScreenState extends State<ReviewListingScreen> {
         conditionEnum = 'REFURBISHED';
       }
 
+      final parsedLocation = _parseLocation(d.locationName, d.locationAddress);
       final locationMap = {
         'country': 'India',
-        'state': 'Karnataka',
-        'city': d.locationName != null && d.locationName!.isNotEmpty ? d.locationName! : 'Bengaluru',
-        'area': d.locationAddress ?? d.locationName ?? 'Koramangala',
+        'state': parsedLocation['state'],
+        'city': parsedLocation['city'],
+        'area': parsedLocation['area'],
         if (d.latitude != null) 'latitude': d.latitude,
         if (d.longitude != null) 'longitude': d.longitude,
       };
 
       final payload = {
         'title': d.title.isNotEmpty ? d.title : 'Marketplace Listing',
-        'description': d.description.isNotEmpty ? d.description : 'Item listed via Loopo app.',
+        'description': d.description.isNotEmpty
+            ? d.description
+            : 'Item listed via Loopo app.',
         'categoryId': d.selectedCategoryId,
-        if (d.selectedSubcategoryId != null && d.selectedSubcategoryId!.isNotEmpty)
+        if (d.selectedSubcategoryId != null &&
+            d.selectedSubcategoryId!.isNotEmpty)
           'subcategoryId': d.selectedSubcategoryId,
         'condition': conditionEnum,
         'price': d.price ?? 0.0,
@@ -70,7 +74,8 @@ class _ReviewListingScreenState extends State<ReviewListingScreen> {
         'location': locationMap,
       };
 
-      await productService.createListing(payload);
+      final created = await productService.createListing(payload);
+      d.publishedListingId = created['id']?.toString();
 
       if (!mounted) return;
       setState(() => _isPublishing = false);
@@ -86,6 +91,32 @@ class _ReviewListingScreenState extends State<ReviewListingScreen> {
         );
       }
     }
+  }
+
+  /// [locationAddress] previously only ever fed a hardcoded `'Karnataka'`
+  /// into the create payload regardless of what the user actually picked -
+  /// every listing outside Karnataka silently got the wrong state. Handles
+  /// both the "City, State" shape LocationService's real detection produces
+  /// and the "Area, City, State" shape the recent-locations list uses.
+  Map<String, String> _parseLocation(
+    String? locationName,
+    String? locationAddress,
+  ) {
+    final city = (locationName ?? '').trim();
+    final parts = (locationAddress ?? '')
+        .split(',')
+        .map((p) => p.trim())
+        .where((p) => p.isNotEmpty)
+        .toList();
+
+    if (parts.length >= 3) {
+      return {'area': parts[0], 'city': parts[1], 'state': parts[2]};
+    }
+    if (parts.length == 2) {
+      return {'area': parts[0], 'city': parts[0], 'state': parts[1]};
+    }
+    final fallbackCity = city.isNotEmpty ? city : 'Bengaluru';
+    return {'area': fallbackCity, 'city': fallbackCity, 'state': 'Karnataka'};
   }
 
   @override
@@ -268,7 +299,9 @@ class _ReviewSection extends StatelessWidget {
                   style: TextButton.styleFrom(
                     foregroundColor: AppColors.appBlue,
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     textStyle: const TextStyle(
                       fontSize: 13,
                       fontFamily: 'Poppins',
@@ -300,9 +333,14 @@ class _PhotosPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (photos.isEmpty) {
-      return Text('No photos added',
-          style: TextStyle(
-              fontSize: 13, color: Colors.grey.shade400, fontFamily: 'Poppins'));
+      return Text(
+        'No photos added',
+        style: TextStyle(
+          fontSize: 13,
+          color: Colors.grey.shade400,
+          fontFamily: 'Poppins',
+        ),
+      );
     }
     return SizedBox(
       height: 80,
@@ -328,25 +366,33 @@ class _PhotosPreview extends StatelessWidget {
                           children: [
                             Container(color: Colors.grey.shade200),
                             const Center(
-                              child: Icon(Icons.image_rounded,
-                                  color: Colors.grey, size: 28),
+                              child: Icon(
+                                Icons.image_rounded,
+                                color: Colors.grey,
+                                size: 28,
+                              ),
                             ),
                             Positioned(
                               bottom: 4,
                               left: 4,
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 5, vertical: 2),
+                                  horizontal: 5,
+                                  vertical: 2,
+                                ),
                                 decoration: BoxDecoration(
                                   color: AppColors.appGreen,
                                   borderRadius: BorderRadius.circular(4),
                                 ),
-                                child: const Text('COVER',
-                                    style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 8,
-                                        fontWeight: FontWeight.w800,
-                                        fontFamily: 'Poppins')),
+                                child: const Text(
+                                  'COVER',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.w800,
+                                    fontFamily: 'Poppins',
+                                  ),
+                                ),
                               ),
                             ),
                           ],
@@ -354,8 +400,11 @@ class _PhotosPreview extends StatelessWidget {
                       : Container(
                           color: Colors.grey.shade200,
                           child: const Center(
-                            child: Icon(Icons.image_rounded,
-                                color: Colors.grey, size: 28),
+                            child: Icon(
+                              Icons.image_rounded,
+                              color: Colors.grey,
+                              size: 28,
+                            ),
                           ),
                         ),
                 ),
@@ -418,14 +467,35 @@ class _DetailsRows extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        _ReviewRow(label: 'Title', value: data.title.isEmpty ? '–' : data.title),
-        _ReviewRow(label: 'Category', value: data.selectedSubcategoryName ?? data.selectedCategoryName ?? '–'),
-        _ReviewRow(label: 'Brand', value: data.brand.isEmpty ? '–' : data.brand),
-        _ReviewRow(label: 'Model', value: data.model.isEmpty ? '–' : data.model),
-        _ReviewRow(label: 'Condition', value: data.condition.isEmpty ? '–' : data.condition),
+        _ReviewRow(
+          label: 'Title',
+          value: data.title.isEmpty ? '–' : data.title,
+        ),
+        _ReviewRow(
+          label: 'Category',
+          value:
+              data.selectedSubcategoryName ?? data.selectedCategoryName ?? '–',
+        ),
+        _ReviewRow(
+          label: 'Brand',
+          value: data.brand.isEmpty ? '–' : data.brand,
+        ),
+        _ReviewRow(
+          label: 'Model',
+          value: data.model.isEmpty ? '–' : data.model,
+        ),
+        _ReviewRow(
+          label: 'Condition',
+          value: data.condition.isEmpty ? '–' : data.condition,
+        ),
         _ReviewRow(label: 'Quantity', value: '${data.quantity}'),
         if (data.description.isNotEmpty)
-          _ReviewRow(label: 'Description', value: data.description.length > 80 ? '${data.description.substring(0, 80)}…' : data.description),
+          _ReviewRow(
+            label: 'Description',
+            value: data.description.length > 80
+                ? '${data.description.substring(0, 80)}…'
+                : data.description,
+          ),
       ],
     );
   }
@@ -532,25 +602,33 @@ class _ContactRow extends StatelessWidget {
     return Row(
       children: [
         if (data.allowChat) ...[
-          const Icon(Icons.chat_bubble_rounded,
-              color: AppColors.appGreen, size: 16),
+          const Icon(
+            Icons.chat_bubble_rounded,
+            color: AppColors.appGreen,
+            size: 16,
+          ),
           const SizedBox(width: 4),
-          const Text('Chat',
-              style: TextStyle(
-                  fontSize: 12,
-                  fontFamily: 'Poppins',
-                  color: AppColors.appDark)),
+          const Text(
+            'Chat',
+            style: TextStyle(
+              fontSize: 12,
+              fontFamily: 'Poppins',
+              color: AppColors.appDark,
+            ),
+          ),
           const SizedBox(width: 12),
         ],
         if (data.allowCall) ...[
-          const Icon(Icons.phone_rounded,
-              color: AppColors.appBlue, size: 16),
+          const Icon(Icons.phone_rounded, color: AppColors.appBlue, size: 16),
           const SizedBox(width: 4),
-          const Text('Call',
-              style: TextStyle(
-                  fontSize: 12,
-                  fontFamily: 'Poppins',
-                  color: AppColors.appDark)),
+          const Text(
+            'Call',
+            style: TextStyle(
+              fontSize: 12,
+              fontFamily: 'Poppins',
+              color: AppColors.appDark,
+            ),
+          ),
         ],
         if (data.email != null && data.email!.isNotEmpty) ...[
           const SizedBox(width: 12),
@@ -561,9 +639,10 @@ class _ContactRow extends StatelessWidget {
               data.email!,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                  fontSize: 12,
-                  fontFamily: 'Poppins',
-                  color: AppColors.appDark),
+                fontSize: 12,
+                fontFamily: 'Poppins',
+                color: AppColors.appDark,
+              ),
             ),
           ),
         ],

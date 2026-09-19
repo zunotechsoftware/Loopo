@@ -3,9 +3,6 @@ import '../services/category_service.dart';
 import '../theme/app_colors.dart';
 import 'product_detail_screen.dart';
 
-// TODO: [Backend Integration] Fetch subcategories from GET /api/v1/categories?parentId=:categoryId
-// TODO: [Backend Integration] Fetch products by subcategory from GET /api/v1/search?categoryId=:categoryId&subcategoryId=:subcategoryId
-
 class SubcategoryItemsScreen extends StatefulWidget {
   final String categoryName;
   final String categoryId;
@@ -28,7 +25,8 @@ class _SubcategoryItemsScreenState extends State<SubcategoryItemsScreen> {
   // Pre-defined static subcategories mapping if empty
   late List<Map<String, String>> _subCategoryList;
 
-  static const Map<String, List<Map<String, String>>> _fallbackSubcategoriesMap = {
+  static const Map<String, List<Map<String, String>>>
+  _fallbackSubcategoriesMap = {
     'Mobiles': [
       {'name': 'All', 'id': 'all'},
       {'name': 'Smartphones', 'id': 'smartphones'},
@@ -77,120 +75,6 @@ class _SubcategoryItemsScreenState extends State<SubcategoryItemsScreen> {
     ],
   };
 
-  // Mock product listings categorized per category & subcategory
-  static const List<Map<String, dynamic>> _mockProducts = [
-    {
-      'title': 'iPhone 14 Pro Max 256GB',
-      'price': '₹78,500',
-      'location': 'Koramangala, Bangalore',
-      'category': 'Mobiles',
-      'subcategory': 'Smartphones',
-      'rating': '4.9',
-      'accent': Color(0xFF5C6BC0),
-      'condition': 'Like New',
-    },
-    {
-      'title': 'iPad Air M1 (64GB, Wi-Fi)',
-      'price': '₹42,000',
-      'location': 'Indiranagar, Bangalore',
-      'category': 'Mobiles',
-      'subcategory': 'Tablets',
-      'rating': '4.8',
-      'accent': Color(0xFF5C6BC0),
-      'condition': 'Brand New',
-    },
-    {
-      'title': 'Apple Watch Series 8 GPS',
-      'price': '₹24,500',
-      'location': 'HSR Layout, Bangalore',
-      'category': 'Mobiles',
-      'subcategory': 'Smartwatches',
-      'rating': '4.7',
-      'accent': Color(0xFF5C6BC0),
-      'condition': 'Excellent',
-    },
-    {
-      'title': 'AirPods Pro 2nd Gen (Magsafe)',
-      'price': '₹14,900',
-      'location': 'Whitefield, Bangalore',
-      'category': 'Mobiles',
-      'subcategory': 'Accessories',
-      'rating': '4.9',
-      'accent': Color(0xFF5C6BC0),
-      'condition': 'Like New',
-    },
-    {
-      'title': 'Honda Civic 1.8 V (2020)',
-      'price': '₹14,25,000',
-      'location': 'Indiranagar, Bangalore',
-      'category': 'Cars',
-      'subcategory': 'Sedans',
-      'rating': '4.7',
-      'accent': Color(0xFFEF5350),
-      'condition': 'Used - Mint',
-    },
-    {
-      'title': 'Hyundai Creta SX (O) Diesel',
-      'price': '₹12,80,000',
-      'location': 'MG Road, Bangalore',
-      'category': 'Cars',
-      'subcategory': 'SUVs',
-      'rating': '4.8',
-      'accent': Color(0xFFEF5350),
-      'condition': 'Excellent',
-    },
-    {
-      'title': 'Royal Enfield Classic 350',
-      'price': '₹1,65,000',
-      'location': 'HSR Layout, Bangalore',
-      'category': 'Bikes',
-      'subcategory': 'Motorcycles',
-      'rating': '4.8',
-      'accent': Color(0xFF26A69A),
-      'condition': 'Like New',
-    },
-    {
-      'title': 'Ather 450X Gen 3 (Electric)',
-      'price': '₹1,15,000',
-      'location': 'JP Nagar, Bangalore',
-      'category': 'Bikes',
-      'subcategory': 'Scooters',
-      'rating': '4.9',
-      'accent': Color(0xFF26A69A),
-      'condition': 'Mint Condition',
-    },
-    {
-      'title': 'Sony 65" OLED 4K Smart TV',
-      'price': '₹1,20,000',
-      'location': 'Whitefield, Bangalore',
-      'category': 'Electronics',
-      'subcategory': 'Televisions',
-      'rating': '4.6',
-      'accent': Color(0xFFFFA726),
-      'condition': 'Brand New',
-    },
-    {
-      'title': 'MacBook Pro 14" M2 Pro (16GB/512GB)',
-      'price': '₹1,35,000',
-      'location': 'MG Road, Bangalore',
-      'category': 'Electronics',
-      'subcategory': 'Laptops',
-      'rating': '5.0',
-      'accent': Color(0xFF29B6F6),
-      'condition': 'Like New',
-    },
-    {
-      'title': 'L-Shape Velvet Sofa Set (5 Seater)',
-      'price': '₹32,000',
-      'location': 'JP Nagar, Bangalore',
-      'category': 'Furniture',
-      'subcategory': 'Sofas & Recliners',
-      'rating': '4.5',
-      'accent': Color(0xFFAB47BC),
-      'condition': 'Like New',
-    },
-  ];
-
   final CategoryService _categoryService = CategoryService();
   List<dynamic> _apiProducts = [];
   bool _isLoadingApiProducts = false;
@@ -204,15 +88,19 @@ class _SubcategoryItemsScreenState extends State<SubcategoryItemsScreen> {
 
   Future<void> _fetchApiData() async {
     // 1. Fetch subcategories from backend DB if not passed
-    final apiSubcats = await _categoryService.getSubcategories(widget.categoryId.isNotEmpty ? widget.categoryId : widget.categoryName);
+    final apiSubcats = await _categoryService.getSubcategories(
+      widget.categoryId.isNotEmpty ? widget.categoryId : widget.categoryName,
+    );
     if (mounted && apiSubcats.isNotEmpty) {
       setState(() {
         _subCategoryList = [
           {'name': 'All', 'id': 'all'},
-          ...apiSubcats.map((sub) => {
-                'name': (sub['name'] ?? sub['label'] ?? '').toString(),
-                'id': (sub['id'] ?? sub['slug'] ?? '').toString(),
-              }),
+          ...apiSubcats.map(
+            (sub) => {
+              'name': (sub['name'] ?? sub['label'] ?? '').toString(),
+              'id': (sub['id'] ?? sub['slug'] ?? '').toString(),
+            },
+          ),
         ];
       });
     }
@@ -235,35 +123,32 @@ class _SubcategoryItemsScreenState extends State<SubcategoryItemsScreen> {
     if (widget.subcategories.isNotEmpty) {
       _subCategoryList = [
         {'name': 'All', 'id': 'all'},
-        ...widget.subcategories.map((sub) => {
-              'name': (sub['name'] ?? sub['label'] ?? '').toString(),
-              'id': (sub['id'] ?? sub['slug'] ?? '').toString(),
-            }),
+        ...widget.subcategories.map(
+          (sub) => {
+            'name': (sub['name'] ?? sub['label'] ?? '').toString(),
+            'id': (sub['id'] ?? sub['slug'] ?? '').toString(),
+          },
+        ),
       ];
     } else {
-      _subCategoryList = _fallbackSubcategoriesMap[widget.categoryName] ?? [
-        {'name': 'All', 'id': 'all'},
-        {'name': 'Popular', 'id': 'popular'},
-        {'name': 'Newest', 'id': 'newest'},
-        {'name': 'Featured', 'id': 'featured'},
-      ];
+      _subCategoryList =
+          _fallbackSubcategoriesMap[widget.categoryName] ??
+          [
+            {'name': 'All', 'id': 'all'},
+            {'name': 'Popular', 'id': 'popular'},
+            {'name': 'Newest', 'id': 'newest'},
+            {'name': 'Featured', 'id': 'featured'},
+          ];
     }
   }
 
+  // Previously fell back to a hardcoded, unrelated product catalog whenever
+  // the real search returned zero results - indistinguishable from a
+  // genuine "no listings match" state. Now honestly returns empty instead.
   List<Map<String, dynamic>> _filteredProducts() {
-    if (_apiProducts.isNotEmpty) {
-      return _apiProducts.map((p) => Map<String, dynamic>.from(p as Map)).toList();
-    }
-
-    final catName = widget.categoryName;
-    final selectedSub = _subCategoryList[_selectedSubcategoryIndex]['name'];
-
-    return _mockProducts.where((p) {
-      final matchesCategory = (p['category'].toString().toLowerCase() == catName.toLowerCase());
-      if (!matchesCategory) return false;
-      if (selectedSub == 'All') return true;
-      return p['subcategory'].toString().toLowerCase().contains(selectedSub!.toLowerCase());
-    }).toList();
+    return _apiProducts
+        .map((p) => Map<String, dynamic>.from(p as Map))
+        .toList();
   }
 
   @override
@@ -276,7 +161,11 @@ class _SubcategoryItemsScreenState extends State<SubcategoryItemsScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.appDark, size: 18),
+          icon: const Icon(
+            Icons.arrow_back_ios_new,
+            color: AppColors.appDark,
+            size: 18,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -324,14 +213,21 @@ class _SubcategoryItemsScreenState extends State<SubcategoryItemsScreen> {
                     },
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
-                        color: isSelected ? AppColors.appGreen : const Color(0xFFF1F5F9),
+                        color: isSelected
+                            ? AppColors.appGreen
+                            : const Color(0xFFF1F5F9),
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: isSelected
                             ? [
                                 BoxShadow(
-                                  color: AppColors.appGreen.withValues(alpha: 0.3),
+                                  color: AppColors.appGreen.withValues(
+                                    alpha: 0.3,
+                                  ),
                                   blurRadius: 8,
                                   offset: const Offset(0, 3),
                                 ),
@@ -342,7 +238,9 @@ class _SubcategoryItemsScreenState extends State<SubcategoryItemsScreen> {
                         sub['name']!,
                         style: TextStyle(
                           fontSize: 12,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                          fontWeight: isSelected
+                              ? FontWeight.bold
+                              : FontWeight.w600,
                           color: isSelected ? Colors.white : AppColors.appDark,
                         ),
                       ),
@@ -386,16 +284,17 @@ class _SubcategoryItemsScreenState extends State<SubcategoryItemsScreen> {
                     child: CircularProgressIndicator(color: AppColors.appGreen),
                   )
                 : items.isEmpty
-                    ? _buildEmptySubcategoryState()
-                    : GridView.builder(
+                ? _buildEmptySubcategoryState()
+                : GridView.builder(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                     physics: const BouncingScrollPhysics(),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      childAspectRatio: 0.72,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                    ),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          childAspectRatio: 0.72,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                        ),
                     itemCount: items.length,
                     itemBuilder: (context, index) {
                       final item = items[index];
@@ -425,7 +324,11 @@ class _SubcategoryItemsScreenState extends State<SubcategoryItemsScreen> {
                 ),
               ],
             ),
-            child: const Icon(Icons.search_off_rounded, size: 48, color: Colors.black38),
+            child: const Icon(
+              Icons.search_off_rounded,
+              size: 48,
+              color: Colors.black38,
+            ),
           ),
           const SizedBox(height: 16),
           Text(
@@ -456,9 +359,7 @@ class _SubcategoryItemsScreenState extends State<SubcategoryItemsScreen> {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (_) => ProductDetailScreen(product: item),
-          ),
+          MaterialPageRoute(builder: (_) => ProductDetailScreen(product: item)),
         );
       },
       child: Container(
@@ -481,16 +382,25 @@ class _SubcategoryItemsScreenState extends State<SubcategoryItemsScreen> {
               child: Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [accent.withValues(alpha: 0.15), accent.withValues(alpha: 0.05)],
+                    colors: [
+                      accent.withValues(alpha: 0.15),
+                      accent.withValues(alpha: 0.05),
+                    ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(20),
+                  ),
                 ),
                 child: Stack(
                   children: [
                     Center(
-                      child: Icon(Icons.shopping_bag_outlined, size: 42, color: accent),
+                      child: Icon(
+                        Icons.shopping_bag_outlined,
+                        size: 42,
+                        color: accent,
+                      ),
                     ),
                     Positioned(
                       top: 8,
@@ -501,21 +411,32 @@ class _SubcategoryItemsScreenState extends State<SubcategoryItemsScreen> {
                           color: Colors.white.withValues(alpha: 0.9),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.favorite_border, size: 14, color: Colors.black38),
+                        child: const Icon(
+                          Icons.favorite_border,
+                          size: 14,
+                          color: Colors.black38,
+                        ),
                       ),
                     ),
                     Positioned(
                       top: 8,
                       left: 8,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.appGreen,
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
                           item['condition'] ?? 'Verified',
-                          style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
@@ -552,14 +473,21 @@ class _SubcategoryItemsScreenState extends State<SubcategoryItemsScreen> {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(Icons.location_on_outlined, size: 10, color: Colors.black38),
+                      const Icon(
+                        Icons.location_on_outlined,
+                        size: 10,
+                        color: Colors.black38,
+                      ),
                       const SizedBox(width: 2),
                       Expanded(
                         child: Text(
                           location,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 10, color: Colors.black38),
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: Colors.black38,
+                          ),
                         ),
                       ),
                     ],

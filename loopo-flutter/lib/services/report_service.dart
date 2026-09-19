@@ -1,44 +1,37 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
-import 'auth_session.dart';
+import 'api_client.dart';
 
 class ReportService {
-  Map<String, String> get _authHeaders => {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        if (AuthSession.isLoggedIn) 'Authorization': 'Bearer ${AuthSession.token}',
-      };
-
   /// Submit a report against a product listing or user.
   ///
-  /// [targetId] — ID of the product or user being reported
-  /// [targetType] — 'PRODUCT' or 'USER'
-  /// [reason] — reason code (e.g. 'SPAM', 'FRAUD', 'INAPPROPRIATE')
-  /// [details] — optional additional description from the reporter
+  /// [targetId] - ID of the listing or user being reported
+  /// [targetType] - 'LISTING' or 'USER' (the real backend's
+  ///   ReportTargetTypeDto enum - not 'PRODUCT', which doesn't exist there)
+  /// [reasonCode] - reason code (e.g. 'SPAM', 'FRAUD', 'INAPPROPRIATE')
+  /// [details] - required detailed description from the reporter
   Future<bool> submitReport({
     required String targetId,
     required String targetType,
-    required String reason,
-    String? details,
+    required String reasonCode,
+    required String details,
   }) async {
-    try {
-      final response = await http
-          .post(
-            Uri.parse(ApiConfig.reportsUrl),
-            headers: _authHeaders,
-            body: jsonEncode({
-              'targetId': targetId,
-              'targetType': targetType,
-              'reason': reason,
-              if (details != null && details.isNotEmpty) 'details': details,
-            }),
-          )
-          .timeout(const Duration(seconds: 15));
+    final response = await ApiClient.post(
+      Uri.parse(ApiConfig.reportsUrl),
+      body: jsonEncode({
+        'targetId': targetId,
+        'targetType': targetType,
+        'reasonCode': reasonCode,
+        'details': details,
+      }),
+    ).timeout(const Duration(seconds: 15));
 
-      return response.statusCode == 200 || response.statusCode == 201;
-    } catch (_) {
-      return false;
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return true;
     }
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    throw Exception(
+      body['message'] ?? 'Could not submit report (${response.statusCode})',
+    );
   }
 }

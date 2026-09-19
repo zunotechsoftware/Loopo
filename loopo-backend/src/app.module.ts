@@ -35,6 +35,8 @@ import { UserNotificationsModule } from './modules/user-notifications/user-notif
 import { SocketEmitterModule } from './shared/websocket/socket-emitter.module';
 import { SupportModule } from './modules/support/support.module';
 import { ComplaintsModule } from './modules/complaints/complaints.module';
+import { OffersModule } from './modules/offers/offers.module';
+import { SavedSearchesModule } from './modules/saved-searches/saved-searches.module';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { AuditLogInterceptor } from './shared/common/interceptors/audit-log.interceptor';
@@ -85,6 +87,8 @@ import { AuditLogInterceptor } from './shared/common/interceptors/audit-log.inte
     UserNotificationsModule,
     SupportModule,
     ComplaintsModule,
+    OffersModule,
+    SavedSearchesModule,
   ],
   providers: [
     {

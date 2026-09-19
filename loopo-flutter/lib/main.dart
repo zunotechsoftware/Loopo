@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:loopo/screens/welcome_screen.dart';
 import 'package:loopo/services/location_service.dart';
+import 'package:loopo/services/auth_session.dart';
 
 import 'theme/app_theme.dart';
 
@@ -44,6 +45,12 @@ Future<void> main() async {
 
   // Restore saved location from SharedPreferences
   await LocationService().loadSavedLocation();
+
+  // Restore any persisted session (access + refresh token) - previously
+  // the token only ever lived in a plain in-memory static field, so every
+  // app restart silently logged the user out even with a perfectly valid
+  // refresh token sitting unused.
+  await AuthSession.init();
 
   // Show Flutter errors on-screen instead of a blank screen.
   ErrorWidget.builder = (FlutterErrorDetails details) {

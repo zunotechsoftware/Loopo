@@ -39,39 +39,6 @@ class _MyAdsScreenState extends State<MyAdsScreen>
     super.dispose();
   }
 
-  final List<Map<String, dynamic>> _demoAds = [
-    {
-      'id': 'my-1',
-      'title': 'iPhone 15 Pro Max 256GB Natural Titanium',
-      'price': 78000.0,
-      'category': 'Mobiles',
-      'status': 'ACTIVE',
-      'date': 'Posted on 20 Aug 2026',
-      'views': 142,
-      'favorites': 18,
-      'chats': 5,
-      'imageUrl': 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?q=80&w=400&auto=format&fit=crop',
-      'accent': const Color(0xFF7C3AED),
-      'icon': Icons.shopping_bag_rounded,
-      'location': 'Indiranagar, Bangalore',
-    },
-    {
-      'id': 'my-2',
-      'title': 'Sony WH-1000XM5 Wireless Headphones',
-      'price': 22000.0,
-      'category': 'Electronics',
-      'status': 'SOLD',
-      'date': 'Posted on 15 Aug 2026',
-      'views': 98,
-      'favorites': 12,
-      'chats': 8,
-      'imageUrl': 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=400&auto=format&fit=crop',
-      'accent': const Color(0xFF7C3AED),
-      'icon': Icons.shopping_bag_rounded,
-      'location': 'Indiranagar, Bangalore',
-    },
-  ];
-
   Future<void> _fetchMyAds() async {
     setState(() {
       _isLoading = true;
@@ -100,6 +67,15 @@ class _MyAdsScreenState extends State<MyAdsScreen>
         final locationStr = [city, state].where((s) => s.toString().isNotEmpty).join(', ');
 
         List<dynamic> images = item['images'] is List ? item['images'] : [];
+        // Real image objects are {originalUrl, thumbnailUrl}, not plain
+        // URL strings - `.toString()` on the raw map previously rendered
+        // the literal "{originalUrl: ..., thumbnailUrl: ...}" text as a
+        // broken image URL.
+        String imageUrl = 'assets/images/loopo.png';
+        if (images.isNotEmpty && images.first is Map) {
+          final first = images.first as Map;
+          imageUrl = (first['thumbnailUrl'] ?? first['originalUrl'] ?? imageUrl).toString();
+        }
 
         return {
           'id': item['id']?.toString() ?? '',
@@ -111,7 +87,7 @@ class _MyAdsScreenState extends State<MyAdsScreen>
           'views': item['viewCount'] ?? item['views'] ?? 0,
           'favorites': item['favoriteCount'] ?? item['favorites'] ?? 0,
           'chats': item['inquiryCount'] ?? item['chats'] ?? 0,
-          'imageUrl': images.isNotEmpty ? images.first.toString() : 'assets/images/loopo.png',
+          'imageUrl': imageUrl,
           'accent': const Color(0xFF7C3AED),
           'icon': Icons.shopping_bag_rounded,
           'location': locationStr.isNotEmpty ? locationStr : 'Location details',
@@ -121,14 +97,18 @@ class _MyAdsScreenState extends State<MyAdsScreen>
 
       if (mounted) {
         setState(() {
-          _myAds = mappedList.isNotEmpty ? mappedList : _demoAds;
+          _myAds = mappedList;
           _isLoading = false;
         });
       }
     } catch (e) {
+      // Previously fell back to 2 hardcoded fake listings on any error -
+      // indistinguishable from a real successful load. Show the real
+      // failure instead (a Retry button already exists in _buildAdsList).
       if (mounted) {
         setState(() {
-          _myAds = _demoAds;
+          _myAds = [];
+          _error = 'Could not load your listings. Please try again.';
           _isLoading = false;
         });
       }
@@ -895,12 +875,18 @@ class _AdItemCard extends StatelessWidget {
                 const Spacer(),
 
                 // Quick Action Buttons
+                // NOTE: the real backend's boost-purchase endpoint
+                // (POST /boost/purchase) has no way to associate a purchase
+                // with a specific listing at all yet (PurchaseBoostDto has
+                // no productId field) - there is no real "boost this ad"
+                // capability to wire this button to yet. Shows an honest
+                // "coming soon" instead of a fake instant-success message.
                 if (status == 'ACTIVE')
                   ElevatedButton(
                     onPressed: () {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Ad Boosted! Featured at top of search.', style: TextStyle(fontFamily: 'Poppins')),
+                          content: Text('Boosting is coming soon.', style: TextStyle(fontFamily: 'Poppins')),
                           backgroundColor: AppColors.appBlue,
                           behavior: SnackBarBehavior.floating,
                         ),

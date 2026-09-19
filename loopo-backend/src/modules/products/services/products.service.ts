@@ -3,6 +3,7 @@ import { ProductsRepository } from '../repositories/products.repository';
 import { CategoriesService } from '../../categories/services/categories.service';
 import { AttributesService } from '../../categories/services/attributes.service';
 import { InteractionsService } from '../../interactions/services/interactions.service';
+import { SavedSearchesService } from '../../saved-searches/services/saved-searches.service';
 import { CreateProductDto, UpdateProductDto, ListingSearchQueryDto } from '../dto/product.dto';
 import { RedisService } from '../../../shared/redis/redis.service';
 import { InjectQueue } from '@nestjs/bullmq';
@@ -20,6 +21,7 @@ export class ProductsService {
     private readonly redisService: RedisService,
     private readonly s3Service: S3Service,
     private readonly interactionsService: InteractionsService,
+    private readonly savedSearchesService: SavedSearchesService,
     @InjectQueue('product-image-compression') private readonly imageCompressionQueue: Queue,
     @InjectQueue('product-thumbnail-generation') private readonly thumbnailGenerationQueue: Queue,
     @InjectQueue('product-expiration') private readonly expirationQueue: Queue,
@@ -475,6 +477,15 @@ export class ProductsService {
       listingId: id,
       title: product.title,
     });
+
+    // Alert anyone whose saved search matches this now-live listing. Best
+    // effort - a matching failure shouldn't block the approval itself.
+    this.savedSearchesService
+      .notifyMatchingSearches(
+        { id, title: product.title, categoryId: product.categoryId, sellerId: product.sellerId },
+        (product as any).location?.city,
+      )
+      .catch(() => undefined);
 
     return updated;
   }
