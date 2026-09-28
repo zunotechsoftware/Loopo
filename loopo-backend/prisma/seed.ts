@@ -8,15 +8,18 @@ async function main() {
 
   // 1. Seed Roles
   const roleNames = ['SUPER_ADMIN', 'ADMIN', 'USER'];
+  const ADMIN_PORTAL_ROLES = new Set(['SUPER_ADMIN', 'ADMIN']);
   const rolesMap = new Map<string, any>();
 
   for (const name of roleNames) {
+    const isAdminRole = ADMIN_PORTAL_ROLES.has(name);
     const role = await prisma.role.upsert({
       where: { name },
-      update: {},
+      update: { isAdminRole },
       create: {
         name,
         description: `Default role for ${name.toLowerCase()}`,
+        isAdminRole,
       },
     });
     rolesMap.set(name, role);
@@ -98,6 +101,10 @@ async function main() {
     'brands.update',
     'brands.delete',
     'brands.manage',
+    'complaints.view',
+    'complaints.manage',
+    'complaints.assign',
+    'complaints.resolve',
   ];
 
   const permissionsMap = new Map<string, any>();

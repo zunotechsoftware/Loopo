@@ -12,6 +12,26 @@ import { ProductStatus, Prisma } from '@prisma/client';
 import { S3Service } from '../../../shared/services/s3.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
+// Legal (fromStatus -> toStatuses) edges for the status changes that flow
+// through updateProduct()'s explicitStatus branch (publish/pause/resume/
+// sold/archive/renew). Admin approve/reject go through their own dedicated
+// methods and aren't governed by this table. Without this, every one of
+// those dedicated endpoints would let a caller, say, pause an already-SOLD
+// listing or resume one that was never paused - the only thing stopping an
+// illegal jump was "is this different from the current status", which
+// isn't a legality check at all.
+const PRODUCT_STATUS_TRANSITIONS: Record<ProductStatus, ProductStatus[]> = {
+  [ProductStatus.DRAFT]: [ProductStatus.PENDING, ProductStatus.ARCHIVED],
+  [ProductStatus.PENDING]: [ProductStatus.ARCHIVED],
+  [ProductStatus.UNDER_REVIEW]: [ProductStatus.ARCHIVED],
+  [ProductStatus.APPROVED]: [ProductStatus.PAUSED, ProductStatus.SOLD, ProductStatus.ARCHIVED],
+  [ProductStatus.PAUSED]: [ProductStatus.PENDING, ProductStatus.ARCHIVED],
+  [ProductStatus.REJECTED]: [ProductStatus.PENDING, ProductStatus.ARCHIVED],
+  [ProductStatus.EXPIRED]: [ProductStatus.PENDING, ProductStatus.ARCHIVED],
+  [ProductStatus.SOLD]: [],
+  [ProductStatus.ARCHIVED]: [],
+};
+
 @Injectable()
 export class ProductsService {
   constructor(
@@ -173,6 +193,12 @@ export class ProductsService {
     let targetStatus = product.status;
     const explicitStatus = (dto as any).status as ProductStatus | undefined;
     if (explicitStatus && explicitStatus !== product.status) {
+      const legalTargets = PRODUCT_STATUS_TRANSITIONS[product.status] || [];
+      if (!legalTargets.includes(explicitStatus)) {
+        throw new BadRequestException(
+          `Cannot move listing from ${product.status} to ${explicitStatus}`,
+        );
+      }
       targetStatus = explicitStatus;
       updateProductData.status = explicitStatus;
 

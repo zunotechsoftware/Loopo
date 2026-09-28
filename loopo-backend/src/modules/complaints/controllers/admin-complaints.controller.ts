@@ -6,10 +6,15 @@ import {
   Body,
   Param,
   Query,
-  Request
+  Request,
+  UseGuards
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { ComplaintsService } from '../services/complaints.service';
+import { JwtAuthGuard } from '../../../shared/common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../../shared/common/guards/roles.guard';
+import { PermissionsGuard } from '../../../shared/common/guards/permissions.guard';
+import { Permissions } from '../../../shared/common/decorators/permissions.decorator';
 import {
   FilterComplaintsDto,
   CreateComplaintDto,
@@ -22,10 +27,13 @@ import {
 } from '../dto/complaints.dto';
 
 @ApiTags('Admin Complaints')
+@ApiBearerAuth()
 @Controller('admin/complaints')
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 export class AdminComplaintsController {
   constructor(private readonly complaintsService: ComplaintsService) {}
 
+  @Permissions('complaints.view')
   @Get()
   @ApiOperation({ summary: 'List and filter all complaints' })
   @ApiResponse({ status: 200, description: 'Complaints listed successfully.' })
@@ -38,6 +46,7 @@ export class AdminComplaintsController {
     };
   }
 
+  @Permissions('complaints.view')
   @Get('stats')
   @ApiOperation({ summary: 'Get KPI statistics for complaints overview' })
   @ApiResponse({ status: 200, description: 'Statistics retrieved successfully.' })
@@ -49,6 +58,7 @@ export class AdminComplaintsController {
     };
   }
 
+  @Permissions('complaints.view')
   @Get('categories-breakdown')
   @ApiOperation({ summary: 'Get category distribution for complaints' })
   @ApiResponse({ status: 200, description: 'Category distribution retrieved successfully.' })
@@ -60,6 +70,7 @@ export class AdminComplaintsController {
     };
   }
 
+  @Permissions('complaints.view')
   @Get(':id')
   @ApiOperation({ summary: 'Get complaint details, investigation, and communication history' })
   @ApiResponse({ status: 200, description: 'Complaint retrieved successfully.' })
@@ -71,6 +82,7 @@ export class AdminComplaintsController {
     };
   }
 
+  @Permissions('complaints.manage')
   @Post()
   @ApiOperation({ summary: 'Create a new formal complaint' })
   @ApiResponse({ status: 201, description: 'Complaint created successfully.' })
@@ -83,6 +95,7 @@ export class AdminComplaintsController {
     };
   }
 
+  @Permissions('complaints.manage')
   @Post(':id/messages')
   @ApiOperation({ summary: 'Add a message to customer or vendor thread' })
   @ApiResponse({ status: 201, description: 'Message added successfully.' })
@@ -96,6 +109,7 @@ export class AdminComplaintsController {
     };
   }
 
+  @Permissions('complaints.manage')
   @Post(':id/notes')
   @ApiOperation({ summary: 'Add an investigation finding or admin remark' })
   @ApiResponse({ status: 201, description: 'Investigation note saved successfully.' })
@@ -109,6 +123,7 @@ export class AdminComplaintsController {
     };
   }
 
+  @Permissions('complaints.resolve')
   @Patch(':id/status')
   @ApiOperation({ summary: 'Transition complaint status' })
   @ApiResponse({ status: 200, description: 'Status updated successfully.' })
@@ -121,6 +136,7 @@ export class AdminComplaintsController {
     };
   }
 
+  @Permissions('complaints.assign')
   @Patch(':id/assign')
   @ApiOperation({ summary: 'Assign complaint to a department or agent' })
   @ApiResponse({ status: 200, description: 'Complaint assigned successfully.' })
@@ -133,6 +149,7 @@ export class AdminComplaintsController {
     };
   }
 
+  @Permissions('complaints.resolve')
   @Post(':id/resolve')
   @ApiOperation({ summary: 'Approve refund, credit, or resolution for complaint' })
   @ApiResponse({ status: 201, description: 'Resolution approved successfully.' })
@@ -145,6 +162,7 @@ export class AdminComplaintsController {
     };
   }
 
+  @Permissions('complaints.resolve')
   @Post(':id/escalate')
   @ApiOperation({ summary: 'Escalate complaint to higher department' })
   @ApiResponse({ status: 200, description: 'Complaint escalated successfully.' })

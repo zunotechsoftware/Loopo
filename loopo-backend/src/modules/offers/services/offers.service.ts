@@ -100,11 +100,44 @@ export class OffersService {
     if (offer.status !== OfferStatus.PENDING) {
       throw new BadRequestException(`This offer has already been ${offer.status.toLowerCase()}`);
     }
+    // The offer being PENDING isn't enough on its own - the listing itself
+    // may have been sold, paused or removed since the offer was made.
+    if (offer.product.status !== ProductStatus.APPROVED) {
+      throw new BadRequestException('This listing is no longer available for offers');
+    }
 
-    const updated = await this.prisma.offer.update({
-      where: { id },
-      data: { status: OfferStatus.ACCEPTED, respondedAt: new Date() },
-      include: { product: PRODUCT_SUMMARY, buyer: USER_SUMMARY, seller: USER_SUMMARY },
+    const { updated, autoRejected } = await this.prisma.$transaction(async (tx) => {
+      // Atomic compare-and-swap: only succeeds if the offer is still
+      // PENDING at the moment of the write. Closes the race where two
+      // concurrent accept calls (or an accept racing a reject/withdraw)
+      // could otherwise both read PENDING and both "succeed".
+      const cas = await tx.offer.updateMany({
+        where: { id, status: OfferStatus.PENDING },
+        data: { status: OfferStatus.ACCEPTED, respondedAt: new Date() },
+      });
+      if (cas.count === 0) {
+        throw new BadRequestException('This offer is no longer pending');
+      }
+
+      // Accepting one offer locks in the sale - every other still-pending
+      // offer on this listing is no longer valid and is auto-rejected so
+      // those buyers aren't left waiting on a listing that's spoken for.
+      const otherPending = await tx.offer.findMany({
+        where: { productId: offer.productId, id: { not: id }, status: OfferStatus.PENDING },
+        select: { id: true, buyerId: true },
+      });
+      if (otherPending.length > 0) {
+        await tx.offer.updateMany({
+          where: { id: { in: otherPending.map((o) => o.id) } },
+          data: { status: OfferStatus.REJECTED, respondedAt: new Date() },
+        });
+      }
+
+      const fresh = await tx.offer.findUniqueOrThrow({
+        where: { id },
+        include: { product: PRODUCT_SUMMARY, buyer: USER_SUMMARY, seller: USER_SUMMARY },
+      });
+      return { updated: fresh, autoRejected: otherPending };
     });
 
     await this.userNotifications.notifyUser(offer.buyerId, {
@@ -114,6 +147,16 @@ export class OffersService {
       link: `/listing/${offer.productId}`,
       metadata: { offerId: offer.id, productId: offer.productId },
     });
+
+    for (const rejected of autoRejected) {
+      await this.userNotifications.notifyUser(rejected.buyerId, {
+        type: 'OFFER_REJECTED',
+        title: 'Your offer was declined',
+        message: `"${offer.product.title}" is no longer available - the seller accepted another offer.`,
+        link: `/offers`,
+        metadata: { offerId: rejected.id, productId: offer.productId },
+      });
+    }
 
     return updated;
   }
@@ -127,9 +170,15 @@ export class OffersService {
       throw new BadRequestException(`This offer has already been ${offer.status.toLowerCase()}`);
     }
 
-    const updated = await this.prisma.offer.update({
-      where: { id },
+    const cas = await this.prisma.offer.updateMany({
+      where: { id, status: OfferStatus.PENDING },
       data: { status: OfferStatus.REJECTED, respondedAt: new Date() },
+    });
+    if (cas.count === 0) {
+      throw new BadRequestException('This offer is no longer pending');
+    }
+    const updated = await this.prisma.offer.findUniqueOrThrow({
+      where: { id },
       include: { product: PRODUCT_SUMMARY, buyer: USER_SUMMARY, seller: USER_SUMMARY },
     });
 
@@ -153,9 +202,13 @@ export class OffersService {
       throw new BadRequestException(`This offer has already been ${offer.status.toLowerCase()}`);
     }
 
-    return this.prisma.offer.update({
-      where: { id },
+    const cas = await this.prisma.offer.updateMany({
+      where: { id, status: OfferStatus.PENDING },
       data: { status: OfferStatus.WITHDRAWN, respondedAt: new Date() },
     });
+    if (cas.count === 0) {
+      throw new BadRequestException('This offer is no longer pending');
+    }
+    return this.prisma.offer.findUniqueOrThrow({ where: { id } });
   }
 }

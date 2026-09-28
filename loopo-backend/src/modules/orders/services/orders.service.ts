@@ -4,6 +4,18 @@ import { CreateOrderDto } from '../dto/order.dto';
 import { PrismaService } from '../../../shared/database/prisma.service';
 import { OrderStatus, ProductStatus } from '@prisma/client';
 
+// Legal (fromStatus -> toStatuses) edges. Without this, updateOrderStatus
+// accepted any target status unconditionally - e.g. DELIVERED -> PENDING
+// would have succeeded, silently un-completing a finished order.
+const ORDER_STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
+  [OrderStatus.PENDING]: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
+  [OrderStatus.CONFIRMED]: [OrderStatus.SHIPPED, OrderStatus.CANCELLED],
+  [OrderStatus.SHIPPED]: [OrderStatus.DELIVERED, OrderStatus.CANCELLED],
+  [OrderStatus.DELIVERED]: [OrderStatus.REFUNDED],
+  [OrderStatus.CANCELLED]: [],
+  [OrderStatus.REFUNDED]: [],
+};
+
 @Injectable()
 export class OrdersService {
   constructor(
@@ -117,6 +129,13 @@ export class OrdersService {
 
     if (order.sellerId !== userId && !isAdmin) {
       throw new ForbiddenException('You do not have permission to update this order.');
+    }
+
+    if (order.status !== status) {
+      const legalTargets = ORDER_STATUS_TRANSITIONS[order.status as OrderStatus] || [];
+      if (!legalTargets.includes(status)) {
+        throw new BadRequestException(`Cannot move order from ${order.status} to ${status}`);
+      }
     }
 
     return this.prisma.$transaction(async (tx) => {

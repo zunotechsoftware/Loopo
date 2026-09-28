@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsArray, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsArray, IsBoolean, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class AdminCreateRoleDto {
   @ApiProperty({ description: 'Unique role name', example: 'SUPPORT_AGENT' })
@@ -19,6 +19,11 @@ export class AdminCreateRoleDto {
   @IsArray()
   @IsString({ each: true })
   permissionNames?: string[];
+
+  @ApiPropertyOptional({ description: 'Whether a user holding this role may sign into the admin portal at all (distinct from what permissions they have once inside)', default: false })
+  @IsOptional()
+  @IsBoolean()
+  isAdminRole?: boolean;
 }
 
 export class AdminUpdateRoleDto {
@@ -39,4 +44,9 @@ export class AdminUpdateRoleDto {
   @IsArray()
   @IsString({ each: true })
   permissionNames?: string[];
+
+  @ApiPropertyOptional({ description: 'Whether a user holding this role may sign into the admin portal at all' })
+  @IsOptional()
+  @IsBoolean()
+  isAdminRole?: boolean;
 }
