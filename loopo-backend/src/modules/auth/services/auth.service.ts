@@ -38,6 +38,10 @@ export class AuthService {
       return null;
     }
 
+    if (user.status === UserStatus.SUSPENDED || user.status === UserStatus.BLOCKED || user.status === UserStatus.DELETED) {
+      throw new UnauthorizedException('This account no longer has access. Please contact support.');
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password, ...result } = user;
     return result;
@@ -75,11 +79,12 @@ export class AuthService {
 
     // Clean sensitive properties from user object
     const { password, ...cleanUser } = user;
+    const isAdminRole = await this.authRepository.hasAdminPortalRole(user.roles || []);
 
     return {
       accessToken,
       refreshToken,
-      user: cleanUser,
+      user: { ...cleanUser, isAdminRole },
     };
   }
 
@@ -141,6 +146,10 @@ export class AuthService {
     }
 
     const { tokenRecord, user } = allTokens;
+
+    if (user.status === UserStatus.SUSPENDED || user.status === UserStatus.BLOCKED || user.status === UserStatus.DELETED) {
+      throw new UnauthorizedException('This account no longer has access. Please contact support.');
+    }
 
     // Check if token has been revoked
     if (tokenRecord.revokedAt) {

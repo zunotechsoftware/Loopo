@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import { isAdminRole } from '@/types/auth';
+import { hasAdminPortalAccess } from '@/types/auth';
 import { Box, CircularProgress } from '@mui/material';
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
@@ -15,7 +15,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   // revoked (or downgraded from ADMIN to a lesser custom role) while a
   // session is already live in someone's browser, and this also covers
   // any other code path that might ever populate a non-admin user here.
-  const hasAdminAccess = !user || isAdminRole(user.roles);
+  const hasAdminAccess = !user || hasAdminPortalAccess(user);
 
   useEffect(() => {
     if (isLoading || pathname === '/login') return;

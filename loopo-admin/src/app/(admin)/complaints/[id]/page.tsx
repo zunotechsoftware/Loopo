@@ -103,6 +103,8 @@ export default function ComplaintDetailPage() {
   const [activityLogs, setActivityLogs] = useState<ActivityLogItem[]>([]);
   const [resolutions, setResolutions] = useState<ResolutionItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [actionPending, setActionPending] = useState(false);
 
   // Active Communication Tab: 0 = Customer, 1 = Vendor, 2 = Internal
   const [commTab, setCommTab] = useState(0);
@@ -130,156 +132,86 @@ export default function ComplaintDetailPage() {
 
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' | 'info' | 'warning' }>({ open: false, message: '', severity: 'success' });
 
-  // Load Complaint from Backend API or local fallback
+  // Load Complaint from the real backend. No fake-data fallback: a failed
+  // fetch (wrong id, permission denied, backend down) must surface as a
+  // real error, not silently swap in a fabricated complaint that looks
+  // indistinguishable from a genuine record.
   const loadComplaint = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
     try {
       const res = await complaintsService.getById(lookupKey);
-      if (res.data?.data) {
-        const c = res.data.data;
-        setComplaint({
-          id: c.id,
-          complaintNumber: c.complaintNumber.startsWith('#') ? c.complaintNumber : `#${c.complaintNumber}`,
-          userName: c.userName,
-          userEmail: c.userEmail,
-          userPhone: c.userPhone || '+91 98765 43210',
-          vendorName: c.vendorName || 'TechZone Electronics',
-          relatedOrderId: c.relatedOrderId || '#ORD-9821',
-          relatedAmount: c.relatedAmount || '₹24,999',
-          relatedOrderStatus: c.relatedOrderStatus || 'Delivered',
-          subjectTitle: c.subjectTitle,
-          subjectDescription: c.subjectDescription,
-          category: c.category,
-          priority: c.priority || 'HIGH',
-          severity: c.severity || 'MAJOR',
-          status: c.status || 'SUBMITTED',
-          channel: c.channel || 'EMAIL',
-          assignedDepartment: c.assignedDepartment || 'Support',
-          assignedAgent: c.assignedAgent || 'Admin User',
-          evidenceFiles: c.evidenceFiles || [
-            { name: 'evidence_damage.jpg', url: '/images/aadhaar_front.jpg', size: '340 KB' },
-            { name: 'invoice_slip.pdf', url: '/images/pan_card.jpg', size: '180 KB' }
-          ],
-          targetResolutionAt: c.targetResolutionAt,
-          resolvedAt: c.resolvedAt,
-          closedAt: c.closedAt,
-          createdAt: new Date(c.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
-          updatedAt: new Date(c.updatedAt || c.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-        });
-
-        setMessages((c.messages || []).map((m: any) => ({
-          id: m.id,
-          senderType: m.senderType || 'CUSTOMER',
-          senderName: m.senderName,
-          message: m.message,
-          createdAt: new Date(m.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
-          attachments: m.attachments || undefined
-        })));
-
-        setInvestigationNotes((c.investigationNotes || []).map((n: any) => ({
-          id: n.id,
-          authorName: n.authorName,
-          findings: n.findings,
-          remarks: n.remarks,
-          createdAt: new Date(n.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-        })));
-
-        setActivityLogs((c.activityLogs || []).map((a: any) => ({
-          id: a.id,
-          operator: a.operator,
-          action: a.action,
-          details: a.details,
-          createdAt: new Date(a.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-        })));
-
-        setResolutions((c.resolutions || []).map((r: any) => ({
-          id: r.id,
-          resolutionType: r.resolutionType,
-          amount: r.amount,
-          summary: r.summary,
-          approvedBy: r.approvedBy,
-          approvedAt: new Date(r.approvedAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-        })));
-
-        setLoading(false);
-        return;
+      const c = res.data?.data;
+      if (!c) {
+        throw new Error('Complaint not found');
       }
-    } catch (e) {
-      console.warn('Backend lookup fallback:', e);
+
+      setComplaint({
+        id: c.id,
+        complaintNumber: c.complaintNumber.startsWith('#') ? c.complaintNumber : `#${c.complaintNumber}`,
+        userName: c.userName,
+        userEmail: c.userEmail,
+        userPhone: c.userPhone || '',
+        vendorName: c.vendorName || '',
+        relatedOrderId: c.relatedOrderId || '',
+        relatedAmount: c.relatedAmount || '',
+        relatedOrderStatus: c.relatedOrderStatus || '',
+        subjectTitle: c.subjectTitle,
+        subjectDescription: c.subjectDescription,
+        category: c.category,
+        priority: c.priority || 'HIGH',
+        severity: c.severity || 'MAJOR',
+        status: c.status || 'SUBMITTED',
+        channel: c.channel || 'EMAIL',
+        assignedDepartment: c.assignedDepartment || 'Support',
+        assignedAgent: c.assignedAgent || 'Admin User',
+        evidenceFiles: c.evidenceFiles || [],
+        targetResolutionAt: c.targetResolutionAt,
+        resolvedAt: c.resolvedAt,
+        closedAt: c.closedAt,
+        createdAt: new Date(c.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+        updatedAt: new Date(c.updatedAt || c.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+      });
+
+      setMessages((c.messages || []).map((m: any) => ({
+        id: m.id,
+        senderType: m.senderType || 'CUSTOMER',
+        senderName: m.senderName,
+        message: m.message,
+        createdAt: new Date(m.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+        attachments: m.attachments || undefined
+      })));
+
+      setInvestigationNotes((c.investigationNotes || []).map((n: any) => ({
+        id: n.id,
+        authorName: n.authorName,
+        findings: n.findings,
+        remarks: n.remarks,
+        createdAt: new Date(n.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+      })));
+
+      setActivityLogs((c.activityLogs || []).map((a: any) => ({
+        id: a.id,
+        operator: a.operator,
+        action: a.action,
+        details: a.details,
+        createdAt: new Date(a.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+      })));
+
+      setResolutions((c.resolutions || []).map((r: any) => ({
+        id: r.id,
+        resolutionType: r.resolutionType,
+        amount: r.amount,
+        summary: r.summary,
+        approvedBy: r.approvedBy,
+        approvedAt: new Date(r.approvedAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+      })));
+    } catch (e: any) {
+      setComplaint(null);
+      setLoadError(e?.response?.data?.message || e?.message || 'Failed to load this complaint.');
+    } finally {
+      setLoading(false);
     }
-
-    // Default Fallback details
-    const now = new Date();
-    setComplaint({
-      id: 'cmp-mock-id',
-      complaintNumber: `#${lookupKey}`,
-      userName: 'Rahul Sharma',
-      userEmail: 'rahul.sharma@email.com',
-      userPhone: '+91 98765 43210',
-      vendorName: 'TechZone Electronics',
-      relatedOrderId: '#ORD-9821',
-      relatedAmount: '₹24,999',
-      relatedOrderStatus: 'Delivered',
-      subjectTitle: 'Item not as described',
-      subjectDescription: 'The product I received is completely different from what was shown in the listing pictures. The color is wrong and it has scratches on the back cover.',
-      category: 'Orders',
-      priority: 'HIGH',
-      severity: 'MAJOR',
-      status: 'INVESTIGATING',
-      channel: 'EMAIL',
-      assignedDepartment: 'Support',
-      assignedAgent: 'Admin User',
-      evidenceFiles: [
-        { name: 'evidence_damage.jpg', url: '/images/aadhaar_front.jpg', size: '340 KB' },
-        { name: 'invoice_slip.pdf', url: '/images/pan_card.jpg', size: '180 KB' }
-      ],
-      createdAt: '12 May 2024, 10:31 AM',
-      updatedAt: '12 May 2024, 11:45 AM'
-    });
-
-    setMessages([
-      {
-        id: 'm1',
-        senderType: 'CUSTOMER',
-        senderName: 'Rahul Sharma',
-        message: 'The product I received is completely different from what was shown in the listing pictures. The color is wrong and it has scratches on the back cover.',
-        createdAt: '12 May 2024, 10:31 AM',
-        attachments: [{ name: 'evidence_damage.jpg', url: '/images/aadhaar_front.jpg', size: '340 KB' }]
-      },
-      {
-        id: 'm2',
-        senderType: 'VENDOR',
-        senderName: 'TechZone Electronics',
-        message: 'We inspected our warehouse dispatch video. Unit was packaged securely. We request high-resolution serial number photo.',
-        createdAt: '12 May 2024, 11:15 AM'
-      }
-    ]);
-
-    setInvestigationNotes([
-      {
-        id: 'n1',
-        authorName: 'Investigation Officer',
-        findings: 'Customer photographic evidence shows significant cosmetic variance from catalog SKU #TZ-9921.',
-        remarks: 'Seller has been issued formal notice to provide serial verification.',
-        createdAt: '12 May 2024, 10:45 AM'
-      }
-    ]);
-
-    setActivityLogs([
-      {
-        id: 'a1',
-        operator: 'Admin User',
-        action: 'Case assigned to Support Department',
-        createdAt: '12 May 2024, 10:32 AM'
-      },
-      {
-        id: 'a2',
-        operator: 'Rahul Sharma',
-        action: 'Complaint registered with 2 attachments',
-        createdAt: '12 May 2024, 10:31 AM'
-      }
-    ]);
-
-    setLoading(false);
   }, [lookupKey]);
 
   useEffect(() => {
@@ -307,36 +239,13 @@ export default function ComplaintDetailPage() {
 
   // Send Message
   const handleSendMessage = async () => {
-    if ((!replyText.trim() && pendingAttachments.length === 0) || !complaint) return;
+    if ((!replyText.trim() && pendingAttachments.length === 0) || !complaint || actionPending) return;
 
     const senderType = commTab === 0 ? 'CUSTOMER' : commTab === 1 ? 'VENDOR' : 'INTERNAL';
     const messageContent = replyText.trim() || 'Attached documents.';
     const attachmentsToSend = [...pendingAttachments];
 
-    const now = new Date();
-    const timeStr = now.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-
-    const newMsg: MessageItem = {
-      id: `msg_${Date.now()}`,
-      senderType,
-      senderName: 'Admin User (Support Lead)',
-      message: messageContent,
-      createdAt: timeStr,
-      attachments: attachmentsToSend.length > 0 ? attachmentsToSend : undefined
-    };
-
-    const newLog: ActivityLogItem = {
-      id: `log_${Date.now()}`,
-      operator: 'Admin User',
-      action: `Message sent to ${senderType.toLowerCase()}`,
-      createdAt: timeStr
-    };
-
-    setMessages(prev => [...prev, newMsg]);
-    setActivityLogs(prev => [newLog, ...prev]);
-    setReplyText('');
-    setPendingAttachments([]);
-
+    setActionPending(true);
     try {
       await complaintsService.addMessage(lookupKey, {
         message: messageContent,
@@ -344,188 +253,107 @@ export default function ComplaintDetailPage() {
         senderName: 'Admin User',
         attachments: attachmentsToSend.length > 0 ? attachmentsToSend : undefined
       });
-    } catch (e) {
-      console.warn('API addMessage fallback:', e);
+      setReplyText('');
+      setPendingAttachments([]);
+      await loadComplaint();
+      setSnackbar({ open: true, message: `Message sent to ${senderType.toLowerCase()} channel.`, severity: 'success' });
+    } catch (e: any) {
+      setSnackbar({ open: true, message: e?.response?.data?.message || 'Failed to send message. Please try again.', severity: 'error' });
+    } finally {
+      setActionPending(false);
     }
-
-    setSnackbar({ open: true, message: `Message transmitted to ${senderType.toLowerCase()} channel!`, severity: 'success' });
   };
 
   // Add Investigation Finding
   const handleAddFinding = async () => {
-    if (!findingText.trim() || !complaint) return;
+    if (!findingText.trim() || !complaint || actionPending) return;
 
-    const now = new Date();
-    const timeStr = now.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-
-    const newNote: InvestigationNoteItem = {
-      id: `note_${Date.now()}`,
-      authorName: 'Admin User',
-      findings: findingText,
-      remarks: findingRemarks || undefined,
-      createdAt: timeStr
-    };
-
-    const newLog: ActivityLogItem = {
-      id: `log_${Date.now()}`,
-      operator: 'Admin User',
-      action: 'Investigation findings recorded',
-      details: findingText.slice(0, 80),
-      createdAt: timeStr
-    };
-
-    setInvestigationNotes(prev => [newNote, ...prev]);
-    setActivityLogs(prev => [newLog, ...prev]);
-    const savedText = findingText;
-    const savedRemarks = findingRemarks;
-    setFindingText('');
-    setFindingRemarks('');
-    setFindingDialogOpen(false);
-
+    setActionPending(true);
     try {
-      await complaintsService.addNote(lookupKey, { findings: savedText, remarks: savedRemarks });
-    } catch (e) {
-      console.warn('API addNote fallback:', e);
+      await complaintsService.addNote(lookupKey, { findings: findingText, remarks: findingRemarks || undefined });
+      setFindingText('');
+      setFindingRemarks('');
+      setFindingDialogOpen(false);
+      await loadComplaint();
+      setSnackbar({ open: true, message: 'Investigation findings saved.', severity: 'success' });
+    } catch (e: any) {
+      setSnackbar({ open: true, message: e?.response?.data?.message || 'Failed to save findings. Please try again.', severity: 'error' });
+    } finally {
+      setActionPending(false);
     }
-
-    setSnackbar({ open: true, message: 'Investigation findings saved to official record!', severity: 'success' });
   };
 
   // Status Change
   const handleStatusChange = async (newStatus: ComplaintDetail['status']) => {
-    if (!complaint) return;
-    setComplaint(prev => prev ? { ...prev, status: newStatus } : null);
+    if (!complaint || actionPending) return;
 
-    const now = new Date();
-    const timeStr = now.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-
-    const newLog: ActivityLogItem = {
-      id: `log_${Date.now()}`,
-      operator: 'Admin User',
-      action: `Status transitioned to ${newStatus}`,
-      createdAt: timeStr
-    };
-    setActivityLogs(prev => [newLog, ...prev]);
-
+    setActionPending(true);
     try {
       await complaintsService.updateStatus(lookupKey, newStatus);
-    } catch (e) {
-      console.warn('API updateStatus fallback:', e);
+      await loadComplaint();
+      setSnackbar({ open: true, message: `Complaint status updated to ${newStatus}.`, severity: 'success' });
+    } catch (e: any) {
+      setSnackbar({ open: true, message: e?.response?.data?.message || 'Failed to update status. Please try again.', severity: 'error' });
+    } finally {
+      setActionPending(false);
     }
-
-    setSnackbar({ open: true, message: `Complaint status updated to ${newStatus}`, severity: 'success' });
   };
 
   // Approve Resolution
   const handleApproveResolution = async () => {
-    if (!resolutionSummary.trim() || !complaint) return;
+    if (!resolutionSummary.trim() || !complaint || actionPending) return;
 
-    const now = new Date();
-    const timeStr = now.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-
-    const newRes: ResolutionItem = {
-      id: `res_${Date.now()}`,
-      resolutionType,
-      amount: resolutionAmount || undefined,
-      summary: resolutionSummary,
-      approvedBy: 'Admin User',
-      approvedAt: timeStr
-    };
-
-    const newLog: ActivityLogItem = {
-      id: `log_${Date.now()}`,
-      operator: 'Admin User',
-      action: `Resolution approved: ${resolutionType} (${resolutionAmount})`,
-      details: resolutionSummary,
-      createdAt: timeStr
-    };
-
-    setResolutions(prev => [newRes, ...prev]);
-    setComplaint(prev => prev ? { ...prev, status: 'RESOLVED' } : null);
-    setActivityLogs(prev => [newLog, ...prev]);
-
-    const resType = resolutionType;
-    const resAmt = resolutionAmount;
-    const resSum = resolutionSummary;
-    setResolutionSummary('');
-    setResolutionDialogOpen(false);
-
+    setActionPending(true);
     try {
       await complaintsService.resolve(lookupKey, {
-        resolutionType: resType,
-        amount: resAmt,
-        summary: resSum
+        resolutionType,
+        amount: resolutionAmount,
+        summary: resolutionSummary
       });
-    } catch (e) {
-      console.warn('API resolve fallback:', e);
+      setResolutionSummary('');
+      setResolutionDialogOpen(false);
+      await loadComplaint();
+      setSnackbar({ open: true, message: `Resolution approved: ${resolutionType} for ${resolutionAmount}.`, severity: 'success' });
+    } catch (e: any) {
+      setSnackbar({ open: true, message: e?.response?.data?.message || 'Failed to approve resolution. Please try again.', severity: 'error' });
+    } finally {
+      setActionPending(false);
     }
-
-    setSnackbar({ open: true, message: `Resolution approved: ${resType} for ${resAmt}`, severity: 'success' });
   };
 
   // Reassign Department / Agent
   const handleAssign = async () => {
-    if (!complaint) return;
-    setComplaint(prev => prev ? { ...prev, assignedDepartment: assignDept, assignedAgent: assignAgent, status: prev.status === 'SUBMITTED' ? 'ASSIGNED' : prev.status } : null);
+    if (!complaint || actionPending) return;
 
-    const now = new Date();
-    const timeStr = now.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-
-    const newLog: ActivityLogItem = {
-      id: `log_${Date.now()}`,
-      operator: 'Admin User',
-      action: `Reassigned to ${assignDept} (Officer: ${assignAgent})`,
-      createdAt: timeStr
-    };
-    setActivityLogs(prev => [newLog, ...prev]);
-    setAssignDialogOpen(false);
-
+    setActionPending(true);
     try {
       await complaintsService.assign(lookupKey, { department: assignDept, agentName: assignAgent });
-    } catch (e) {
-      console.warn('API assign fallback:', e);
+      setAssignDialogOpen(false);
+      await loadComplaint();
+      setSnackbar({ open: true, message: `Case assigned to ${assignDept} department.`, severity: 'success' });
+    } catch (e: any) {
+      setSnackbar({ open: true, message: e?.response?.data?.message || 'Failed to reassign case. Please try again.', severity: 'error' });
+    } finally {
+      setActionPending(false);
     }
-
-    setSnackbar({ open: true, message: `Case assigned to ${assignDept} department!`, severity: 'success' });
   };
 
   // Escalate Complaint
   const handleEscalate = async () => {
-    if (!complaint) return;
-    setComplaint(prev => prev ? { ...prev, priority: 'URGENT', severity: 'CRITICAL', status: 'ACTION_REQUIRED', assignedDepartment: escalateDept } : null);
+    if (!complaint || actionPending) return;
 
-    const now = new Date();
-    const timeStr = now.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-
-    const newNote: InvestigationNoteItem = {
-      id: `note_${Date.now()}`,
-      authorName: 'Escalation Controller',
-      findings: `🚨 HIGH PRIORITY ESCALATION TO ${escalateDept.toUpperCase()}: ${escalateReason || 'Immediate leadership review enforced.'}`,
-      createdAt: timeStr
-    };
-
-    const newLog: ActivityLogItem = {
-      id: `log_${Date.now()}`,
-      operator: 'Admin User',
-      action: `Escalated to ${escalateDept}`,
-      details: escalateReason,
-      createdAt: timeStr
-    };
-
-    setInvestigationNotes(prev => [newNote, ...prev]);
-    setActivityLogs(prev => [newLog, ...prev]);
-    const dept = escalateDept;
-    const reason = escalateReason;
-    setEscalateReason('');
-    setEscalateDialogOpen(false);
-
+    setActionPending(true);
     try {
-      await complaintsService.escalate(lookupKey, { department: dept, reason });
-    } catch (e) {
-      console.warn('API escalate fallback:', e);
+      await complaintsService.escalate(lookupKey, { department: escalateDept, reason: escalateReason });
+      setEscalateReason('');
+      setEscalateDialogOpen(false);
+      await loadComplaint();
+      setSnackbar({ open: true, message: `Complaint escalated to ${escalateDept}.`, severity: 'success' });
+    } catch (e: any) {
+      setSnackbar({ open: true, message: e?.response?.data?.message || 'Failed to escalate complaint. Please try again.', severity: 'error' });
+    } finally {
+      setActionPending(false);
     }
-
-    setSnackbar({ open: true, message: `Complaint escalated to ${dept}!`, severity: 'success' });
   };
 
   const handleDownload = (fileUrl: string, fileName: string) => {
@@ -540,10 +368,19 @@ export default function ComplaintDetailPage() {
 
   const currentStepIndex = STATUS_STEPS.findIndex(s => s.key === complaint?.status);
 
-  if (loading || !complaint) {
+  if (loading) {
     return (
       <Box sx={{ p: 4, textAlign: 'center' }}>
         <Typography variant="h6" sx={{ color: '#64748b' }}>Loading Complaint Details...</Typography>
+      </Box>
+    );
+  }
+
+  if (loadError || !complaint) {
+    return (
+      <Box sx={{ p: 4 }}>
+        <Alert severity="error" sx={{ mb: 2 }}>{loadError || 'Complaint not found.'}</Alert>
+        <Button variant="outlined" startIcon={<Autorenew />} onClick={() => loadComplaint()}>Retry</Button>
       </Box>
     );
   }
