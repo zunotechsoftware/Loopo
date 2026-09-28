@@ -132,6 +132,12 @@ class ApiConfig {
       '$baseUrl$productsEndpoint/$id/resume';
   static String archiveProductUrl(String id) =>
       '$baseUrl$productsEndpoint/$id/archive';
+  static String soldProductUrl(String id) =>
+      '$baseUrl$productsEndpoint/$id/sold';
+  static String productImageUploadUrlUrl(String productId) =>
+      '$baseUrl$productsEndpoint/$productId/images/upload-url';
+  static String productImagesUrl(String productId) =>
+      '$baseUrl$productsEndpoint/$productId/images';
   static String conversationMessagesUrl(String conversationId) =>
       '$chatMessagesUrl?conversationId=$conversationId';
   static String notificationReadUrl(String id) => '$notificationsUrl/$id/read';
