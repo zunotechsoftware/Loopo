@@ -15,7 +15,7 @@ import {
 import { Visibility, VisibilityOff, AdminPanelSettings } from '@mui/icons-material';
 import { useAuth } from '@/hooks/useAuth';
 import { authService } from '@/services/auth.service';
-import { isAdminRole } from '@/types/auth';
+import { hasAdminPortalAccess } from '@/types/auth';
 import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
@@ -40,8 +40,11 @@ export default function LoginPage() {
       // this check, any buyer/seller could sign into the admin portal
       // with their own real credentials and see the full admin UI shell
       // (every guarded API call would 403, but the navigation, layout and
-      // page structure were all still fully exposed).
-      if (!isAdminRole(response.user.roles)) {
+      // page structure were all still fully exposed). isAdminRole is
+      // computed server-side from real Role.isAdminRole metadata, so a
+      // custom operator role (Moderator/Support/Finance) flagged
+      // admin-eligible via the Roles page can actually sign in here too.
+      if (!hasAdminPortalAccess(response.user)) {
         setError("This account doesn't have access to the admin portal.");
         return;
       }

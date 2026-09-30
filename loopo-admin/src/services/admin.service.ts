@@ -170,8 +170,8 @@ export const auditLogsService = {
 // /admin/permissions didn't exist at all - see known-issues.md).
 export const rolesService = {
   getAll: () => api.get('/admin/roles'),
-  create: (data: { name: string; description?: string; permissionNames?: string[] }) => api.post('/admin/roles', data),
-  update: (id: string, data: { name?: string; description?: string; permissionNames?: string[] }) => api.patch(`/admin/roles/${id}`, data),
+  create: (data: { name: string; description?: string; permissionNames?: string[]; isAdminRole?: boolean }) => api.post('/admin/roles', data),
+  update: (id: string, data: { name?: string; description?: string; permissionNames?: string[]; isAdminRole?: boolean }) => api.patch(`/admin/roles/${id}`, data),
   delete: (id: string) => api.delete(`/admin/roles/${id}`),
   getPermissions: () => api.get('/admin/permissions'),
 };

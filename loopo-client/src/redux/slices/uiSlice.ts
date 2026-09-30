@@ -7,15 +7,28 @@ interface LocationData {
   country?: string;
   latitude?: number;
   longitude?: number;
+  /** Nearby-search radius in km. Used by the search page's "Near me" filter
+   * and the home page's Nearby section - previously set on the location
+   * page's map slider but never actually stored anywhere, so it was lost
+   * the moment you navigated away and never reached any real query. */
+  radiusKm?: number;
 }
 
+const DEFAULT_LOCATION: LocationData = {
+  displayName: 'Bangalore, Karnataka',
+  city: 'Bangalore',
+  state: 'Karnataka',
+  country: 'India',
+  radiusKm: 15,
+};
+
 function loadSavedLocation(): LocationData {
-  if (typeof window === 'undefined') return { displayName: 'Bangalore, Karnataka', city: 'Bangalore', state: 'Karnataka', country: 'India' };
+  if (typeof window === 'undefined') return DEFAULT_LOCATION;
   try {
     const saved = localStorage.getItem('loopo_location');
-    if (saved) return JSON.parse(saved);
+    if (saved) return { ...DEFAULT_LOCATION, ...JSON.parse(saved) };
   } catch { /* ignore */ }
-  return { displayName: 'Bangalore, Karnataka', city: 'Bangalore', state: 'Karnataka', country: 'India' };
+  return DEFAULT_LOCATION;
 }
 
 function saveLocation(loc: LocationData) {

@@ -75,10 +75,36 @@ class _ReviewListingScreenState extends State<ReviewListingScreen> {
       };
 
       final created = await productService.createListing(payload);
-      d.publishedListingId = created['id']?.toString();
+      final productId = created['id']?.toString();
+      d.publishedListingId = productId;
+
+      int failedUploads = 0;
+      if (productId != null && d.photos.isNotEmpty) {
+        for (var i = 0; i < d.photos.length; i++) {
+          try {
+            await productService.uploadProductImage(
+              productId,
+              d.photos[i],
+              sortOrder: i,
+            );
+          } catch (_) {
+            failedUploads++;
+          }
+        }
+      }
 
       if (!mounted) return;
       setState(() => _isPublishing = false);
+      if (failedUploads > 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Listing published, but $failedUploads of ${d.photos.length} photo(s) failed to upload.',
+            ),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
       widget.controller.goToNext();
     } catch (e) {
       if (mounted) {
