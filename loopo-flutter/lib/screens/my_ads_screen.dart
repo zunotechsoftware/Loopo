@@ -185,7 +185,7 @@ class _MyAdsScreenState extends State<MyAdsScreen>
   Future<void> _markAsSold(String id) async {
     setState(() => _isLoading = true);
     try {
-      await _productService.updateListing(id, {'status': 'SOLD'});
+      await _productService.markAsSold(id);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Marked as Sold'), backgroundColor: Colors.green),

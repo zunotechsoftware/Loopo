@@ -16,7 +16,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
-import { setLocation, setLocationData, showToast } from '@/redux/slices/uiSlice';
+import { setLocationData, showToast } from '@/redux/slices/uiSlice';
 import { ROUTES } from '@/routes/routes';
 
 export default function LocationPage() {
@@ -25,14 +25,14 @@ export default function LocationPage() {
   const currentLocation = useAppSelector((state) => state.ui.location);
 
   const popularCities = [
-    { name: 'Bangalore, Karnataka', count: '45,210+ ads', lat: '12.9716', lng: '77.5946' },
-    { name: 'Mumbai, Maharashtra', count: '62,890+ ads', lat: '19.0760', lng: '72.8777' },
-    { name: 'Delhi, NCR', count: '58,400+ ads', lat: '28.7041', lng: '77.1025' },
-    { name: 'Hyderabad, Telangana', count: '31,500+ ads', lat: '17.3850', lng: '78.4867' },
-    { name: 'Chennai, Tamil Nadu', count: '28,900+ ads', lat: '13.0827', lng: '80.2707' },
-    { name: 'Pune, Maharashtra', count: '24,100+ ads', lat: '18.5204', lng: '73.8567' },
-    { name: 'Kolkata, West Bengal', count: '22,400+ ads', lat: '22.5726', lng: '88.3639' },
-    { name: 'Ahmedabad, Gujarat', count: '19,800+ ads', lat: '23.0225', lng: '72.5714' },
+    { name: 'Bangalore, Karnataka', lat: 12.9716, lng: 77.5946 },
+    { name: 'Mumbai, Maharashtra', lat: 19.0760, lng: 72.8777 },
+    { name: 'Delhi, NCR', lat: 28.7041, lng: 77.1025 },
+    { name: 'Hyderabad, Telangana', lat: 17.3850, lng: 78.4867 },
+    { name: 'Chennai, Tamil Nadu', lat: 13.0827, lng: 80.2707 },
+    { name: 'Pune, Maharashtra', lat: 18.5204, lng: 73.8567 },
+    { name: 'Kolkata, West Bengal', lat: 22.5726, lng: 88.3639 },
+    { name: 'Ahmedabad, Gujarat', lat: 23.0225, lng: 72.5714 },
   ];
 
   const popularLocalities = [
@@ -46,25 +46,63 @@ export default function LocationPage() {
     'Gachibowli, Hyderabad',
   ];
 
+  const currentLocationData = useAppSelector((state) => state.ui.locationData);
+  const cityCoords = (name: string) => popularCities.find((c) => c.name === name);
+
   const [selectedCity, setSelectedCity] = useState(currentLocation || 'Bangalore, Karnataka');
   const [searchQuery, setSearchQuery] = useState('');
-  const [radiusKm, setRadiusKm] = useState(15);
+  const [radiusKm, setRadiusKm] = useState(currentLocationData.radiusKm || 15);
   const [isDetectingGps, setIsDetectingGps] = useState(false);
   const [pinPosition, setPinPosition] = useState({ x: 50, y: 50 }); // Map Pin % offset
+  // Real coordinates backing the current selection - kept in sync so Save
+  // always has something to feed the backend's radius search with, not
+  // just a display string it can't compute a "nearby" query from.
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | undefined>(
+    currentLocationData.latitude !== undefined && currentLocationData.longitude !== undefined
+      ? { lat: currentLocationData.latitude, lng: currentLocationData.longitude }
+      : cityCoords(selectedCity)
+      ? { lat: cityCoords(selectedCity)!.lat, lng: cityCoords(selectedCity)!.lng }
+      : undefined
+  );
 
   const applyIpFallback = async (lat?: number, lng?: number) => {
     try {
-      const ipRes = await fetch('https://ipapi.co/json/').then(r => r.json());
-      const city = ipRes?.city || 'Bangalore';
-      const state = ipRes?.region || 'Karnataka';
-      const country = ipRes?.country_name || 'India';
+      let city: string, state: string, country: string;
+      if (lat !== undefined && lng !== undefined) {
+        // Real reverse-geocoding of the actual GPS fix, via BigDataCloud's
+        // free, keyless client-side endpoint. ipapi.co (used here
+        // previously, including in an earlier "fix" that still got this
+        // wrong) is an IP-lookup service - it has no way to accept
+        // coordinates, so passing lat/lng into its URL just silently fell
+        // through to an IP-based guess (your ISP's location), completely
+        // ignoring the real GPS fix. Confirmed live: Coimbatore's real
+        // coordinates correctly resolve to Coimbatore here, not whatever
+        // city your network happens to egress through.
+        const geo = await fetch(
+          `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`
+        ).then((r) => r.json());
+        city = geo?.city || geo?.locality || 'Bangalore';
+        state = geo?.principalSubdivision || 'Karnataka';
+        country = geo?.countryName || 'India';
+      } else {
+        const ipRes = await fetch('https://ipapi.co/json/').then((r) => r.json());
+        city = ipRes?.city || 'Bangalore';
+        state = ipRes?.region || 'Karnataka';
+        country = ipRes?.country_name || 'India';
+      }
       const displayName = `${city}, ${state}`;
       setSelectedCity(displayName);
-      dispatch(setLocationData({ displayName, city, state, country, latitude: lat, longitude: lng }));
+      setCoords(lat !== undefined && lng !== undefined ? { lat, lng } : undefined);
+      dispatch(setLocationData({ displayName, city, state, country, latitude: lat, longitude: lng, radiusKm }));
       dispatch(showToast(`📍 Location detected: ${city}, ${state}`));
     } catch {
-      setSelectedCity('Bangalore, Karnataka');
-      dispatch(setLocation('Bangalore, Karnataka'));
+      const fallback = { name: 'Bangalore, Karnataka', lat: 12.9716, lng: 77.5946 };
+      setSelectedCity(fallback.name);
+      setCoords({ lat: fallback.lat, lng: fallback.lng });
+      dispatch(setLocationData({
+        displayName: fallback.name, city: 'Bangalore', state: 'Karnataka', country: 'India',
+        latitude: fallback.lat, longitude: fallback.lng, radiusKm,
+      }));
       dispatch(showToast('Could not detect location. Using default.'));
     }
   };
@@ -95,15 +133,22 @@ export default function LocationPage() {
     const x = Math.round(((e.clientX - rect.left) / rect.width) * 100);
     const y = Math.round(((e.clientY - rect.top) / rect.height) * 100);
     setPinPosition({ x, y });
-
-    const updatedLoc = `Custom Pin (${x}%, ${y}%), ${selectedCity.split(',')[0]}`;
-    dispatch(showToast(`Map location dropped at ${selectedCity.split(',')[0]} (${radiusKm} km radius)`));
+    dispatch(showToast(`Pin adjusted within ${selectedCity.split(',')[0]} (${radiusKm} km radius)`));
   };
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     const finalLoc = searchQuery ? `${searchQuery.trim()}, ${selectedCity.split(',')[0]}` : selectedCity;
-    dispatch(setLocation(finalLoc));
+    const [cityPart, statePart] = selectedCity.split(',').map((s) => s.trim());
+    dispatch(setLocationData({
+      displayName: finalLoc,
+      city: cityPart,
+      state: statePart,
+      country: 'India',
+      latitude: coords?.lat,
+      longitude: coords?.lng,
+      radiusKm,
+    }));
     dispatch(showToast(`Marketplace location updated to ${finalLoc}`));
     router.push(ROUTES.HOME);
   };
@@ -255,6 +300,9 @@ export default function LocationPage() {
                       onClick={() => {
                         setSelectedCity(loc);
                         setSearchQuery('');
+                        const cityGuess = loc.split(',').pop()?.trim();
+                        const match = popularCities.find((c) => c.name.startsWith(cityGuess || '\0'));
+                        if (match) setCoords({ lat: match.lat, lng: match.lng });
                       }}
                       className="p-2 hover:bg-emerald-50 rounded-xl text-xs font-bold text-slate-700 cursor-pointer flex items-center gap-2"
                     >
@@ -275,7 +323,7 @@ export default function LocationPage() {
                       <button
                         key={city.name}
                         type="button"
-                        onClick={() => setSelectedCity(city.name)}
+                        onClick={() => { setSelectedCity(city.name); setCoords({ lat: city.lat, lng: city.lng }); }}
                         className={`p-3 rounded-xl border text-left text-xs font-semibold flex items-center justify-between transition-all ${
                           isSel
                             ? 'border-emerald-600 bg-emerald-50 text-emerald-900 font-bold ring-2 ring-emerald-500/20'
@@ -284,7 +332,6 @@ export default function LocationPage() {
                       >
                         <div>
                           <div className="line-clamp-1">{city.name}</div>
-                          <div className="text-[10px] text-slate-400 font-medium">{city.count}</div>
                         </div>
                         {isSel && <Check className="w-4 h-4 text-emerald-600 shrink-0" />}
                       </button>

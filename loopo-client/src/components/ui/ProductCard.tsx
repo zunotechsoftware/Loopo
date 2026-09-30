@@ -103,7 +103,12 @@ export default function ProductCard({ product }: ProductCardProps) {
           <div className="flex items-center justify-between text-[11px] font-medium text-slate-400 pt-1 border-t border-slate-50">
             <div className="flex items-center gap-1 line-clamp-1">
               <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
-              <span>{displayLocation}</span>
+              <span>
+                {displayLocation}
+                {typeof product?.distance === 'number' || (typeof product?.distance === 'string' && product.distance !== '')
+                  ? ` · ${Number(product.distance).toFixed(1)} km away`
+                  : ''}
+              </span>
             </div>
             <div className="flex items-center gap-1 shrink-0">
               <Clock className="w-3 h-3 text-slate-400" />

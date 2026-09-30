@@ -17,6 +17,7 @@ import {
   ViewCounterSyncProcessor,
   SearchIndexUpdateProcessor,
 } from './processors/products.processor';
+import { ProductsScheduler } from './schedulers/products.scheduler';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import {
     ProductExpirationProcessor,
     ViewCounterSyncProcessor,
     SearchIndexUpdateProcessor,
+    ProductsScheduler,
   ],
   exports: [ProductsService, ProductsRepository],
 })

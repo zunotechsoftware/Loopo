@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Body, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { AdminPaymentsService } from './admin-payments.service';
 import { RefundPaymentDto } from './dto/admin-payment.dto';
@@ -79,8 +79,9 @@ export class AdminPaymentsController {
   async refundPayment(
     @CurrentUser('id') adminId: string,
     @Body() dto: RefundPaymentDto,
+    @Req() req: any,
   ) {
-    return this.adminPaymentsService.refundPayment(adminId, dto);
+    return this.adminPaymentsService.refundPayment(adminId, dto, req.ip, req.headers['user-agent']);
   }
 
   @Get(':id')

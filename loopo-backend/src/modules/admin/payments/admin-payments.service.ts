@@ -1,11 +1,15 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../shared/database/prisma.service';
 import { RefundPaymentDto } from './dto/admin-payment.dto';
 import { PaymentStatus, RefundStatus } from '@prisma/client';
+import { PaymentsService } from '../../payments/services/payments.service';
 
 @Injectable()
 export class AdminPaymentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly paymentsService: PaymentsService,
+  ) {}
 
   async getAllPayments(skip: number = 0, take: number = 20, status?: PaymentStatus) {
     const where: any = { deletedAt: null };
@@ -77,42 +81,20 @@ export class AdminPaymentsService {
     return payment;
   }
 
-  async refundPayment(adminId: string, dto: RefundPaymentDto) {
-    const payment = await this.getPaymentById(dto.paymentId);
-
-    if (payment.status !== 'SUCCESS' && payment.status !== 'PARTIALLY_REFUNDED') {
-      throw new BadRequestException('Only successful payments can be refunded');
-    }
-
-    const totalRefunded = payment.refunds
-      .filter((r) => r.status === 'SUCCESS')
-      .reduce((sum, r) => sum + r.amount, 0);
-
-    if (totalRefunded + dto.amount > payment.netAmount) {
-      throw new BadRequestException('Refund amount exceeds total paid amount');
-    }
-
-    return this.prisma.$transaction(async (tx) => {
-      const refund = await tx.refund.create({
-        data: {
-          paymentId: payment.id,
-          amount: dto.amount,
-          reason: dto.reason,
-          createdById: adminId,
-          status: 'SUCCESS', // Mock successful refund for now
-        },
-      });
-
-      const newStatus = totalRefunded + dto.amount >= payment.netAmount 
-        ? 'REFUNDED' 
-        : 'PARTIALLY_REFUNDED';
-
-      await tx.payment.update({
-        where: { id: payment.id },
-        data: { status: newStatus },
-      });
-
-      return refund;
-    });
+  /**
+   * Delegates to the real, gateway-calling PaymentsService.processRefund()
+   * (used by POST /admin/refunds) instead of writing a Refund row directly.
+   * This used to hardcode `status: 'SUCCESS'` with no provider call at all -
+   * money never actually moved. Kept as a thin wrapper (rather than deleting
+   * this endpoint) so existing admin-panel callers of
+   * POST /admin/payments/refunds keep working unchanged.
+   */
+  async refundPayment(adminId: string, dto: RefundPaymentDto, ipAddress?: string, userAgent?: string) {
+    return this.paymentsService.processRefund(
+      adminId,
+      { paymentId: dto.paymentId, amount: dto.amount, reason: dto.reason },
+      ipAddress,
+      userAgent,
+    );
   }
 }
