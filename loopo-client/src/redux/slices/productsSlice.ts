@@ -2,6 +2,7 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { Product } from '@/types';
 import { productsApi, CreateProductPayload, UpdateProductPayload } from '@/services/productsApi';
 import { interactionsApi } from '@/services/interactionsApi';
+import { searchApi, SearchParams } from '@/services/searchApi';
 
 interface FilterState {
   searchQuery: string;
@@ -20,6 +21,16 @@ interface ProductsState {
    * any "N items" display built from it wrong for any filter matching
    * more results than one page. */
   total: number;
+  /** Results of the real GET /search call (query + price/condition/sort +
+   * geo-radius, all applied server-side) - kept separate from `items`
+   * (the home-feed/category-browse cache, which merges across fetches)
+   * so the search page renders exactly the current query's matches, in
+   * the server's chosen order, rather than filtering the accumulated
+   * cross-page item pool client-side. */
+  searchResults: Product[];
+  searchTotal: number;
+  searchLoading: boolean;
+  searchError: string | null;
   favorites: string[];
   filters: FilterState;
   loading: boolean;
@@ -29,6 +40,10 @@ interface ProductsState {
 const initialState: ProductsState = {
   items: [],
   total: 0,
+  searchResults: [],
+  searchTotal: 0,
+  searchLoading: false,
+  searchError: null,
   favorites: [],
   filters: {
     searchQuery: '',
@@ -115,6 +130,23 @@ export const fetchProductsThunk = createAsyncThunk(
       // this particular page actually returned.
       const total: number = typeof data?.total === 'number' ? data.total : rawItems.length;
 
+      return { items: rawItems.map(normaliseProduct), total };
+    }
+    return { items: [], total: 0 };
+  }
+);
+
+/** Real GET /search - price range, condition, sort, and geo-radius are all
+ * applied server-side, unlike fetchProductsThunk (GET /products) which only
+ * supports category/keyword/exact-city-match. Used by the search page. */
+export const searchProductsThunk = createAsyncThunk(
+  'products/search',
+  async (params: SearchParams) => {
+    const res = await searchApi.search(params);
+    if (res.success) {
+      const data = res.data as any;
+      const rawItems: any[] = Array.isArray(data?.items) ? data.items : [];
+      const total: number = typeof data?.total === 'number' ? data.total : rawItems.length;
       return { items: rawItems.map(normaliseProduct), total };
     }
     return { items: [], total: 0 };
@@ -249,6 +281,19 @@ export const productsSlice = createSlice({
       .addCase(fetchProductsThunk.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to fetch products';
+      })
+      .addCase(searchProductsThunk.pending, (state) => {
+        state.searchLoading = true;
+        state.searchError = null;
+      })
+      .addCase(searchProductsThunk.fulfilled, (state, action) => {
+        state.searchLoading = false;
+        state.searchResults = action.payload.items;
+        state.searchTotal = action.payload.total;
+      })
+      .addCase(searchProductsThunk.rejected, (state, action) => {
+        state.searchLoading = false;
+        state.searchError = action.error.message || 'Search failed';
       })
       .addCase(createProductThunk.fulfilled, (state, action) => {
         state.items.unshift(action.payload);

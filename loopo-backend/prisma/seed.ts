@@ -552,6 +552,13 @@ async function main() {
         data: {
           email: s.email, phone: s.phone, password: p, firstName: s.firstName, lastName: s.lastName,
           status: 'ACTIVE', provider: 'LOCAL',
+          // Created directly via prisma.user.create (not the real /auth/
+          // register flow, which always attaches USER via UsersRepository.
+          // create's default roleNames), so without this these accounts
+          // log in fine but hold zero roles/permissions - every
+          // @Permissions-guarded action (create a listing, chat, favorite,
+          // review, etc.) 403s despite a successful login.
+          roles: rolesMap.get('USER') ? { create: { roleId: rolesMap.get('USER')!.id } } : undefined,
           profile: {
             create: {
               firstName: s.firstName, lastName: s.lastName, displayName: `${s.firstName} ${s.lastName}`,
@@ -577,21 +584,35 @@ async function main() {
           }
         }
       });
+    } else if (rolesMap.get('USER')) {
+      // Backfill the USER role onto an account seeded by an earlier version
+      // of this script, before role assignment was added here.
+      const hasUserRole = await prisma.userRole.findUnique({
+        where: { userId_roleId: { userId: user.id, roleId: rolesMap.get('USER')!.id } },
+      });
+      if (!hasUserRole) {
+        await prisma.userRole.create({ data: { userId: user.id, roleId: rolesMap.get('USER')!.id } });
+      }
     }
     sellers[s.firstName] = user;
   }
   console.log('Sellers seeded.');
 
   // 13. Seed Products
+  // lat/lng match the client's popularCities list (loopo-client/src/app/
+  // location/page.tsx) - without real coordinates here, the geo-radius
+  // "nearby" search (GET /search with latitude/longitude/radiusKm) has
+  // nothing to match against no matter how correct that code is, since it
+  // filters out any listing whose location has a null lat/lng.
   const productsData = [
-    { seller: sellers['Ajay'], categoryId: categories['Mobiles'].id, subcategoryId: categories['iPhone'].id, title: 'iPhone 13 128GB Blue', slug: 'iphone-13-128gb-blue', desc: 'Used for 1 year', condition: 'LIKE_NEW', price: 32000, status: 'APPROVED', loc: { city: 'Bangalore', state: 'Karnataka', country: 'India' } },
-    { seller: sellers['Sneha'], categoryId: categories['Vehicles'].id, subcategoryId: categories['Cars'].id, title: 'Maruti Swift VXi 2020', slug: 'maruti-swift-vxi-2020', desc: 'Good condition', condition: 'GOOD', price: 485000, status: 'APPROVED', loc: { city: 'Hyderabad', state: 'Telangana', country: 'India' } },
-    { seller: sellers['Rahul'], categoryId: categories['Home & Living'].id, subcategoryId: categories['Furniture'].id, title: 'L Shape Sofa Set', slug: 'l-shape-sofa-set', desc: 'Good condition', condition: 'GOOD', price: 18000, status: 'PENDING', loc: { city: 'Pune', state: 'Maharashtra', country: 'India' } },
-    { seller: sellers['Vikram'], categoryId: categories['Electronics'].id, subcategoryId: categories['Laptops'].id, title: 'Dell Inspiron 15', slug: 'dell-inspiron-15', desc: 'Like new', condition: 'LIKE_NEW', price: 28500, status: 'APPROVED', loc: { city: 'Delhi', state: 'Delhi', country: 'India' } },
+    { seller: sellers['Ajay'], categoryId: categories['Mobiles'].id, subcategoryId: categories['iPhone'].id, title: 'iPhone 13 128GB Blue', slug: 'iphone-13-128gb-blue', desc: 'Used for 1 year', condition: 'LIKE_NEW', price: 32000, status: 'APPROVED', loc: { city: 'Bangalore', state: 'Karnataka', country: 'India', latitude: 12.9716, longitude: 77.5946 } },
+    { seller: sellers['Sneha'], categoryId: categories['Vehicles'].id, subcategoryId: categories['Cars'].id, title: 'Maruti Swift VXi 2020', slug: 'maruti-swift-vxi-2020', desc: 'Good condition', condition: 'GOOD', price: 485000, status: 'APPROVED', loc: { city: 'Hyderabad', state: 'Telangana', country: 'India', latitude: 17.3850, longitude: 78.4867 } },
+    { seller: sellers['Rahul'], categoryId: categories['Home & Living'].id, subcategoryId: categories['Furniture'].id, title: 'L Shape Sofa Set', slug: 'l-shape-sofa-set', desc: 'Good condition', condition: 'GOOD', price: 18000, status: 'PENDING', loc: { city: 'Pune', state: 'Maharashtra', country: 'India', latitude: 18.5204, longitude: 73.8567 } },
+    { seller: sellers['Vikram'], categoryId: categories['Electronics'].id, subcategoryId: categories['Laptops'].id, title: 'Dell Inspiron 15', slug: 'dell-inspiron-15', desc: 'Like new', condition: 'LIKE_NEW', price: 28500, status: 'APPROVED', loc: { city: 'Delhi', state: 'Delhi', country: 'India', latitude: 28.7041, longitude: 77.1025 } },
   ];
 
   for (const pd of productsData) {
-    const existingP = await prisma.product.findUnique({ where: { slug: pd.slug } });
+    const existingP = await prisma.product.findUnique({ where: { slug: pd.slug }, include: { location: true } });
     if (!existingP) {
       await prisma.product.create({
         data: {
@@ -599,12 +620,19 @@ async function main() {
           title: pd.title, slug: pd.slug, description: pd.desc, condition: pd.condition as any, price: pd.price,
           status: pd.status as any, viewCount: Math.floor(Math.random() * 2000),
           location: {
-            create: { city: pd.loc.city, state: pd.loc.state, country: pd.loc.country }
+            create: { city: pd.loc.city, state: pd.loc.state, country: pd.loc.country, latitude: pd.loc.latitude, longitude: pd.loc.longitude }
           },
           images: {
             create: { originalUrl: `https://ui-avatars.com/api/?name=${pd.title}&background=random`, sortOrder: 0 }
           }
         }
+      });
+    } else if (existingP.location && existingP.location.latitude === null) {
+      // Backfill coordinates onto a product seeded by an earlier version
+      // of this script, before lat/lng were added here.
+      await prisma.productLocation.update({
+        where: { productId: existingP.id },
+        data: { latitude: pd.loc.latitude, longitude: pd.loc.longitude },
       });
     }
   }
@@ -691,6 +719,7 @@ async function main() {
         provider: 'LOCAL',
         isEmailVerified: true,
         isPhoneVerified: true,
+        roles: rolesMap.get('USER') ? { create: { roleId: rolesMap.get('USER')!.id } } : undefined,
         profile: {
           create: {
             firstName: 'Venkatesh',
@@ -728,6 +757,13 @@ async function main() {
       },
       include: { profile: true, sellerProfile: true },
     });
+  } else if (rolesMap.get('USER')) {
+    const hasUserRole = await prisma.userRole.findUnique({
+      where: { userId_roleId: { userId: venkUser.id, roleId: rolesMap.get('USER')!.id } },
+    });
+    if (!hasUserRole) {
+      await prisma.userRole.create({ data: { userId: venkUser.id, roleId: rolesMap.get('USER')!.id } });
+    }
   }
 
   // Ensure MediaFiles and KycDocuments exist for Venkatesh Sekar
