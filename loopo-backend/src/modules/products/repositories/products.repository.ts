@@ -39,6 +39,20 @@ export class ProductsRepository {
       return tx.product.findUnique({
         where: { id: createdProduct.id },
         include: {
+          // Without this, the immediate create response has no seller at
+          // all - any caller that trusts this response instead of
+          // re-fetching (e.g. the frontend caching it straight into its
+          // product list after a successful create) ends up with a seller
+          // object with no real id, which defeats the "hide chat/offer on
+          // your own listing" check entirely (it can never match the real
+          // logged-in user's id).
+          seller: {
+            select: {
+              id: true, email: true, phone: true, firstName: true, lastName: true,
+              profile: { select: { verifiedBadge: true } },
+              sellerStatistics: { select: { averageRating: true, totalReviews: true, positivePercent: true } },
+            },
+          },
           location: true,
           attributes: true,
           statistics: true,
@@ -94,6 +108,17 @@ export class ProductsRepository {
       return tx.product.findUnique({
         where: { id },
         include: {
+          // Same reasoning as create() above - without this, an update
+          // response (including the legacy "mark sold with no buyer
+          // selected" path, which returns this directly) carries a
+          // seller-less product, breaking the own-listing chat/offer guard.
+          seller: {
+            select: {
+              id: true, email: true, phone: true, firstName: true, lastName: true,
+              profile: { select: { verifiedBadge: true } },
+              sellerStatistics: { select: { averageRating: true, totalReviews: true, positivePercent: true } },
+            },
+          },
           location: true,
           attributes: true,
           images: true,
