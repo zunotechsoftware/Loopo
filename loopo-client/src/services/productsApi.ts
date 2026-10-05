@@ -234,8 +234,12 @@ export const productsApi = {
     return apiClient.get<Product[]>('/products/my');
   },
 
-  async markAsSold(id: string): Promise<ApiResponse<any>> {
-    return apiClient.patch(`/products/${id}/sold`, {});
+  /** @param buyerId - the buyer who completed the transaction, selected from
+   * a real prior Offer/Conversation on this listing. Creates a rating
+   * eligibility for them server-side. Omit to keep the old no-buyer
+   * behaviour (listing marked sold, no eligibility created). */
+  async markAsSold(id: string, buyerId?: string): Promise<ApiResponse<any>> {
+    return apiClient.patch(`/products/${id}/sold`, buyerId ? { buyerId } : {});
   },
 
   async deleteAd(id: string): Promise<ApiResponse<any>> {

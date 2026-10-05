@@ -22,6 +22,7 @@ const REPORT_REASONS: { code: string; label: string }[] = [
   { code: 'SCAM', label: 'Suspected scam or suspicious offer' },
   { code: 'ILLEGAL_ITEM', label: 'Sale of prohibited or illegal items' },
   { code: 'COUNTERFEIT', label: 'Counterfeit or replica products' },
+  { code: 'FAKE_REVIEW', label: 'Fake, manipulated, or dishonest review' },
   { code: 'OTHER', label: 'Other violation' },
 ];
 
@@ -74,7 +75,16 @@ export default function ReportModal() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 font-black text-slate-900 text-base">
             <AlertTriangle className="w-5 h-5 text-red-500" />
-            <span>Report {target?.targetType === 'USER' ? 'Seller' : target?.targetType === 'CHAT_MESSAGE' ? 'Conversation' : 'Listing'}</span>
+            <span>
+              Report{' '}
+              {target?.targetType === 'USER'
+                ? 'Seller'
+                : target?.targetType === 'CHAT_MESSAGE'
+                ? 'Conversation'
+                : target?.targetType === 'REVIEW'
+                ? 'Review'
+                : 'Listing'}
+            </span>
           </div>
           <button
             onClick={() => dispatch(setReportModalOpen(false))}

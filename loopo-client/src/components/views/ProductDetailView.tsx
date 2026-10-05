@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
   ChevronRight,
   MapPin,
@@ -23,10 +24,12 @@ import { toggleFavoriteThunk, fetchProductByIdThunk } from '@/redux/slices/produ
 import {
   setOfferModalOpen,
   openReportModal,
-  setReviewModalOpen,
+  openReviewModal,
   setAuthModalOpen,
   showToast,
 } from '@/redux/slices/uiSlice';
+import { fetchPendingRatingsThunk } from '@/redux/slices/ratingsSlice';
+import { ROUTES } from '@/routes/routes';
 
 import { setActiveConversation } from '@/redux/slices/chatSlice';
 import ProductCard from '../ui/ProductCard';
@@ -42,8 +45,19 @@ export default function ProductDetailView() {
   const products = useAppSelector((state) => state.products.items);
   const allProducts = products;
   const favorites = useAppSelector((state) => state.products.favorites);
+  const pendingRatings = useAppSelector((state) => state.ratings.pendingRatings);
 
   const [loading, setLoading] = useState(false);
+
+  // Cheap, idempotent - lets the "Rate Seller" CTA below know whether a
+  // real, server-issued eligibility exists for THIS buyer+seller+product
+  // combination, instead of blindly opening a rating form with no backing
+  // transaction (which the backend would reject anyway).
+  useEffect(() => {
+    if (isAuthenticated) {
+      dispatch(fetchPendingRatingsThunk());
+    }
+  }, [isAuthenticated, dispatch]);
 
   const localProduct = products.find((p) => p?.id === selectedProductId);
   const product = localProduct || products[0];
@@ -299,37 +313,47 @@ export default function ProductDetailView() {
                 </div>
                 <div className="text-xs text-slate-500 font-medium">
                   Member since {product.seller.memberSince} •{' '}
-                  <button
-                    onClick={() => {
-                      if (!isAuthenticated) {
-                        dispatch(setAuthModalOpen(true));
-                        dispatch(showToast('Please log in to rate seller'));
-                        return;
-                      }
-                      dispatch(setReviewModalOpen(true));
-                    }}
+                  <Link
+                    href={ROUTES.SELLER_REVIEWS(product.seller.id)}
                     className="inline-flex items-center text-amber-500 font-bold hover:underline"
                   >
                     <Star className="w-3 h-3 fill-amber-400 inline mr-0.5" />
                     {product.seller.rating} ({product.seller.reviewCount} reviews)
-                  </button>
+                    {product.seller.reviewCount > 0 && ` • ${Math.round(product.seller.positivePercent)}% positive`}
+                  </Link>
                 </div>
               </div>
             </div>
 
-            <button
-              onClick={() => {
-                if (!isAuthenticated) {
-                  dispatch(setAuthModalOpen(true));
-                  dispatch(showToast('Please log in to rate seller'));
-                  return;
-                }
-                dispatch(setReviewModalOpen(true));
-              }}
-              className="text-xs font-bold text-emerald-600 hover:underline"
-            >
-              Rate Seller
-            </button>
+            {(() => {
+              const pendingMatch = pendingRatings.find(
+                (p) => p.sellerId === product.seller.id && p.productId === product.id,
+              );
+              return (
+                <button
+                  onClick={() => {
+                    if (!isAuthenticated) {
+                      dispatch(setAuthModalOpen(true));
+                      dispatch(showToast('Please log in to rate seller'));
+                      return;
+                    }
+                    if (!pendingMatch) {
+                      dispatch(showToast('You can rate this seller once they mark this transaction as sold to you.'));
+                      return;
+                    }
+                    dispatch(openReviewModal({
+                      eligibilityId: pendingMatch.id,
+                      sellerName: product.seller.name,
+                      productTitle: product.title,
+                      productImage: product.images[0],
+                    }));
+                  }}
+                  className="text-xs font-bold text-emerald-600 hover:underline"
+                >
+                  Rate Seller
+                </button>
+              );
+            })()}
           </div>
 
           {/* Description */}

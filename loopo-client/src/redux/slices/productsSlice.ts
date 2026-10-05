@@ -96,8 +96,14 @@ function normaliseProduct(p: any): Product {
         seller.profile?.avatarUrl ||
         seller.avatarUrl ||
         '',
-      rating: seller.reputation?.averageRating || seller.rating || 0,
-      reviewCount: seller.reputation?.totalReviews || seller.reviewCount || 0,
+      // sellerStatistics is the one centralized rating calculation
+      // (ReputationService.recalculateSellerStats) - the backend product
+      // response previously never carried any real rating data here at all
+      // (`seller.reputation`/`seller.rating` were never actually populated
+      // by any endpoint), so this always silently rendered 0.
+      rating: seller.sellerStatistics?.averageRating || seller.reputation?.averageRating || seller.rating || 0,
+      reviewCount: seller.sellerStatistics?.totalReviews || seller.reputation?.totalReviews || seller.reviewCount || 0,
+      positivePercent: seller.sellerStatistics?.positivePercent || 0,
       memberSince: seller.createdAt
         ? new Date(seller.createdAt).getFullYear().toString()
         : '',

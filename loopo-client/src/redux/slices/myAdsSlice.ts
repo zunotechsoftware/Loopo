@@ -115,8 +115,9 @@ export const fetchMyAdsThunk = createAsyncThunk('myAds/fetchMyAds', async () => 
  * the API at all, so the change silently reverted on the next fetch. */
 export const markAsSoldThunk = createAsyncThunk(
   'myAds/markAsSold',
-  async (id: string, { rejectWithValue }) => {
-    const res = await productsApi.markAsSold(id);
+  async (args: string | { id: string; buyerId?: string }, { rejectWithValue }) => {
+    const { id, buyerId } = typeof args === 'string' ? { id: args, buyerId: undefined } : args;
+    const res = await productsApi.markAsSold(id, buyerId);
     if (res.success) return id;
     return rejectWithValue(res.error || 'Failed to mark listing as sold');
   }

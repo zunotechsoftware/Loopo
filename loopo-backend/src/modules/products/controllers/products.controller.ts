@@ -16,7 +16,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { ProductsService } from '../services/products.service';
-import { CreateProductDto, CreateBulkProductsDto, UpdateProductDto, ListingSearchQueryDto } from '../dto/product.dto';
+import { CreateProductDto, CreateBulkProductsDto, UpdateProductDto, ListingSearchQueryDto, MarkSoldDto } from '../dto/product.dto';
 import { JwtAuthGuard } from '../../../shared/common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../shared/common/guards/roles.guard';
 import { PermissionsGuard } from '../../../shared/common/guards/permissions.guard';
@@ -163,9 +163,9 @@ export class ProductsController {
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Permissions('products.update')
   @LogAudit('MARK_SOLD_PRODUCT', 'Product')
-  @ApiOperation({ summary: 'Mark a listing as sold' })
-  async markSold(@Param('id') id: string, @Request() req: any) {
-    const product = await this.productsService.updateProduct(id, { status: ProductStatus.SOLD } as any, req.user.id);
+  @ApiOperation({ summary: 'Mark a listing as sold, optionally selecting the buyer who completed the transaction (creates a real Order + seller-rating eligibility for that buyer)' })
+  async markSold(@Param('id') id: string, @Body() dto: MarkSoldDto, @Request() req: any) {
+    const product = await this.productsService.markSoldWithBuyer(id, req.user.id, dto?.buyerId);
     return { message: 'Listing marked as sold successfully', data: product };
   }
 

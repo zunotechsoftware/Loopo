@@ -8,6 +8,7 @@ import { SavedSearchesService } from '../../saved-searches/services/saved-search
 import { RedisService } from '../../../shared/redis/redis.service';
 import { getQueueToken } from '@nestjs/bullmq';
 import { S3Service } from '../../../shared/services/s3.service';
+import { AdminSettingsService } from '../../admin/settings/admin-settings.service';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ProductStatus } from '@prisma/client';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -20,6 +21,7 @@ describe('ProductsService Unit Tests', () => {
   let redisServiceMock: any;
   let s3ServiceMock: any;
   let mockQueue: any;
+  let adminSettingsServiceMock: any;
 
   beforeEach(async () => {
     productsRepoMock = {
@@ -30,6 +32,9 @@ describe('ProductsService Unit Tests', () => {
       createStatusHistory: jest.fn(),
       findAll: jest.fn(),
       count: jest.fn(),
+      findActiveUserById: jest.fn(),
+      hasGenuineInteraction: jest.fn(),
+      markSoldWithBuyerTransaction: jest.fn(),
     };
 
     categoriesServiceMock = {
@@ -64,6 +69,10 @@ describe('ProductsService Unit Tests', () => {
       notifyMatchingSearches: jest.fn().mockResolvedValue(0),
     };
 
+    adminSettingsServiceMock = {
+      getSettingByKey: jest.fn().mockResolvedValue({ value: { value: 30 } }),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ProductsService,
@@ -74,6 +83,7 @@ describe('ProductsService Unit Tests', () => {
         { provide: S3Service, useValue: s3ServiceMock },
         { provide: InteractionsService, useValue: interactionsServiceMock },
         { provide: SavedSearchesService, useValue: savedSearchesServiceMock },
+        { provide: AdminSettingsService, useValue: adminSettingsServiceMock },
         { provide: getQueueToken('product-image-compression'), useValue: mockQueue },
         { provide: getQueueToken('product-thumbnail-generation'), useValue: mockQueue },
         { provide: getQueueToken('product-expiration'), useValue: mockQueue },
@@ -187,6 +197,86 @@ describe('ProductsService Unit Tests', () => {
           }),
         }),
       );
+    });
+  });
+
+  describe('markSoldWithBuyer (Rating Eligibility)', () => {
+    const approvedProduct = {
+      id: 'p-1',
+      sellerId: 'seller-1',
+      status: ProductStatus.APPROVED,
+      slug: 'toyota-camry',
+      title: 'Toyota Camry 2022',
+      price: 2400000,
+      currency: 'INR',
+    };
+
+    it('should throw if the caller is not the listing owner', async () => {
+      productsRepoMock.findById.mockResolvedValue(approvedProduct);
+      await expect(service.markSoldWithBuyer('p-1', 'not-the-seller', 'buyer-1')).rejects.toThrow();
+    });
+
+    it('should fall back to the legacy no-buyer path (no eligibility created) when no buyerId is given', async () => {
+      productsRepoMock.findById.mockResolvedValue(approvedProduct);
+      productsRepoMock.update.mockResolvedValue({ ...approvedProduct, status: ProductStatus.SOLD });
+
+      await service.markSoldWithBuyer('p-1', 'seller-1', undefined);
+
+      expect(productsRepoMock.markSoldWithBuyerTransaction).not.toHaveBeenCalled();
+      expect(productsRepoMock.update).toHaveBeenCalled();
+    });
+
+    it('should reject an illegal status transition (e.g. already SOLD)', async () => {
+      productsRepoMock.findById.mockResolvedValue({ ...approvedProduct, status: ProductStatus.SOLD });
+      await expect(service.markSoldWithBuyer('p-1', 'seller-1', 'buyer-1')).rejects.toThrow(BadRequestException);
+    });
+
+    it('should reject the seller selecting themselves as the buyer (self-rating prevention)', async () => {
+      productsRepoMock.findById.mockResolvedValue(approvedProduct);
+      await expect(service.markSoldWithBuyer('p-1', 'seller-1', 'seller-1')).rejects.toThrow(BadRequestException);
+    });
+
+    it('should reject a buyer that does not exist', async () => {
+      productsRepoMock.findById.mockResolvedValue(approvedProduct);
+      productsRepoMock.findActiveUserById.mockResolvedValue(null);
+      await expect(service.markSoldWithBuyer('p-1', 'seller-1', 'buyer-1')).rejects.toThrow(NotFoundException);
+    });
+
+    it('should reject a buyer with no genuine prior interaction (prevents fabricated eligibility)', async () => {
+      productsRepoMock.findById.mockResolvedValue(approvedProduct);
+      productsRepoMock.findActiveUserById.mockResolvedValue({ id: 'buyer-1', deletedAt: null });
+      productsRepoMock.hasGenuineInteraction.mockResolvedValue(false);
+
+      await expect(service.markSoldWithBuyer('p-1', 'seller-1', 'buyer-1')).rejects.toThrow(BadRequestException);
+    });
+
+    it('should mark sold, create the eligibility transactionally, and emit product.sold', async () => {
+      productsRepoMock.findById.mockResolvedValueOnce(approvedProduct).mockResolvedValueOnce({
+        ...approvedProduct,
+        status: ProductStatus.SOLD,
+      });
+      productsRepoMock.findActiveUserById.mockResolvedValue({ id: 'buyer-1', deletedAt: null });
+      productsRepoMock.hasGenuineInteraction.mockResolvedValue(true);
+      adminSettingsServiceMock.getSettingByKey.mockResolvedValue({ value: { value: 30 } });
+      productsRepoMock.markSoldWithBuyerTransaction.mockResolvedValue({
+        product: { ...approvedProduct, status: ProductStatus.SOLD },
+        order: { id: 'order-1' },
+        eligibility: { id: 'eligibility-1' },
+      });
+
+      const eventEmitter = (service as any).eventEmitter;
+
+      const result = await service.markSoldWithBuyer('p-1', 'seller-1', 'buyer-1');
+
+      expect(productsRepoMock.markSoldWithBuyerTransaction).toHaveBeenCalledWith(
+        expect.objectContaining({ productId: 'p-1', sellerId: 'seller-1', buyerId: 'buyer-1' }),
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith('product.sold', expect.objectContaining({
+        productId: 'p-1',
+        sellerId: 'seller-1',
+        buyerId: 'buyer-1',
+      }));
+      expect(result).toBeDefined();
     });
   });
 });

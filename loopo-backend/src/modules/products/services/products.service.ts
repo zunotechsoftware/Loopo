@@ -11,6 +11,7 @@ import { Queue } from 'bullmq';
 import { ProductStatus, Prisma } from '@prisma/client';
 import { S3Service } from '../../../shared/services/s3.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { AdminSettingsService } from '../../admin/settings/admin-settings.service';
 
 // Legal (fromStatus -> toStatuses) edges for the status changes that flow
 // through updateProduct()'s explicitStatus branch (publish/pause/resume/
@@ -48,6 +49,7 @@ export class ProductsService {
     @InjectQueue('search-index-update') private readonly searchIndexQueue: Queue,
     @InjectQueue('notification') private readonly notificationQueue: Queue,
     private readonly eventEmitter: EventEmitter2,
+    private readonly adminSettingsService: AdminSettingsService,
   ) {}
 
   async createProduct(dto: CreateProductDto, sellerId: string) {
@@ -274,6 +276,87 @@ export class ProductsService {
     await this.searchIndexQueue.add('index', { action: 'UPDATE', productId: id });
 
     return updated;
+  }
+
+  /** Seller marks a listing Sold and selects the buyer who completed the
+   * transaction - the sole legitimate source of seller-review eligibility
+   * (see RatingEligibility in schema.prisma). Falls back to the plain
+   * explicit-status path (no buyerId) for full backward compatibility: a
+   * seller can still mark something sold without an app-tracked buyer,
+   * exactly as before, and no Order/eligibility is created in that case.
+   */
+  async markSoldWithBuyer(id: string, sellerId: string, buyerId?: string) {
+    const product = await this.productsRepo.findById(id);
+    if (!product) {
+      throw new NotFoundException(`Listing with ID ${id} not found`);
+    }
+    if (product.sellerId !== sellerId) {
+      throw new ForbiddenException('You do not have permission to modify this listing');
+    }
+
+    if (!buyerId) {
+      // Legacy path: no buyer selected, no rating eligibility created.
+      return this.updateProduct(id, { status: ProductStatus.SOLD } as any, sellerId);
+    }
+
+    const legalTargets = PRODUCT_STATUS_TRANSITIONS[product.status] || [];
+    if (!legalTargets.includes(ProductStatus.SOLD)) {
+      throw new BadRequestException(`Cannot move listing from ${product.status} to SOLD`);
+    }
+    if (buyerId === sellerId) {
+      throw new BadRequestException('You cannot select yourself as the buyer');
+    }
+
+    const buyer = await this.productsRepo.findActiveUserById(buyerId);
+    if (!buyer || buyer.deletedAt) {
+      throw new NotFoundException('Selected buyer not found');
+    }
+
+    const hasInteraction = await this.productsRepo.hasGenuineInteraction(id, sellerId, buyerId);
+    if (!hasInteraction) {
+      throw new BadRequestException(
+        'This user has no prior interaction (chat or offer) with this listing, so they cannot be selected as the buyer.',
+      );
+    }
+
+    // Configurable rather than hardcoded (see SystemSetting
+    // 'rating_eligibility_expiry_days', admin-editable, defaults to 30).
+    let expiryDays = 30;
+    try {
+      const setting = await this.adminSettingsService.getSettingByKey('rating_eligibility_expiry_days');
+      const value = (setting?.value as any)?.value;
+      if (typeof value === 'number' && value > 0) expiryDays = value;
+    } catch {
+      // Setting missing (e.g. pre-seed environment) - fall back to default.
+    }
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + expiryDays);
+
+    const { order, eligibility } = await this.productsRepo.markSoldWithBuyerTransaction({
+      productId: id,
+      sellerId,
+      buyerId,
+      price: product.price,
+      currency: product.currency,
+      expiresAt,
+    });
+
+    await this.invalidateListingCache(id, product.slug);
+    await this.searchIndexQueue.add('index', { action: 'UPDATE', productId: id });
+
+    // Non-critical side effect (buyer notification) - the sale, order, and
+    // eligibility are already durably committed above regardless of this.
+    this.eventEmitter.emit('product.sold', {
+      productId: id,
+      productTitle: product.title,
+      sellerId,
+      buyerId,
+      orderId: order.id,
+      eligibilityId: eligibility.id,
+      expiresAt,
+    });
+
+    return this.productsRepo.findById(id);
   }
 
   async deleteProduct(id: string, sellerId: string, isAdmin = false) {

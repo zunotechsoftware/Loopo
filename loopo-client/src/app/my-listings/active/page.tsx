@@ -1,21 +1,24 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
-import { markAsSoldThunk, deleteAdThunk } from '@/redux/slices/myAdsSlice';
+import { deleteAdThunk } from '@/redux/slices/myAdsSlice';
 import { showToast } from '@/redux/slices/uiSlice';
 import { ROUTES } from '@/routes/routes';
 import { Edit3, Trash2, CheckCircle, Eye, Pause } from 'lucide-react';
+import MarkSoldModal from '@/components/ui/MarkSoldModal';
 
 export default function ActiveListingsPage() {
   const dispatch = useAppDispatch();
   // "Active" = actually live/published, not just "not sold" - a Draft or
   // Pending-review listing must not show up here as if it were live.
   const ads = useAppSelector((state) => state.myAds.ads).filter((a) => a.rawStatus === 'APPROVED');
+  const [markSoldFor, setMarkSoldFor] = useState<string | null>(null);
 
   return (
     <div className="space-y-3">
+      {markSoldFor && <MarkSoldModal productId={markSoldFor} onClose={() => setMarkSoldFor(null)} />}
       {ads.length === 0 ? (
         <div className="bg-white rounded-3xl p-12 text-center border border-slate-100 text-slate-400 font-medium text-sm">
           No active listings found.
@@ -43,14 +46,7 @@ export default function ActiveListingsPage() {
                 <Edit3 className="w-4 h-4" />
               </Link>
               <button
-                onClick={async () => {
-                  try {
-                    await dispatch(markAsSoldThunk(ad.id)).unwrap();
-                    dispatch(showToast('Marked as Sold!'));
-                  } catch (err: any) {
-                    dispatch(showToast(err || 'Failed to mark as sold'));
-                  }
-                }}
+                onClick={() => setMarkSoldFor(ad.id)}
                 className="flex items-center gap-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-xs font-bold px-3 py-2 rounded-xl"
               >
                 <CheckCircle className="w-3.5 h-3.5" />

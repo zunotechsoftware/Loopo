@@ -313,6 +313,20 @@ export class ListingSearchQueryDto {
   status?: ProductStatus;
 }
 
+// Optional on purpose: a seller can still mark a listing Sold with no
+// buyer selected (legacy/backward-compatible behaviour - e.g. the item
+// sold entirely outside the app). Only when a real buyerId is supplied
+// does this create an Order + RatingEligibility; ProductsService validates
+// that buyer actually has a genuine prior interaction with this listing
+// (an Offer or a chat Conversation) before accepting the selection - a
+// seller can't just type in an arbitrary stranger's id.
+export class MarkSoldDto {
+  @ApiPropertyOptional({ description: 'The buyer who completed this transaction - must have a real prior interaction (offer or chat) on this listing', example: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a14' })
+  @IsOptional()
+  @IsUUID()
+  buyerId?: string;
+}
+
 export class RejectProductDto {
   @ApiProperty({ description: 'The reason why the listing is being rejected', example: 'Inappropriate description or duplicate listing' })
   @IsNotEmpty()
