@@ -81,6 +81,8 @@ export class ChatRepository {
             id: true,
             title: true,
             price: true,
+            status: true,
+            location: { select: { city: true } },
             images: {
               take: 1,
             },

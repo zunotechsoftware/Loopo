@@ -23,7 +23,10 @@ export default function SellLayout({ children }: SellLayoutProps) {
     { label: 'Preview', href: ROUTES.SELL_PREVIEW, icon: Eye },
   ];
 
-  const isSuccessPage = pathname === ROUTES.SELL_SUCCESS;
+  // Bulk listing is a separate, non-stepped flow (multiple items submitted
+  // together, gated on KYC) - showing the single-item wizard's step bar on
+  // it would be misleading since none of those steps apply.
+  const hideStepper = pathname === ROUTES.SELL_SUCCESS || pathname === ROUTES.SELL_BULK;
 
   return (
     <ProtectedRoute>
@@ -37,8 +40,8 @@ export default function SellLayout({ children }: SellLayoutProps) {
             </div>
           </div>
 
-          {/* Stepper Header (shown unless on success screen) */}
-          {!isSuccessPage && (
+          {/* Stepper Header (shown unless on success screen or bulk listing) */}
+          {!hideStepper && (
             <div className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm overflow-x-auto">
               <div className="flex items-center justify-between min-w-[500px]">
                 {sellSteps.map((step, idx) => {

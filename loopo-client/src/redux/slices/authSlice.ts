@@ -26,7 +26,11 @@ function buildProfile(u: any): UserProfile | null {
     // avatar silently fell through to ProfileView's hardcoded stock photo
     // regardless of whether they'd actually uploaded one.
     avatar: u.profile?.profileImage?.fileUrl || u.avatarUrl || '',
-    isVerified: Boolean(u.isEmailVerified || u.isKycVerified),
+    // Real KYC-complete signal (Profile.verifiedBadge, set by the actual
+    // KYC approve/reject flow) - `u.isKycVerified` was never a real field
+    // any backend endpoint sent, so this always silently fell back to
+    // email-verification status, conflating two unrelated signals.
+    isVerified: Boolean(u.profile?.verifiedBadge),
     memberSince: u.createdAt
       ? new Date(u.createdAt).getFullYear().toString()
       : new Date().getFullYear().toString(),

@@ -101,13 +101,18 @@ function normaliseProduct(p: any): Product {
       memberSince: seller.createdAt
         ? new Date(seller.createdAt).getFullYear().toString()
         : '',
-      isVerified: seller.isEmailVerified || seller.isKycVerified || false,
+      // Real KYC-complete signal (Profile.verifiedBadge, set by the actual
+      // KYC approve/reject flow) - not email verification, which used to be
+      // the only thing this ever actually evaluated to, since
+      // `seller.isKycVerified` was never a field any backend endpoint sent.
+      isVerified: Boolean(seller.profile?.verifiedBadge),
     },
     description: p.description || '',
     specs: p.specs || p.attributes || {},
     viewsCount: p.viewCount || p.viewsCount || 0,
     distance: p.distance || '',
     likesCount: p.favoriteCount || p.likesCount || 0,
+    status: p.status || 'APPROVED',
   };
 }
 

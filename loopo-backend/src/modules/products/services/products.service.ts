@@ -4,7 +4,7 @@ import { CategoriesService } from '../../categories/services/categories.service'
 import { AttributesService } from '../../categories/services/attributes.service';
 import { InteractionsService } from '../../interactions/services/interactions.service';
 import { SavedSearchesService } from '../../saved-searches/services/saved-searches.service';
-import { CreateProductDto, UpdateProductDto, ListingSearchQueryDto } from '../dto/product.dto';
+import { CreateProductDto, CreateBulkProductsDto, UpdateProductDto, ListingSearchQueryDto } from '../dto/product.dto';
 import { RedisService } from '../../../shared/redis/redis.service';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
@@ -124,6 +124,42 @@ export class ProductsService {
     });
 
     return product;
+  }
+
+  /** Bulk listing creation - KYC-mandatory. A single listing (createProduct
+   * above) stays KYC-optional by design; bulk is the one path that requires
+   * a completed, APPROVED KYC verification (Profile.verifiedBadge === true -
+   * the same real flag KycService.approveKyc/rejectKyc set, not a new
+   * concept). Rejected server-side with a clear reason if unverified - this
+   * is the actual enforcement; the frontend's own gating is advisory only.
+   * Reuses createProduct per item so every validation/side-effect it already
+   * has (category check, slug generation, status history, search indexing,
+   * admin notification) applies identically to each bulk item - no
+   * duplicated listing-creation logic. One item's failure doesn't abort the
+   * rest; the response reports both sides so the caller can retry just the
+   * failed ones.
+   */
+  async createBulkProducts(dto: CreateBulkProductsDto, sellerId: string) {
+    const isVerified = await this.productsRepo.isSellerKycVerified(sellerId);
+    if (!isVerified) {
+      throw new ForbiddenException(
+        'KYC verification is required to use bulk listing. Please complete KYC verification and try again.',
+      );
+    }
+
+    const created: any[] = [];
+    const failed: { index: number; title: string; error: string }[] = [];
+
+    for (let i = 0; i < dto.items.length; i++) {
+      try {
+        const product = await this.createProduct(dto.items[i], sellerId);
+        created.push(product);
+      } catch (err: any) {
+        failed.push({ index: i, title: dto.items[i]?.title || `Item ${i + 1}`, error: err?.message || 'Failed to create this listing' });
+      }
+    }
+
+    return { created, failed, totalRequested: dto.items.length, totalCreated: created.length, totalFailed: failed.length };
   }
 
   async updateProduct(id: string, dto: UpdateProductDto, sellerId: string, isAdmin = false) {

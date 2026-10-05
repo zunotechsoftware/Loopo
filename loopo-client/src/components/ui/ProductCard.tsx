@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import { Heart, MapPin, Clock } from 'lucide-react';
+import { Heart, MapPin, Clock, ShieldCheck } from 'lucide-react';
 import { Product } from '@/types';
 
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
@@ -21,6 +21,7 @@ export default function ProductCard({ product }: ProductCardProps) {
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
   const favorites = useAppSelector((state) => state.products.favorites);
   const isFavorite = favorites.includes(product?.id || '');
+  const isSold = product?.status === 'SOLD';
 
 
   const priceNum = typeof product?.price === 'number' ? product.price : Number(product?.price) || 0;
@@ -52,7 +53,7 @@ export default function ProductCard({ product }: ProductCardProps) {
             <img
               src={product.images[0]}
               alt={product?.title || 'Product'}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ${isSold ? 'grayscale-[40%] opacity-80' : ''}`}
             />
           ) : (
             <div className="w-full h-full bg-slate-200 flex items-center justify-center text-slate-400 text-xs">
@@ -64,6 +65,13 @@ export default function ProductCard({ product }: ProductCardProps) {
           <div className="absolute top-2.5 left-2.5 bg-white/90 backdrop-blur-md text-slate-800 text-[10px] font-bold px-2.5 py-1 rounded-full shadow-sm">
             {product?.condition || 'Used'}
           </div>
+
+          {/* Sold Ribbon */}
+          {isSold && (
+            <div className="absolute inset-x-0 bottom-0 bg-slate-900/85 backdrop-blur-sm text-white text-[10px] font-extrabold tracking-wide text-center py-1.5">
+              SOLD
+            </div>
+          )}
 
           {/* Favorite Heart Button */}
           <button
@@ -91,8 +99,13 @@ export default function ProductCard({ product }: ProductCardProps) {
         {/* Content */}
         <div className="p-3.5 space-y-2">
           <div className="flex items-start justify-between gap-2">
-            <h3 className="font-bold text-slate-900 text-sm line-clamp-1 group-hover:text-emerald-600 transition-colors">
+            <h3 className="font-bold text-slate-900 text-sm line-clamp-1 group-hover:text-emerald-600 transition-colors flex items-center gap-1">
               {product?.title || 'Untitled Listing'}
+              {product?.seller?.isVerified && (
+                <span title="Verified seller" className="shrink-0 inline-flex">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" aria-label="Verified seller" />
+                </span>
+              )}
             </h3>
           </div>
 

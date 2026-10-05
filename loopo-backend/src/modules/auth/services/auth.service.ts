@@ -3,6 +3,7 @@ import {
   UnauthorizedException,
   BadRequestException,
   ConflictException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -48,9 +49,36 @@ export class AuthService {
   }
 
   // --- Login & Token Generation ---
+  /** Client/Flutter login (POST /auth/login). Admin and Super Admin accounts
+   * are explicitly rejected here - they must use adminLogin() instead. This
+   * is the actual enforcement point: the client apps never receive a token
+   * for an admin-portal-eligible account, regardless of what any frontend
+   * UI does or doesn't hide. */
   async login(user: any, ipAddress?: string, userAgent?: string) {
+    const isAdminRole = await this.authRepository.hasAdminPortalRole(user.roles || []);
+    if (isAdminRole) {
+      throw new ForbiddenException('Admin and Superadmin accounts cannot access the client application.');
+    }
+    return this.issueSession(user, ipAddress, userAgent, false);
+  }
+
+  /** Admin panel login (POST /auth/admin-login). Mirrors login()'s reverse
+   * condition - only an admin-portal-eligible account (Role.isAdminRole,
+   * see admin-roles.service.ts) may use this entry point. A plain buyer/
+   * seller account with otherwise-correct credentials is rejected here too,
+   * closing the gap where that used to be enforced only by loopo-admin's
+   * own frontend login-page check. */
+  async adminLogin(user: any, ipAddress?: string, userAgent?: string) {
+    const isAdminRole = await this.authRepository.hasAdminPortalRole(user.roles || []);
+    if (!isAdminRole) {
+      throw new ForbiddenException('This account does not have access to the admin portal.');
+    }
+    return this.issueSession(user, ipAddress, userAgent, true);
+  }
+
+  private async issueSession(user: any, ipAddress: string | undefined, userAgent: string | undefined, isAdminRole: boolean) {
     const payload = { email: user.email, sub: user.id, roles: user.roles };
-    
+
     const accessToken = this.jwtService.sign(payload, {
       secret: this.configService.get<string>('JWT_ACCESS_SECRET'),
       expiresIn: this.configService.get<string>('JWT_ACCESS_EXPIRATION', '15m') as any,
@@ -61,7 +89,7 @@ export class AuthService {
       expiresIn: this.configService.get<string>('JWT_REFRESH_EXPIRATION', '30d') as any,
     });
     const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
-    
+
     // Refresh token expiry: 30 days
     const refreshExpiry = new Date();
     refreshExpiry.setDate(refreshExpiry.getDate() + 30);
@@ -79,7 +107,6 @@ export class AuthService {
 
     // Clean sensitive properties from user object
     const { password, ...cleanUser } = user;
-    const isAdminRole = await this.authRepository.hasAdminPortalRole(user.roles || []);
 
     return {
       accessToken,

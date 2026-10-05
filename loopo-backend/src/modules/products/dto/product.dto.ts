@@ -1,5 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  ArrayMaxSize,
+  ArrayMinSize,
   IsBoolean,
   IsEnum,
   IsInt,
@@ -134,6 +136,21 @@ export class CreateProductDto {
   @Type(() => ProductAttributeDto)
   @ValidateNested({ each: true })
   attributes?: ProductAttributeDto[];
+}
+
+/** Bulk listing - KYC-gated (see ProductsService.createBulkProducts): a
+ * single listing (plain POST /products) stays KYC-optional, but creating
+ * several at once requires a completed, approved KYC verification. Capped
+ * at 50 per request as a reasonable abuse/accidental-overload guard, not
+ * something explicitly specified. */
+export class CreateBulkProductsDto {
+  @ApiProperty({ description: 'Listings to create in one bulk request (KYC-verified sellers only)', type: [CreateProductDto] })
+  @IsNotEmpty()
+  @ArrayMinSize(2)
+  @ArrayMaxSize(50)
+  @ValidateNested({ each: true })
+  @Type(() => CreateProductDto)
+  items: CreateProductDto[];
 }
 
 export class UpdateProductDto {

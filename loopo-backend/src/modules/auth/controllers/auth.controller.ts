@@ -63,6 +63,23 @@ export class AuthController {
   }
 
   @Public()
+  @UseGuards(LocalAuthGuard)
+  @Post('admin-login')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Log in to the admin portal - rejects any account that is not admin-portal-eligible (Role.isAdminRole)' })
+  @ApiResponse({ status: 200, description: 'Login successful' })
+  @ApiResponse({ status: 401, description: 'Invalid credentials' })
+  @ApiResponse({ status: 403, description: 'Account does not have admin portal access' })
+  async adminLogin(
+    @Body() loginDto: LoginDto, // Declared for Swagger Documentation
+    @Req() req: Request,
+  ) {
+    const ip = req.ip || req.socket.remoteAddress;
+    const userAgent = req.headers['user-agent'];
+    return this.authService.adminLogin(req.user, ip, userAgent);
+  }
+
+  @Public()
   @UseGuards(RefreshTokenGuard)
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
