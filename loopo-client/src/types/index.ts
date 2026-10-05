@@ -23,6 +23,12 @@ export interface Product {
   viewsCount: number;
   distance: string;
   likesCount: number;
+  /** Real backend ProductStatus (DRAFT/PENDING/APPROVED/REJECTED/EXPIRED/
+   * ARCHIVED/PAUSED/SOLD/UNDER_REVIEW). Used to gate sold-state UI (hide
+   * "Make Offer", show a Sold badge) - defaults to 'APPROVED' for any
+   * caller that hasn't been updated to pass it through yet, matching the
+   * previous implicit assumption that every product shown here was live. */
+  status: string;
 }
 
 export interface CategoryItem {
@@ -73,6 +79,13 @@ export interface Conversation {
   otherPartyName: string;
   otherPartyAvatar: string;
   otherPartyRole: 'Buyer' | 'Seller';
+  /** The real listing id this conversation is about - needed to open
+   * OfferModal (or the product detail page) for the correct listing from
+   * inside the chat, rather than whatever was last browsed elsewhere. */
+  itemId: string;
+  /** Real backend ProductStatus of the listing (e.g. 'SOLD') - lets the
+   * in-chat "Make Offer" button disable itself once the item is sold. */
+  itemStatus: string;
   itemTitle: string;
   itemPrice: string;
   itemImage: string;

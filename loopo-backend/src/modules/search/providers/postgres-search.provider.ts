@@ -129,7 +129,10 @@ export class PostgresSearchProvider implements ISearchProvider {
         // would render with no seller name and no category label, the
         // only real fields a card actually needs beyond what was here.
         seller: {
-          select: { id: true, email: true, phone: true, firstName: true, lastName: true },
+          select: {
+            id: true, email: true, phone: true, firstName: true, lastName: true,
+            profile: { select: { verifiedBadge: true } },
+          },
         },
         category: { select: { id: true, name: true, slug: true } },
         location: true,

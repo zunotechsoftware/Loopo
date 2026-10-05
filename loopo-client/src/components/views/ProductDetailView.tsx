@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { setActiveTab } from '@/redux/slices/navigationSlice';
-import { toggleFavoriteThunk } from '@/redux/slices/productsSlice';
+import { toggleFavoriteThunk, fetchProductByIdThunk } from '@/redux/slices/productsSlice';
 import {
   setOfferModalOpen,
   openReportModal,
@@ -31,67 +31,34 @@ import {
 import { setActiveConversation } from '@/redux/slices/chatSlice';
 import ProductCard from '../ui/ProductCard';
 
-import { productsApi } from '@/services/productsApi';
 import { chatApi } from '@/services/chatApi';
 
 export default function ProductDetailView() {
   const dispatch = useAppDispatch();
   const router = useRouter();
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
+  const currentUserId = useAppSelector((state) => state.auth.user?.id);
   const selectedProductId = useAppSelector((state) => state.navigation.selectedProductId);
   const products = useAppSelector((state) => state.products.items);
   const allProducts = products;
   const favorites = useAppSelector((state) => state.products.favorites);
 
-  const [fetchedProduct, setFetchedProduct] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
 
   const localProduct = products.find((p) => p?.id === selectedProductId);
-  const product = localProduct || fetchedProduct || products[0];
+  const product = localProduct || products[0];
 
+  // Reuses the same thunk/normaliser the rest of the app already uses
+  // (fetchProductsThunk's normaliseProduct) instead of a second, duplicate,
+  // out-of-sync inline mapping that used to live here - that duplicate
+  // never carried `status` at all, so there was no way for this page to
+  // know a listing was sold.
   useEffect(() => {
     if (!localProduct && selectedProductId) {
       setLoading(true);
-      productsApi.getProductById(selectedProductId).then((res) => {
-        setLoading(false);
-        if (res.success && res.data) {
-          const p = res.data as any;
-          // Real image records use `originalUrl` (see the matching fix in
-          // productsSlice.ts's normaliseProduct) - `url`/`path` don't exist
-          // on a real one, so this always produced an empty src before.
-          const images: string[] =
-            Array.isArray(p.images) && p.images.length > 0
-              ? p.images.map((img: any) => (typeof img === 'string' ? img : img?.originalUrl || img?.thumbnailUrl || img?.url || img?.path || ''))
-              : [];
-          const seller = p.seller || p.user || {};
-          setFetchedProduct({
-            id: p.id || selectedProductId,
-            title: p.title || 'Untitled Listing',
-            price: typeof p.price === 'number' ? p.price : Number(p.price) || 0,
-            location: typeof p.location === 'string' ? p.location : p.location?.city || 'India',
-            postedDate: p.createdAt ? new Date(p.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Recently',
-            category: p.category?.name || p.category || 'General',
-            condition: p.condition || 'Used',
-            images,
-            seller: {
-              id: seller.id || 's-1',
-              name: seller.firstName ? `${seller.firstName} ${seller.lastName || ''}`.trim() : (seller.name || 'Seller'),
-              avatar: seller.profile?.avatarUrl || seller.avatarUrl || '',
-              rating: seller.reputation?.averageRating || seller.rating || 0,
-              reviewCount: seller.reputation?.totalReviews || seller.reviewCount || 0,
-              memberSince: seller.createdAt ? new Date(seller.createdAt).getFullYear().toString() : '',
-              isVerified: seller.isEmailVerified || false,
-            },
-            description: p.description || '',
-            specs: p.specs || p.attributes || {},
-            viewsCount: p.viewCount || 0,
-            distance: '',
-            likesCount: p.favoriteCount || 0,
-          });
-        }
-      });
+      dispatch(fetchProductByIdThunk(selectedProductId)).finally(() => setLoading(false));
     }
-  }, [selectedProductId, localProduct]);
+  }, [selectedProductId, localProduct, dispatch]);
 
   const isFavorite = favorites.includes(product?.id || '');
   const [activeImageIndex, setActiveImageIndex] = useState(0);
@@ -137,6 +104,29 @@ export default function ProductDetailView() {
     if (product.id) dispatch(toggleFavoriteThunk({ productId: product.id, isFavorited: isFavorite }));
   };
 
+  // A sold listing stays fully visible (existing enquiries/history must
+  // remain reachable) but can no longer be offered/purchased on - the
+  // backend already enforces this (OffersService.createOffer rejects any
+  // listing whose status isn't APPROVED), this just reflects it in the UI
+  // instead of letting the buyer click into a request that always 400s.
+  // Chat intentionally stays available either way: a buyer who already
+  // negotiated a sold item may still need to arrange pickup/delivery, and
+  // the seller may still want to field other enquiries about it.
+  const isSold = product.status === 'SOLD';
+  const isOwnListing = Boolean(currentUserId) && product.seller?.id === currentUserId;
+
+  const handleMakeOffer = () => {
+    if (isSold) {
+      dispatch(showToast('This listing has already been sold and can no longer accept offers.'));
+      return;
+    }
+    if (!isAuthenticated) {
+      dispatch(setAuthModalOpen(true));
+      dispatch(showToast('Please log in to make an offer'));
+      return;
+    }
+    dispatch(setOfferModalOpen(true));
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -169,8 +159,13 @@ export default function ProductDetailView() {
             <img
               src={product.images[activeImageIndex] || product.images[0]}
               alt={product.title}
-              className="w-full h-full object-cover"
+              className={`w-full h-full object-cover ${isSold ? 'grayscale-[40%] opacity-80' : ''}`}
             />
+            {isSold && (
+              <div className="absolute top-4 left-4 bg-slate-900/90 backdrop-blur-sm text-white text-xs font-extrabold px-4 py-1.5 rounded-full tracking-wide">
+                SOLD
+              </div>
+            )}
             <button
               onClick={handleToggleFavorite}
               className={`absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center backdrop-blur-md transition-all ${
@@ -241,10 +236,15 @@ export default function ProductDetailView() {
             </div>
 
             <div className="flex items-baseline gap-3">
-              <span className="text-3xl font-black text-emerald-600">{formattedPrice}</span>
+              <span className={`text-3xl font-black ${isSold ? 'text-slate-400 line-through' : 'text-emerald-600'}`}>{formattedPrice}</span>
               <span className="bg-emerald-50 text-emerald-700 text-xs font-extrabold px-3 py-1 rounded-full border border-emerald-200">
                 {product.condition}
               </span>
+              {isSold && (
+                <span className="bg-slate-900 text-white text-xs font-extrabold px-3 py-1 rounded-full">
+                  Sold
+                </span>
+              )}
             </div>
 
             <div className="flex items-center gap-4 text-xs font-medium text-slate-500 pt-1">
@@ -289,7 +289,14 @@ export default function ProductDetailView() {
               </div>
 
               <div>
-                <div className="font-extrabold text-slate-900 text-sm">{product.seller.name}</div>
+                <div className="font-extrabold text-slate-900 text-sm flex items-center gap-1.5">
+                  {product.seller.name}
+                  {product.seller.isVerified && (
+                    <span className="bg-emerald-100 text-emerald-800 text-[9px] font-extrabold px-2 py-0.5 rounded-full">
+                      Verified Seller
+                    </span>
+                  )}
+                </div>
                 <div className="text-xs text-slate-500 font-medium">
                   Member since {product.seller.memberSince} •{' '}
                   <button
@@ -348,31 +355,39 @@ export default function ProductDetailView() {
             </div>
           </div>
 
-          {/* Action Buttons: Chat & Make Offer */}
-          <div className="grid grid-cols-2 gap-3 pt-2">
-            <button
-              onClick={handleStartChat}
-              className="flex items-center justify-center gap-2 bg-white hover:bg-slate-50 border-2 border-emerald-600 text-emerald-600 font-bold text-sm py-3.5 rounded-2xl transition-all"
-            >
-              <MessageSquare className="w-4 h-4" />
-              <span>Chat with Seller</span>
-            </button>
+          {/* Action Buttons: Chat & Make Offer. Chat stays available even
+              when sold (a buyer/seller may still need to arrange handover,
+              or the seller may want to field other enquiries); Make Offer
+              is disabled once sold since the item is no longer for sale -
+              the backend rejects it either way, this just surfaces that
+              up front instead of after a failed request. Both are hidden
+              entirely on your own listing - you can't chat with or offer
+              on yourself. */}
+          {!isOwnListing && (
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <button
+                onClick={handleStartChat}
+                className="flex items-center justify-center gap-2 bg-white hover:bg-slate-50 border-2 border-emerald-600 text-emerald-600 font-bold text-sm py-3.5 rounded-2xl transition-all"
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span>{isSold ? 'Chat about this item' : 'Chat with Seller'}</span>
+              </button>
 
-            <button
-              onClick={() => {
-                if (!isAuthenticated) {
-                  dispatch(setAuthModalOpen(true));
-                  dispatch(showToast('Please log in to make an offer'));
-                  return;
-                }
-                dispatch(setOfferModalOpen(true));
-              }}
-              className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm py-3.5 rounded-2xl shadow-md shadow-emerald-500/20 transition-all"
-            >
-              <Tag className="w-4 h-4" />
-              <span>Make Offer</span>
-            </button>
-          </div>
+              <button
+                onClick={handleMakeOffer}
+                disabled={isSold}
+                title={isSold ? 'This listing has already been sold' : undefined}
+                className={`flex items-center justify-center gap-2 font-bold text-sm py-3.5 rounded-2xl transition-all ${
+                  isSold
+                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                    : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-500/20'
+                }`}
+              >
+                <Tag className="w-4 h-4" />
+                <span>{isSold ? 'Sold' : 'Make Offer'}</span>
+              </button>
+            </div>
+          )}
 
           {/* Recommended / Similar Items Section */}
 

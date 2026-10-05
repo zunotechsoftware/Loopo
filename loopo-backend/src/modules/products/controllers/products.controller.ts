@@ -16,7 +16,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { ProductsService } from '../services/products.service';
-import { CreateProductDto, UpdateProductDto, ListingSearchQueryDto } from '../dto/product.dto';
+import { CreateProductDto, CreateBulkProductsDto, UpdateProductDto, ListingSearchQueryDto } from '../dto/product.dto';
 import { JwtAuthGuard } from '../../../shared/common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../shared/common/guards/roles.guard';
 import { PermissionsGuard } from '../../../shared/common/guards/permissions.guard';
@@ -39,6 +39,18 @@ export class ProductsController {
   async create(@Body() createProductDto: CreateProductDto, @Request() req: any) {
     const product = await this.productsService.createProduct(createProductDto, req.user.id);
     return { message: 'Listing created successfully', data: product };
+  }
+
+  @Post('bulk')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @LogAudit('CREATE_PRODUCT_BULK', 'Product')
+  @ApiOperation({ summary: 'Create multiple listings in one request - requires completed KYC verification' })
+  @ApiResponse({ status: 201, description: 'Bulk creation processed (see per-item created/failed breakdown in the response).' })
+  @ApiResponse({ status: 403, description: 'KYC verification is required to use bulk listing.' })
+  async createBulk(@Body() dto: CreateBulkProductsDto, @Request() req: any) {
+    const result = await this.productsService.createBulkProducts(dto, req.user.id);
+    return { message: `${result.totalCreated} of ${result.totalRequested} listings created successfully`, data: result };
   }
 
   @Put(':id')

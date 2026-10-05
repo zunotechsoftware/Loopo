@@ -31,6 +31,7 @@ export const ROUTES = {
   SELL_LOCATION: '/sell/location',
   SELL_PREVIEW: '/sell/preview',
   SELL_SUCCESS: '/sell/success',
+  SELL_BULK: '/sell/bulk',
 
   // 4. MY LISTINGS (Protected)
   MY_LISTINGS: '/my-listings',

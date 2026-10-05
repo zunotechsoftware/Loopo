@@ -128,7 +128,14 @@ export class ProductsRepository {
       where: { id, deletedAt: null },
       include: {
         seller: {
-          select: { id: true, email: true, phone: true, firstName: true, lastName: true },
+          select: {
+            id: true, email: true, phone: true, firstName: true, lastName: true,
+            // Real KYC-complete signal for the "Verified/Trusted Seller"
+            // badge - Profile.verifiedBadge is what KycService.approveKyc/
+            // rejectKyc actually set; without this the embedded seller
+            // object here had no way to carry it at all.
+            profile: { select: { verifiedBadge: true } },
+          },
         },
         category: true,
         location: true,
@@ -147,7 +154,14 @@ export class ProductsRepository {
       where: { slug, deletedAt: null },
       include: {
         seller: {
-          select: { id: true, email: true, phone: true, firstName: true, lastName: true },
+          select: {
+            id: true, email: true, phone: true, firstName: true, lastName: true,
+            // Real KYC-complete signal for the "Verified/Trusted Seller"
+            // badge - Profile.verifiedBadge is what KycService.approveKyc/
+            // rejectKyc actually set; without this the embedded seller
+            // object here had no way to carry it at all.
+            profile: { select: { verifiedBadge: true } },
+          },
         },
         category: true,
         location: true,
@@ -177,7 +191,14 @@ export class ProductsRepository {
       },
       include: {
         seller: {
-          select: { id: true, email: true, phone: true, firstName: true, lastName: true },
+          select: {
+            id: true, email: true, phone: true, firstName: true, lastName: true,
+            // Real KYC-complete signal for the "Verified/Trusted Seller"
+            // badge - Profile.verifiedBadge is what KycService.approveKyc/
+            // rejectKyc actually set; without this the embedded seller
+            // object here had no way to carry it at all.
+            profile: { select: { verifiedBadge: true } },
+          },
         },
         category: { select: { id: true, name: true, slug: true } },
         location: true,
@@ -307,5 +328,17 @@ export class ProductsRepository {
         },
       });
     });
+  }
+
+  /** The real, authoritative KYC-complete signal: Profile.verifiedBadge,
+   * which KycService.approveKyc/rejectKyc actually flip
+   * (true/false respectively) - not SellerProfile.kycStatus, which is a
+   * separate, seed-only field the real approve/reject flow never touches. */
+  async isSellerKycVerified(sellerId: string): Promise<boolean> {
+    const profile = await this.prisma.profile.findUnique({
+      where: { userId: sellerId },
+      select: { verifiedBadge: true },
+    });
+    return profile?.verifiedBadge === true;
   }
 }

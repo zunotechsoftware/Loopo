@@ -38,6 +38,7 @@ import {
   setReviewModalOpen,
   showToast,
 } from '@/redux/slices/uiSlice';
+import { setSelectedProductId } from '@/redux/slices/navigationSlice';
 import { useChatSocket } from '@/hooks/useChatSocket';
 
 export default function MessagesView() {
@@ -315,8 +316,13 @@ export default function MessagesView() {
                 className="w-11 h-11 rounded-xl object-cover border border-slate-100 shrink-0"
               />
               <div className="min-w-0">
-                <div className="font-extrabold text-xs text-slate-900 truncate">
+                <div className="font-extrabold text-xs text-slate-900 truncate flex items-center gap-1.5">
                   {activeConv.itemTitle}
+                  {activeConv.itemStatus === 'SOLD' && (
+                    <span className="bg-slate-900 text-white text-[9px] font-extrabold px-2 py-0.5 rounded-full shrink-0">
+                      SOLD
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 text-[11px]">
                   <span className="font-black text-emerald-600">{activeConv.itemPrice}</span>
@@ -339,13 +345,35 @@ export default function MessagesView() {
                 <span className="hidden sm:inline">Call</span>
               </button>
 
-              <button
-                onClick={() => dispatch(setOfferModalOpen(true))}
-                className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl shadow-sm transition-all"
-              >
-                <Tag className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Make Offer</span>
-              </button>
+              {/* Buyer-only: a seller viewing their own listing's chat can't
+                  make an offer on it. Disabled (not hidden) once sold, so
+                  it's clear why rather than silently disappearing. Sets the
+                  real listing id into navigation state first - previously
+                  this opened OfferModal with whatever product was last
+                  browsed elsewhere in the app, not the one this
+                  conversation is actually about. */}
+              {activeConv.type === 'buying' && (
+                <button
+                  onClick={() => {
+                    if (activeConv.itemStatus === 'SOLD') {
+                      dispatch(showToast('This listing has already been sold and can no longer accept offers.'));
+                      return;
+                    }
+                    if (activeConv.itemId) dispatch(setSelectedProductId(activeConv.itemId));
+                    dispatch(setOfferModalOpen(true));
+                  }}
+                  disabled={activeConv.itemStatus === 'SOLD'}
+                  title={activeConv.itemStatus === 'SOLD' ? 'This listing has already been sold' : undefined}
+                  className={`flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-xl shadow-sm transition-all ${
+                    activeConv.itemStatus === 'SOLD'
+                      ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                      : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                  }`}
+                >
+                  <Tag className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">{activeConv.itemStatus === 'SOLD' ? 'Sold' : 'Make Offer'}</span>
+                </button>
+              )}
 
               <button
                 onClick={() => dispatch(openReportModal({ targetType: 'USER', targetId: activeConv.otherPartyId, label: activeConv.otherPartyName }))}
