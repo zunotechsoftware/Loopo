@@ -1,29 +1,80 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import MainLayout from '@/components/layout/MainLayout';
 import ProtectedRoute from '@/routes/ProtectedRoute';
-import { Tag, CheckCircle2, XCircle, ArrowUpRight, ArrowDownLeft, Clock, DollarSign } from 'lucide-react';
+import { Tag, CheckCircle2, XCircle, Loader2, Ban } from 'lucide-react';
 import { ROUTES } from '@/routes/routes';
 import { useAppDispatch } from '@/redux/hooks';
 import { showToast } from '@/redux/slices/uiSlice';
+import { offersApi, Offer } from '@/services/offersApi';
+
+function statusBadgeClass(status: Offer['status']) {
+  if (status === 'ACCEPTED') return 'bg-emerald-100 text-emerald-700';
+  if (status === 'REJECTED') return 'bg-red-100 text-red-700';
+  if (status === 'WITHDRAWN') return 'bg-slate-100 text-slate-600';
+  return 'bg-amber-100 text-amber-700';
+}
 
 export default function OffersPage() {
   const dispatch = useAppDispatch();
   const [tab, setTab] = useState<'received' | 'made'>('received');
+  const [received, setReceived] = useState<Offer[]>([]);
+  const [made, setMade] = useState<Offer[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [actingOn, setActingOn] = useState<string | null>(null);
 
-  const offersMade = [
-    { id: 'off-101', listingTitle: 'iPhone 15 Pro Max', listingId: 'p1', offerAmount: 72000, listingPrice: 78000, status: 'PENDING', date: 'Today' },
-    { id: 'off-102', listingTitle: 'Royal Enfield Classic 350', listingId: 'p3', offerAmount: 135000, listingPrice: 145000, status: 'ACCEPTED', date: 'Yesterday' },
-  ];
+  const loadOffers = () => {
+    setLoading(true);
+    Promise.all([offersApi.getReceivedOffers(), offersApi.getMadeOffers()]).then(([receivedRes, madeRes]) => {
+      setReceived(receivedRes.success && receivedRes.data ? receivedRes.data : []);
+      setMade(madeRes.success && madeRes.data ? madeRes.data : []);
+      setLoading(false);
+    });
+  };
 
-  const offersReceived = [
-    { id: 'off-201', listingTitle: 'MacBook Air M2 16GB', listingId: 'p2', buyerName: 'Rahul Verma', offerAmount: 68000, listingPrice: 75000, status: 'PENDING', date: '2 hours ago' },
-    { id: 'off-202', listingTitle: 'Sony WH-1000XM5', listingId: 'p4', buyerName: 'Priya Sharma', offerAmount: 18000, listingPrice: 22000, status: 'REJECTED', date: '3 days ago' },
-  ];
+  useEffect(() => {
+    loadOffers();
+  }, []);
 
-  const activeOffers = tab === 'received' ? offersReceived : offersMade;
+  const handleAccept = async (id: string) => {
+    setActingOn(id);
+    const res = await offersApi.acceptOffer(id);
+    if (res.success) {
+      dispatch(showToast('Offer accepted!'));
+      loadOffers();
+    } else {
+      dispatch(showToast(res.error || 'Failed to accept offer'));
+    }
+    setActingOn(null);
+  };
+
+  const handleReject = async (id: string) => {
+    setActingOn(id);
+    const res = await offersApi.rejectOffer(id);
+    if (res.success) {
+      dispatch(showToast('Offer rejected'));
+      loadOffers();
+    } else {
+      dispatch(showToast(res.error || 'Failed to reject offer'));
+    }
+    setActingOn(null);
+  };
+
+  const handleWithdraw = async (id: string) => {
+    setActingOn(id);
+    const res = await offersApi.withdrawOffer(id);
+    if (res.success) {
+      dispatch(showToast('Offer withdrawn'));
+      loadOffers();
+    } else {
+      dispatch(showToast(res.error || 'Failed to withdraw offer'));
+    }
+    setActingOn(null);
+  };
+
+  const activeOffers = tab === 'received' ? received : made;
 
   return (
     <ProtectedRoute>
@@ -49,7 +100,7 @@ export default function OffersPage() {
                   tab === 'received' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                Received ({offersReceived.length})
+                Received ({received.length})
               </button>
               <button
                 onClick={() => setTab('made')}
@@ -57,58 +108,98 @@ export default function OffersPage() {
                   tab === 'made' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                Made ({offersMade.length})
+                Made ({made.length})
               </button>
             </div>
           </div>
 
           {/* List */}
-          <div className="space-y-3">
-            {activeOffers.map((offer: any) => (
-              <div
-                key={offer.id}
-                className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-slate-200 transition-all"
-              >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-extrabold text-slate-900 text-sm">{offer.listingTitle}</h3>
-                    <span
-                      className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full ${
-                        offer.status === 'ACCEPTED'
-                          ? 'bg-emerald-100 text-emerald-700'
-                          : offer.status === 'REJECTED'
-                          ? 'bg-red-100 text-red-700'
-                          : 'bg-amber-100 text-amber-700'
-                      }`}
-                    >
-                      {offer.status}
-                    </span>
-                  </div>
+          {loading ? (
+            <div className="bg-white rounded-3xl p-12 text-center border border-slate-100">
+              <Loader2 className="w-6 h-6 animate-spin text-emerald-600 mx-auto" />
+            </div>
+          ) : activeOffers.length === 0 ? (
+            <div className="bg-white rounded-3xl p-12 text-center border border-slate-100 text-slate-400 font-medium text-sm">
+              {tab === 'received' ? "You haven't received any offers yet." : "You haven't made any offers yet."}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {activeOffers.map((offer) => {
+                const otherParty = tab === 'received' ? offer.buyer : offer.seller;
+                const otherPartyName = `${otherParty.firstName || ''} ${otherParty.lastName || ''}`.trim() || 'User';
+                const isActing = actingOn === offer.id;
+                return (
+                  <div
+                    key={offer.id}
+                    className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-slate-200 transition-all"
+                  >
+                    <div className="space-y-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <Link
+                          href={ROUTES.LISTING_DETAIL(offer.productId)}
+                          className="font-extrabold text-slate-900 text-sm hover:underline truncate"
+                        >
+                          {offer.product?.title || 'Listing'}
+                        </Link>
+                        <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full shrink-0 ${statusBadgeClass(offer.status)}`}>
+                          {offer.status}
+                        </span>
+                      </div>
 
-                  <div className="text-xs text-slate-500 font-medium">
-                    {tab === 'received' ? `Offer by ${offer.buyerName}` : 'Your offer'} • Listing Price: ₹
-                    {offer.listingPrice.toLocaleString('en-IN')}
-                  </div>
-                </div>
+                      <div className="text-xs text-slate-500 font-medium">
+                        {tab === 'received' ? `Offer by ${otherPartyName}` : `To ${otherPartyName}`} • Listing Price: ₹
+                        {(offer.product?.price || 0).toLocaleString('en-IN')}
+                      </div>
+                      {offer.message && (
+                        <div className="text-xs text-slate-400 font-medium italic">"{offer.message}"</div>
+                      )}
+                    </div>
 
-                <div className="flex items-center gap-4">
-                  <div className="text-right">
-                    <div className="text-xs text-slate-400 font-bold uppercase">Offered Amount</div>
-                    <div className="text-lg font-black text-emerald-600">
-                      ₹{offer.offerAmount.toLocaleString('en-IN')}
+                    <div className="flex items-center gap-4 shrink-0">
+                      <div className="text-right">
+                        <div className="text-xs text-slate-400 font-bold uppercase">Offered Amount</div>
+                        <div className="text-lg font-black text-emerald-600">
+                          ₹{offer.amount.toLocaleString('en-IN')}
+                        </div>
+                      </div>
+
+                      {offer.status === 'PENDING' && tab === 'received' && (
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleAccept(offer.id)}
+                            disabled={isActing}
+                            className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-sm transition-all disabled:opacity-60"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Accept</span>
+                          </button>
+                          <button
+                            onClick={() => handleReject(offer.id)}
+                            disabled={isActing}
+                            className="flex items-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-600 font-bold text-xs px-3.5 py-2.5 rounded-xl transition-all disabled:opacity-60"
+                          >
+                            <XCircle className="w-3.5 h-3.5" />
+                            <span>Reject</span>
+                          </button>
+                        </div>
+                      )}
+
+                      {offer.status === 'PENDING' && tab === 'made' && (
+                        <button
+                          onClick={() => handleWithdraw(offer.id)}
+                          disabled={isActing}
+                          className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs px-3.5 py-2.5 rounded-xl transition-all disabled:opacity-60"
+                        >
+                          <Ban className="w-3.5 h-3.5" />
+                          <span>Withdraw</span>
+                        </button>
+                      )}
                     </div>
                   </div>
-
-                  <Link
-                    href={ROUTES.OFFER_DETAIL(offer.id)}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-sm transition-all"
-                  >
-                    View Details
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </MainLayout>
     </ProtectedRoute>
