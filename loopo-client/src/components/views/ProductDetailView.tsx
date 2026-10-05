@@ -75,6 +75,7 @@ export default function ProductDetailView() {
   }, [selectedProductId, localProduct, dispatch]);
 
   const isFavorite = favorites.includes(product?.id || '');
+  const myAcceptedOffer = useAppSelector((state) => state.offers.myAcceptedOffers[product?.id || '']);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
   if (loading || !product) {
@@ -85,12 +86,14 @@ export default function ProductDetailView() {
     );
   }
 
-  const priceNum = typeof product.price === 'number' ? product.price : Number(product.price) || 0;
-  const formattedPrice = new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 0,
-  }).format(priceNum);
+  const listingPriceNum = typeof product.price === 'number' ? product.price : Number(product.price) || 0;
+  // Once this buyer's own offer on this listing was accepted, that's the
+  // real agreed price - the seller's original listing price would
+  // contradict what Offers and the chat with the seller already show them.
+  const priceNum = myAcceptedOffer ?? listingPriceNum;
+  const formatCurrency = (n: number) =>
+    new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
+  const formattedPrice = formatCurrency(priceNum);
 
   const handleStartChat = async () => {
     if (!isAuthenticated) {
@@ -249,14 +252,22 @@ export default function ProductDetailView() {
               </div>
             </div>
 
-            <div className="flex items-baseline gap-3">
+            <div className="flex items-baseline gap-3 flex-wrap">
               <span className={`text-3xl font-black ${isSold ? 'text-slate-400 line-through' : 'text-emerald-600'}`}>{formattedPrice}</span>
+              {myAcceptedOffer != null && (
+                <span className="text-sm text-slate-400 line-through">{formatCurrency(listingPriceNum)}</span>
+              )}
               <span className="bg-emerald-50 text-emerald-700 text-xs font-extrabold px-3 py-1 rounded-full border border-emerald-200">
                 {product.condition}
               </span>
               {isSold && (
                 <span className="bg-slate-900 text-white text-xs font-extrabold px-3 py-1 rounded-full">
                   Sold
+                </span>
+              )}
+              {myAcceptedOffer != null && (
+                <span className="bg-emerald-100 text-emerald-800 text-[10px] font-extrabold px-3 py-1 rounded-full">
+                  Your offer accepted
                 </span>
               )}
             </div>

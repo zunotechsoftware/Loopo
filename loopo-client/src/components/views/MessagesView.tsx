@@ -49,6 +49,15 @@ export default function MessagesView() {
   const chatFilterTab = useAppSelector((state) => state.chat.chatFilterTab);
   const currentUserId = useAppSelector((state) => state.auth.user?.id);
   const pendingRatings = useAppSelector((state) => state.ratings.pendingRatings);
+  const myAcceptedOffers = useAppSelector((state) => state.offers.myAcceptedOffers);
+
+  // Once this buyer's offer on an item was accepted, that negotiated amount
+  // - not the seller's original listing price baked into the conversation
+  // summary - is what they actually agreed to pay.
+  const displayItemPrice = (itemId: string, fallback: string) => {
+    const accepted = myAcceptedOffers[itemId];
+    return accepted != null ? `₹${accepted.toLocaleString('en-IN')}` : fallback;
+  };
 
   // Fetch real conversations from API on mount
   useEffect(() => {
@@ -294,7 +303,7 @@ export default function MessagesView() {
                     </div>
 
                     <div className="text-[11px] font-bold text-emerald-600 truncate mt-0.5">
-                      {conv.itemTitle} • {conv.itemPrice}
+                      {conv.itemTitle} • {displayItemPrice(conv.itemId, conv.itemPrice)}
                     </div>
                     <div className="text-[11px] font-medium text-slate-500 truncate">
                       {conv.lastMessage}
@@ -328,7 +337,7 @@ export default function MessagesView() {
                   )}
                 </div>
                 <div className="flex items-center gap-2 text-[11px]">
-                  <span className="font-black text-emerald-600">{activeConv.itemPrice}</span>
+                  <span className="font-black text-emerald-600">{displayItemPrice(activeConv.itemId, activeConv.itemPrice)}</span>
                   <span className="text-slate-300">•</span>
                   <span className="text-slate-400 font-medium flex items-center gap-0.5 truncate">
                     <MapPin className="w-3 h-3 text-slate-400" />

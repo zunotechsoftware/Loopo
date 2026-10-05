@@ -9,6 +9,7 @@ import notificationsReducer from './slices/notificationsSlice';
 import authReducer from './slices/authSlice';
 import sellReducer from './slices/sellSlice';
 import ratingsReducer from './slices/ratingsSlice';
+import offersReducer from './slices/offersSlice';
 
 export const store = configureStore({
   reducer: {
@@ -22,6 +23,7 @@ export const store = configureStore({
     auth: authReducer,
     sell: sellReducer,
     ratings: ratingsReducer,
+    offers: offersReducer,
   },
 });
 
