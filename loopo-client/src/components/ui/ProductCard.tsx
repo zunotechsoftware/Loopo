@@ -20,16 +20,20 @@ export default function ProductCard({ product }: ProductCardProps) {
   const router = useRouter();
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
   const favorites = useAppSelector((state) => state.products.favorites);
+  const myAcceptedOffer = useAppSelector((state) => state.offers.myAcceptedOffers[product?.id || '']);
   const isFavorite = favorites.includes(product?.id || '');
   const isSold = product?.status === 'SOLD';
 
 
-  const priceNum = typeof product?.price === 'number' ? product.price : Number(product?.price) || 0;
-  const formattedPrice = new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 0,
-  }).format(priceNum);
+  const listingPriceNum = typeof product?.price === 'number' ? product.price : Number(product?.price) || 0;
+  // Once this buyer's offer on this listing has been accepted, that's the
+  // real price they agreed to pay - showing the seller's original listing
+  // price here instead would contradict what Offers/the chat with the
+  // seller already tell them.
+  const priceNum = myAcceptedOffer ?? listingPriceNum;
+  const formatCurrency = (n: number) =>
+    new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
+  const formattedPrice = formatCurrency(priceNum);
 
   const locationStr = typeof product?.location === 'string' ? product.location : (product?.location as any)?.city || 'India';
   const displayLocation = locationStr.split(',')[0] || 'India';
@@ -109,8 +113,16 @@ export default function ProductCard({ product }: ProductCardProps) {
             </h3>
           </div>
 
-          <div className="text-base font-extrabold text-emerald-600">
-            {formattedPrice}
+          <div className="flex items-center gap-1.5">
+            <span className="text-base font-extrabold text-emerald-600">{formattedPrice}</span>
+            {myAcceptedOffer != null && (
+              <>
+                <span className="text-[11px] text-slate-400 line-through">{formatCurrency(listingPriceNum)}</span>
+                <span className="text-[9px] font-extrabold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full">
+                  Your offer accepted
+                </span>
+              </>
+            )}
           </div>
 
           <div className="flex items-center justify-between text-[11px] font-medium text-slate-400 pt-1 border-t border-slate-50">
