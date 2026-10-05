@@ -8,6 +8,7 @@ export enum ReportTargetTypeDto {
   CHAT_MESSAGE = 'CHAT_MESSAGE',
   CATEGORY = 'CATEGORY',
   SYSTEM = 'SYSTEM',
+  REVIEW = 'REVIEW',
 }
 
 export class EvidenceDto {

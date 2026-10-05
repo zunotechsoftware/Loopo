@@ -4,10 +4,12 @@ import { UsersController } from './controllers/users.controller';
 import { UsersService } from './services/users.service';
 import { UsersRepository } from './repositories/users.repository';
 import { ProfileImageProcessingProcessor } from '../../shared/queues/processors/profile-image-processing.processor';
+import { ReputationModule } from '../reputation/reputation.module';
 
 @Module({
   imports: [
     BullModule.registerQueue({ name: 'profile-image-processing' }),
+    ReputationModule,
   ],
   controllers: [UsersController],
   providers: [UsersService, UsersRepository, ProfileImageProcessingProcessor],

@@ -8,6 +8,7 @@ import uiReducer from './slices/uiSlice';
 import notificationsReducer from './slices/notificationsSlice';
 import authReducer from './slices/authSlice';
 import sellReducer from './slices/sellSlice';
+import ratingsReducer from './slices/ratingsSlice';
 
 export const store = configureStore({
   reducer: {
@@ -20,6 +21,7 @@ export const store = configureStore({
     notifications: notificationsReducer,
     auth: authReducer,
     sell: sellReducer,
+    ratings: ratingsReducer,
   },
 });
 

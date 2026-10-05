@@ -120,13 +120,19 @@ export class ReputationService {
   }
 
   async getUserRating(userId: string) {
+    // Rating distribution (1-5 star counts) is cheap to compute alongside
+    // the existing summary and lets every consumer of this one endpoint
+    // (seller profile, product page, dedicated Reviews page) render the
+    // distribution bars without a second round trip or its own formula.
+    const distribution = await this.reviewsRepository.getRatingDistribution(userId);
+
     // Try cache first
     const cached = await this.redisService.get(`reputation:seller:${userId}`);
     if (cached) {
       const sellerStats = JSON.parse(cached);
       const reputation = await this.reputationRepository.getReputationScore(userId);
       const trust = await this.reputationRepository.getTrustScore(userId);
-      return { sellerStats, reputation, trust };
+      return { sellerStats, reputation, trust, distribution };
     }
 
     const sellerStats = await this.reputationRepository.getSellerStats(userId);
@@ -134,7 +140,7 @@ export class ReputationService {
     const reputation = await this.reputationRepository.getReputationScore(userId);
     const trust = await this.reputationRepository.getTrustScore(userId);
 
-    return { sellerStats, buyerStats, reputation, trust };
+    return { sellerStats, buyerStats, reputation, trust, distribution };
   }
 
   async getProductRating(productId: string) {

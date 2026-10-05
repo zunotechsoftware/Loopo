@@ -5,7 +5,7 @@ import { notificationsApi } from '@/services/notificationsApi';
 interface NotificationsState {
   items: NotificationItem[];
   unreadCount: number;
-  filterTab: 'all' | 'unread' | 'offers' | 'chats' | 'system';
+  filterTab: 'all' | 'unread' | 'offers' | 'chats' | 'system' | 'ratings';
   loading: boolean;
 }
 
@@ -24,6 +24,7 @@ function mapType(type: string): NotificationType {
   if (t.includes('chat') || t.includes('message')) return 'chat';
   if (t.includes('kyc') || t.includes('verification')) return 'kyc';
   if (t.includes('boost') || t.includes('ad')) return 'ad_boost';
+  if (t.includes('rating') || t.includes('review')) return 'rating';
   if (t.includes('security') || t.includes('login')) return 'security';
   return 'security';
 }
@@ -69,7 +70,7 @@ export const notificationsSlice = createSlice({
   reducers: {
     setNotificationsFilterTab: (
       state,
-      action: PayloadAction<'all' | 'unread' | 'offers' | 'chats' | 'system'>
+      action: PayloadAction<'all' | 'unread' | 'offers' | 'chats' | 'system' | 'ratings'>
     ) => {
       state.filterTab = action.payload;
     },

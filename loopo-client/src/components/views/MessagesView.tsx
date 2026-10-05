@@ -35,10 +35,11 @@ import {
 import {
   setOfferModalOpen,
   openReportModal,
-  setReviewModalOpen,
+  openReviewModal,
   showToast,
 } from '@/redux/slices/uiSlice';
 import { setSelectedProductId } from '@/redux/slices/navigationSlice';
+import { fetchPendingRatingsThunk } from '@/redux/slices/ratingsSlice';
 import { useChatSocket } from '@/hooks/useChatSocket';
 
 export default function MessagesView() {
@@ -47,10 +48,12 @@ export default function MessagesView() {
   const activeConversationId = useAppSelector((state) => state.chat.activeConversationId);
   const chatFilterTab = useAppSelector((state) => state.chat.chatFilterTab);
   const currentUserId = useAppSelector((state) => state.auth.user?.id);
+  const pendingRatings = useAppSelector((state) => state.ratings.pendingRatings);
 
   // Fetch real conversations from API on mount
   useEffect(() => {
     dispatch(fetchConversationsThunk());
+    dispatch(fetchPendingRatingsThunk());
   }, [dispatch]);
 
   // Real-time: messages/conversation updates arrive over the same
@@ -418,12 +421,25 @@ export default function MessagesView() {
                   <strong>Safety Tip:</strong> Inspect item in person before making payment. Never transfer money online in advance.
                 </span>
               </div>
-              <button
-                onClick={() => dispatch(setReviewModalOpen(true))}
-                className="text-[11px] font-extrabold text-emerald-700 underline shrink-0 ml-2"
-              >
-                Rate Seller
-              </button>
+              {activeConv.type === 'buying' && (() => {
+                const pendingMatch = pendingRatings.find(
+                  (p) => p.sellerId === activeConv.otherPartyId && p.productId === activeConv.itemId,
+                );
+                if (!pendingMatch) return null;
+                return (
+                  <button
+                    onClick={() => dispatch(openReviewModal({
+                      eligibilityId: pendingMatch.id,
+                      sellerName: activeConv.otherPartyName,
+                      productTitle: activeConv.itemTitle,
+                      productImage: activeConv.itemImage,
+                    }))}
+                    className="text-[11px] font-extrabold text-emerald-700 underline shrink-0 ml-2"
+                  >
+                    Rate Seller
+                  </button>
+                );
+              })()}
             </div>
 
             {/* Render Messages */}

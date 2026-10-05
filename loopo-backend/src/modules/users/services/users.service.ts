@@ -6,6 +6,7 @@ import { S3Service } from '../../../shared/services/s3.service';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { UpdateProfileDto } from '../dto/profile.dto';
+import { ReputationRepository } from '../../reputation/repositories/reputation.repository';
 
 @Injectable()
 export class UsersService {
@@ -14,6 +15,7 @@ export class UsersService {
     private readonly redisService: RedisService,
     private readonly s3Service: S3Service,
     @InjectQueue('profile-image-processing') private readonly profileImageQueue: Queue,
+    private readonly reputationRepository: ReputationRepository,
   ) {}
 
   // --- Core User Operations ---
@@ -293,18 +295,25 @@ export class UsersService {
 
     const { profile } = user;
 
-    const [totalListings, completedSales, ratingSummary] = await Promise.all([
+    // Reuses the same SellerStatistics row ReputationService.
+    // recalculateSellerStats maintains (positivePercent = 4-5 star / total,
+    // the one centralized formula) instead of this profile running its own
+    // separate live rating aggregate - two call sites computing "average
+    // rating" slightly differently is exactly the kind of drift that makes
+    // numbers disagree between the seller profile and the Reviews page.
+    const [totalListings, completedSales, sellerStats] = await Promise.all([
       this.usersRepository.countApprovedListings(userId),
       this.usersRepository.countSoldListings(userId),
-      this.usersRepository.getSellerRatingSummary(userId),
+      this.reputationRepository.getSellerStats(userId),
     ]);
 
     return {
       id: user.id,
       displayName: profile.displayName || 'Seller',
       profilePicture: profile.profileImage?.fileUrl || null,
-      sellerRating: Math.round(ratingSummary.average * 10) / 10,
-      reviewCount: ratingSummary.count,
+      sellerRating: sellerStats?.averageRating || 0,
+      reviewCount: sellerStats?.totalReviews || 0,
+      positivePercent: sellerStats?.positivePercent || 0,
       memberSince: user.createdAt,
       verifiedBadge: profile.verifiedBadge,
       totalListings,

@@ -118,7 +118,14 @@ export const analyticsService = {
 // PATCH, not a hard DELETE (deleting also triggers a rating-recalculation
 // job on the backend, which a hard DELETE route would have no hook for).
 export const reviewsService = {
-  getAll: (params?: { skip?: number; take?: number; type?: string }) => api.get('/admin/reviews', { params }),
+  getAll: (params?: {
+    skip?: number;
+    take?: number;
+    type?: string;
+    isVisible?: boolean;
+    search?: string;
+    reportedOnly?: boolean;
+  }) => api.get('/admin/reviews', { params }),
   getById: (id: string) => api.get(`/admin/reviews/${id}`),
   hide: (id: string) => api.patch(`/admin/reviews/${id}/hide`),
   restore: (id: string) => api.patch(`/admin/reviews/${id}/restore`),

@@ -37,10 +37,21 @@ function saveLocation(loc: LocationData) {
 }
 
 export interface ReportTarget {
-  targetType: 'LISTING' | 'USER' | 'CHAT_MESSAGE';
+  targetType: 'LISTING' | 'USER' | 'CHAT_MESSAGE' | 'REVIEW';
   targetId: string;
   /** Display-only label shown in the modal ("this listing" / a seller's name / etc). */
   label: string;
+}
+
+/** The modal can only ever rate a transaction with a real, server-issued
+ * RatingEligibility id - there's no "open blank and let the user pick a
+ * seller" mode, since the backend would reject anything that doesn't
+ * resolve to a real pending eligibility anyway. */
+export interface ReviewTarget {
+  eligibilityId: string;
+  sellerName: string;
+  productTitle: string;
+  productImage?: string | null;
 }
 
 interface UiState {
@@ -50,6 +61,7 @@ interface UiState {
   isReportModalOpen: boolean;
   reportTarget: ReportTarget | null;
   isReviewModalOpen: boolean;
+  reviewTarget: ReviewTarget | null;
   isAddressModalOpen: boolean;
   isAuthModalOpen: boolean;
   offerAmount: string;
@@ -67,6 +79,7 @@ const initialState: UiState = {
   isReportModalOpen: false,
   reportTarget: null,
   isReviewModalOpen: false,
+  reviewTarget: null,
   isAddressModalOpen: false,
   isAuthModalOpen: false,
   offerAmount: '',
@@ -98,6 +111,11 @@ export const uiSlice = createSlice({
     },
     setReviewModalOpen: (state, action: PayloadAction<boolean>) => {
       state.isReviewModalOpen = action.payload;
+      if (!action.payload) state.reviewTarget = null;
+    },
+    openReviewModal: (state, action: PayloadAction<ReviewTarget>) => {
+      state.isReviewModalOpen = true;
+      state.reviewTarget = action.payload;
     },
     setAddressModalOpen: (state, action: PayloadAction<boolean>) => {
       state.isAddressModalOpen = action.payload;
@@ -135,6 +153,7 @@ export const {
   setReportModalOpen,
   openReportModal,
   setReviewModalOpen,
+  openReviewModal,
   setAddressModalOpen,
   setAuthModalOpen,
   setLocation,

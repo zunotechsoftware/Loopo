@@ -160,51 +160,54 @@ export interface AnalyticsSummary {
 }
 
 // --- Review Types ---
-export interface ReviewModerationLog {
-  action: string;
-  moderator: string;
-  timestamp: string;
-  note?: string;
+// Matches the real backend Review entity (reviews/repositories/reviews.
+// repository.ts) - a review's only real moderation states are visible/
+// hidden/soft-deleted (Review.isVisible + deletedAt). There is no
+// "Submitted/Under Review/Approved/Published/Flagged" pipeline on the
+// backend at all, so the admin UI must not invent one.
+export interface ReviewRating {
+  overall: number;
+  communication: number | null;
+  responseTime: number | null;
+  productAccuracy: number | null;
+  deliveryExperience: number | null;
+  behaviour: number | null;
+  valueForMoney: number | null;
+  wouldRecommend: boolean | null;
 }
 
 export interface ReviewResponse {
-  text: string;
-  responder: string;
+  id: string;
+  content: string;
   createdAt: string;
-  isPublic: boolean;
+  editedAt: string | null;
 }
 
-export interface ReviewRatingBreakdown {
-  quality: number;
-  value: number;
-  delivery: number;
-  customerService: number;
+export interface ReviewReport {
+  id: string;
+  reasonCode: string;
+  details: string;
+  status: string;
+  createdAt: string;
+  reporter: { id: string; firstName: string; lastName: string; email: string };
+  reason?: { code: string; label: string };
 }
 
 export interface Review {
   id: string;
-  title?: string;
-  productId: string;
-  productTitle: string;
-  productImage?: string;
-  productCategory?: string;
-  vendorId?: string;
-  vendorName?: string;
-  userId: string;
-  userName: string;
-  userEmail?: string;
-  userAvatar?: string;
-  rating: number;
-  ratingBreakdown?: ReviewRatingBreakdown;
-  comment: string;
-  status: 'Submitted' | 'Under Review' | 'Approved' | 'Rejected' | 'Published' | 'Hidden' | 'Flagged' | 'Removed';
-  orderId?: string;
+  reviewType: 'SELLER_REVIEW' | 'BUYER_REVIEW' | 'PRODUCT_REVIEW' | 'TRANSACTION_REVIEW';
+  title: string | null;
+  content: string | null;
+  isVerified: boolean;
+  isVisible: boolean;
+  deletedAt: string | null;
   createdAt: string;
-  isEdited?: boolean;
-  isReported?: boolean;
-  reportReason?: string;
-  response?: ReviewResponse;
-  moderationHistory?: ReviewModerationLog[];
+  reviewer: { id: string; firstName: string; lastName: string; email?: string };
+  targetUser: { id: string; firstName: string; lastName: string; email?: string } | null;
+  product: { id: string; title: string } | null;
+  ratings: ReviewRating[];
+  response?: ReviewResponse | null;
+  reports?: ReviewReport[];
 }
 
 // --- Notification Types ---

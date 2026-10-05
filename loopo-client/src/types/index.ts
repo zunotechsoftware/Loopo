@@ -4,6 +4,9 @@ export interface ProductSeller {
   avatar: string;
   rating: number;
   reviewCount: number;
+  /** % of visible reviews rated 4-5 stars - same centralized definition
+   * used everywhere else (ReputationService.recalculateSellerStats). */
+  positivePercent: number;
   memberSince: string;
   isVerified: boolean;
 }
@@ -107,7 +110,8 @@ export type NotificationType =
   | 'kyc'
   | 'ad_boost'
   | 'security'
-  | 'listing';
+  | 'listing'
+  | 'rating';
 
 
 export interface NotificationItem {

@@ -418,6 +418,7 @@ async function main() {
     { code: 'SCAM', label: 'Suspected scam or suspicious offer' },
     { code: 'ILLEGAL_ITEM', label: 'Sale of prohibited or illegal items' },
     { code: 'COUNTERFEIT', label: 'Counterfeit or replica products' },
+    { code: 'FAKE_REVIEW', label: 'Fake, manipulated, or dishonest review' },
     { code: 'OTHER', label: 'Other violation' },
   ];
 
@@ -440,6 +441,7 @@ async function main() {
     { key: 'min_payout', value: { value: 50 }, group: 'GENERAL', description: 'Minimum balance a seller can request as payout' },
     { key: 'maintenance_mode', value: { value: false }, group: 'GENERAL', description: 'When enabled, the storefront shows a maintenance page to buyers' },
     { key: 'auto_approve', value: { value: false }, group: 'GENERAL', description: 'When enabled, new listings publish immediately instead of waiting for moderator approval' },
+    { key: 'rating_eligibility_expiry_days', value: { value: 30 }, group: 'GENERAL', description: 'Days a buyer has to rate a seller after the seller marks a listing Sold and selects them as the buyer, before the invitation expires' },
   ];
   for (const setting of systemSettings) {
     await prisma.systemSetting.upsert({
@@ -449,6 +451,30 @@ async function main() {
     });
   }
   console.log('System settings seeded.');
+
+  // 10d. Seed Review Tags (predefined, admin-curated tags a buyer can
+  // attach to a seller review) - stored in the DB rather than hardcoded in
+  // the frontend so the set is extensible and selections are validated
+  // against real rows.
+  const reviewTags = [
+    { slug: 'good-communication', label: 'Good communication', sortOrder: 1 },
+    { slug: 'accurate-listing', label: 'Accurate listing', sortOrder: 2 },
+    { slug: 'friendly-seller', label: 'Friendly seller', sortOrder: 3 },
+    { slug: 'professional', label: 'Professional', sortOrder: 4 },
+    { slug: 'on-time', label: 'On time', sortOrder: 5 },
+    { slug: 'smooth-transaction', label: 'Smooth transaction', sortOrder: 6 },
+    { slug: 'good-behaviour', label: 'Good behaviour', sortOrder: 7 },
+    { slug: 'item-as-described', label: 'Item as described', sortOrder: 8 },
+    { slug: 'easy-to-deal-with', label: 'Easy to deal with', sortOrder: 9 },
+  ];
+  for (const tag of reviewTags) {
+    await prisma.reviewTag.upsert({
+      where: { slug: tag.slug },
+      update: { label: tag.label, sortOrder: tag.sortOrder },
+      create: tag,
+    });
+  }
+  console.log('Review tags seeded.');
 
   // 10c. Seed Feature Flags (admin/settings "Feature Flags" tab)
   const featureFlags = [
