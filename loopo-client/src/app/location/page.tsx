@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import {
@@ -18,6 +19,17 @@ import {
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { setLocationData, showToast } from '@/redux/slices/uiSlice';
 import { ROUTES } from '@/routes/routes';
+
+// Leaflet touches `window` at import time, so it can only ever run in the
+// browser - loading it during SSR/static generation throws immediately.
+const LocationPickerMap = dynamic(() => import('@/components/ui/LocationPickerMap'), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full flex items-center justify-center text-slate-400 text-xs font-bold">
+      Loading map...
+    </div>
+  ),
+});
 
 export default function LocationPage() {
   const router = useRouter();
@@ -53,7 +65,6 @@ export default function LocationPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [radiusKm, setRadiusKm] = useState(currentLocationData.radiusKm || 15);
   const [isDetectingGps, setIsDetectingGps] = useState(false);
-  const [pinPosition, setPinPosition] = useState({ x: 50, y: 50 }); // Map Pin % offset
   // Real coordinates backing the current selection - kept in sync so Save
   // always has something to feed the backend's radius search with, not
   // just a display string it can't compute a "nearby" query from.
@@ -128,12 +139,14 @@ export default function LocationPage() {
     }
   };
 
-  const handleMapClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = Math.round(((e.clientX - rect.left) / rect.width) * 100);
-    const y = Math.round(((e.clientY - rect.top) / rect.height) * 100);
-    setPinPosition({ x, y });
-    dispatch(showToast(`Pin adjusted within ${selectedCity.split(',')[0]} (${radiusKm} km radius)`));
+  // Clicking or dragging the pin on the real map - sets the real
+  // coordinates immediately (for instant visual feedback) and reverse-
+  // geocodes them the same way GPS detection does, so the city/state shown
+  // and the coordinates actually saved always agree with where the pin
+  // really is, not just whatever was last picked from a city list.
+  const handleMapPick = async (lat: number, lng: number) => {
+    setCoords({ lat, lng });
+    await applyIpFallback(lat, lng);
   };
 
   const handleSave = (e: React.FormEvent) => {
@@ -204,48 +217,23 @@ export default function LocationPage() {
                 </span>
               </div>
 
-              {/* Simulated Map Canvas */}
-              <div
-                onClick={handleMapClick}
-                className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-slate-950 border border-slate-800 cursor-crosshair group"
-              >
-                {/* Map Grid Pattern background */}
-                <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#10b981_1px,transparent_1px)] [background-size:16px_16px]" />
+              {/* Real interactive map (Leaflet + OpenStreetMap, no API key
+                  needed) - click anywhere or drag the pin to set your real
+                  coordinates, reverse-geocoded live via the same BigDataCloud
+                  lookup GPS detection uses. */}
+              <div className="relative aspect-[4/3] rounded-2xl overflow-hidden border border-slate-800">
+                {coords && (
+                  <LocationPickerMap
+                    lat={coords.lat}
+                    lng={coords.lng}
+                    radiusKm={radiusKm}
+                    onPick={handleMapPick}
+                  />
+                )}
 
-                {/* Simulated Roads / Geography Visual */}
-                <svg className="absolute inset-0 w-full h-full opacity-30 stroke-slate-700" strokeWidth="2">
-                  <line x1="0" y1="30%" x2="100%" y2="70%" />
-                  <line x1="20%" y1="0" x2="80%" y2="100%" />
-                  <circle cx="50%" cy="50%" r="28%" fill="none" stroke="#059669" strokeDasharray="4 4" />
-                </svg>
-
-                {/* Pin dropped marker */}
-                <div
-                  className="absolute transform -translate-x-1/2 -translate-y-full transition-all duration-300 pointer-events-none"
-                  style={{ left: `${pinPosition.x}%`, top: `${pinPosition.y}%` }}
-                >
-                  <div className="relative flex flex-col items-center">
-                    <div className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/50 animate-bounce">
-                      <MapPin className="w-5 h-5 fill-white" />
-                    </div>
-                    <div className="w-3 h-1.5 bg-black/40 rounded-full blur-[1px] mt-1" />
-                  </div>
-                </div>
-
-                {/* Radius Circle Indicator */}
-                <div
-                  className="absolute rounded-full border-2 border-emerald-500/40 bg-emerald-500/10 pointer-events-none transform -translate-x-1/2 -translate-y-1/2"
-                  style={{
-                    left: `${pinPosition.x}%`,
-                    top: `${pinPosition.y}%`,
-                    width: `${Math.min(radiusKm * 6, 80)}%`,
-                    height: `${Math.min(radiusKm * 6, 80)}%`,
-                  }}
-                />
-
-                <div className="absolute bottom-3 left-3 right-3 bg-slate-900/90 backdrop-blur-md px-3 py-2 rounded-xl text-[11px] font-bold text-slate-300 flex items-center justify-between border border-slate-800">
+                <div className="absolute bottom-3 left-3 right-3 bg-slate-900/90 backdrop-blur-md px-3 py-2 rounded-xl text-[11px] font-bold text-slate-300 flex items-center justify-between border border-slate-800 pointer-events-none z-[1000]">
                   <span className="line-clamp-1">Pin Location: {selectedCity}</span>
-                  <span className="text-[10px] text-emerald-400 font-extrabold shrink-0">Click map to adjust</span>
+                  <span className="text-[10px] text-emerald-400 font-extrabold shrink-0">Click or drag pin to adjust</span>
                 </div>
               </div>
 
