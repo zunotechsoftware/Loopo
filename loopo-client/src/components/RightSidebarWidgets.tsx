@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { MapPin, SlidersHorizontal, Rocket, Check } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import {
@@ -10,21 +11,43 @@ import {
   setPriceRange,
   resetFilters,
 } from '@/redux/slices/productsSlice';
+import { openProductDetail } from '@/redux/slices/navigationSlice';
 import { showToast } from '@/redux/slices/uiSlice';
+import { ROUTES } from '@/routes/routes';
+
+function formatDistance(km: number): string {
+  if (km < 1) return `${Math.round(km * 1000)} m away`;
+  return `${km.toFixed(1)} km away`;
+}
 
 export default function RightSidebarWidgets() {
   const dispatch = useAppDispatch();
+  const router = useRouter();
   const filters = useAppSelector((state) => state.products.filters);
+  const nearbyResults = useAppSelector((state) => state.products.searchResults);
+  const locationData = useAppSelector((state) => state.ui.locationData);
+  const hasCoords = locationData.latitude !== undefined && locationData.longitude !== undefined;
 
   const [minInput, setMinInput] = useState(filters.minPrice === 0 ? '' : filters.minPrice.toString());
   const [maxInput, setMaxInput] = useState(filters.maxPrice === 500000 ? '' : filters.maxPrice.toString());
 
-  const nearLocations = [
-    { name: 'Koramangala', distance: '1.2 km away' },
-    { name: 'HSR Layout', distance: '2.3 km away' },
-    { name: 'Electronic City', distance: '3.8 km away' },
-    { name: 'Marathahalli', distance: '4.5 km away' },
-  ];
+  // Real nearby locations, derived from the same geo-radius search Home
+  // already runs for its own "Near You" section - previously this was four
+  // hardcoded Bangalore neighbourhoods shown to every visitor regardless of
+  // where they actually were (or whether this marketplace has any real
+  // listings near them at all). Deduped by area/city since most seeded
+  // listings don't have a locality-level area set, keeping the closest
+  // (first, since results already arrive sorted by distance) for each.
+  const nearLocations: { id: string; name: string; distanceKm: number }[] = [];
+  const seenNames = new Set<string>();
+  for (const product of nearbyResults) {
+    if (typeof product.distance !== 'number') continue;
+    const name = product.area || product.location;
+    if (!name || seenNames.has(name)) continue;
+    seenNames.add(name);
+    nearLocations.push({ id: product.id, name, distanceKm: product.distance });
+    if (nearLocations.length >= 4) break;
+  }
 
   const handleApplyFilters = () => {
     const min = minInput ? parseInt(minInput, 10) : 0;
@@ -35,34 +58,65 @@ export default function RightSidebarWidgets() {
 
   return (
     <aside className="w-80 space-y-6 hidden xl:block shrink-0">
-      {/* Widget 1: Near You Locations */}
+      {/* Widget 1: Near You Locations - real, from the same geo-radius
+          search Home runs, not a fixed Bangalore neighbourhood list. */}
       <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2 font-bold text-slate-800 text-sm">
             <MapPin className="w-4 h-4 text-emerald-600" />
             <span>Near you</span>
           </div>
-          <button className="text-xs font-semibold text-emerald-600 hover:underline">View all</button>
+          {hasCoords && nearLocations.length > 0 && (
+            <button
+              onClick={() => {
+                dispatch(setNearbyOnly(true));
+                router.push(ROUTES.SEARCH);
+              }}
+              className="text-xs font-semibold text-emerald-600 hover:underline"
+            >
+              View all
+            </button>
+          )}
         </div>
 
-        <div className="space-y-3">
-          {nearLocations.map((loc) => (
-            <div
-              key={loc.name}
-              className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-50 transition-colors group cursor-pointer"
+        {!hasCoords ? (
+          <div className="text-center py-4 space-y-2">
+            <p className="text-xs text-slate-400 font-medium">Set your location to see what's nearby.</p>
+            <button
+              onClick={() => router.push(ROUTES.LOCATION)}
+              className="text-xs font-bold text-emerald-600 hover:underline"
             >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-xs group-hover:scale-105 transition-transform">
-                  <MapPin className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-slate-800">{loc.name}</div>
-                  <div className="text-[10px] font-medium text-slate-400">{loc.distance}</div>
+              Set location
+            </button>
+          </div>
+        ) : nearLocations.length === 0 ? (
+          <p className="text-xs text-slate-400 font-medium text-center py-4">
+            No listings near {locationData.city || locationData.displayName} yet.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {nearLocations.map((loc) => (
+              <div
+                key={loc.id}
+                onClick={() => {
+                  dispatch(openProductDetail(loc.id));
+                  router.push(`/listing/${loc.id}`);
+                }}
+                className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-50 transition-colors group cursor-pointer"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-xs group-hover:scale-105 transition-transform">
+                    <MapPin className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-slate-800">{loc.name}</div>
+                    <div className="text-[10px] font-medium text-slate-400">{formatDistance(loc.distanceKm)}</div>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Widget 2: Filters Box */}
