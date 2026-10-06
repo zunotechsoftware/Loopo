@@ -4,13 +4,34 @@ import { CategoriesService } from '../../categories/services/categories.service'
 import { AttributesService } from '../../categories/services/attributes.service';
 import { InteractionsService } from '../../interactions/services/interactions.service';
 import { SavedSearchesService } from '../../saved-searches/services/saved-searches.service';
-import { CreateProductDto, UpdateProductDto, ListingSearchQueryDto } from '../dto/product.dto';
+import { CreateProductDto, CreateBulkProductsDto, UpdateProductDto, ListingSearchQueryDto } from '../dto/product.dto';
 import { RedisService } from '../../../shared/redis/redis.service';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { ProductStatus, Prisma } from '@prisma/client';
 import { S3Service } from '../../../shared/services/s3.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { AdminSettingsService } from '../../admin/settings/admin-settings.service';
+
+// Legal (fromStatus -> toStatuses) edges for the status changes that flow
+// through updateProduct()'s explicitStatus branch (publish/pause/resume/
+// sold/archive/renew). Admin approve/reject go through their own dedicated
+// methods and aren't governed by this table. Without this, every one of
+// those dedicated endpoints would let a caller, say, pause an already-SOLD
+// listing or resume one that was never paused - the only thing stopping an
+// illegal jump was "is this different from the current status", which
+// isn't a legality check at all.
+const PRODUCT_STATUS_TRANSITIONS: Record<ProductStatus, ProductStatus[]> = {
+  [ProductStatus.DRAFT]: [ProductStatus.PENDING, ProductStatus.ARCHIVED],
+  [ProductStatus.PENDING]: [ProductStatus.ARCHIVED],
+  [ProductStatus.UNDER_REVIEW]: [ProductStatus.ARCHIVED],
+  [ProductStatus.APPROVED]: [ProductStatus.PAUSED, ProductStatus.SOLD, ProductStatus.ARCHIVED],
+  [ProductStatus.PAUSED]: [ProductStatus.PENDING, ProductStatus.ARCHIVED],
+  [ProductStatus.REJECTED]: [ProductStatus.PENDING, ProductStatus.ARCHIVED],
+  [ProductStatus.EXPIRED]: [ProductStatus.PENDING, ProductStatus.ARCHIVED],
+  [ProductStatus.SOLD]: [],
+  [ProductStatus.ARCHIVED]: [],
+};
 
 @Injectable()
 export class ProductsService {
@@ -28,6 +49,7 @@ export class ProductsService {
     @InjectQueue('search-index-update') private readonly searchIndexQueue: Queue,
     @InjectQueue('notification') private readonly notificationQueue: Queue,
     private readonly eventEmitter: EventEmitter2,
+    private readonly adminSettingsService: AdminSettingsService,
   ) {}
 
   async createProduct(dto: CreateProductDto, sellerId: string) {
@@ -106,6 +128,42 @@ export class ProductsService {
     return product;
   }
 
+  /** Bulk listing creation - KYC-mandatory. A single listing (createProduct
+   * above) stays KYC-optional by design; bulk is the one path that requires
+   * a completed, APPROVED KYC verification (Profile.verifiedBadge === true -
+   * the same real flag KycService.approveKyc/rejectKyc set, not a new
+   * concept). Rejected server-side with a clear reason if unverified - this
+   * is the actual enforcement; the frontend's own gating is advisory only.
+   * Reuses createProduct per item so every validation/side-effect it already
+   * has (category check, slug generation, status history, search indexing,
+   * admin notification) applies identically to each bulk item - no
+   * duplicated listing-creation logic. One item's failure doesn't abort the
+   * rest; the response reports both sides so the caller can retry just the
+   * failed ones.
+   */
+  async createBulkProducts(dto: CreateBulkProductsDto, sellerId: string) {
+    const isVerified = await this.productsRepo.isSellerKycVerified(sellerId);
+    if (!isVerified) {
+      throw new ForbiddenException(
+        'KYC verification is required to use bulk listing. Please complete KYC verification and try again.',
+      );
+    }
+
+    const created: any[] = [];
+    const failed: { index: number; title: string; error: string }[] = [];
+
+    for (let i = 0; i < dto.items.length; i++) {
+      try {
+        const product = await this.createProduct(dto.items[i], sellerId);
+        created.push(product);
+      } catch (err: any) {
+        failed.push({ index: i, title: dto.items[i]?.title || `Item ${i + 1}`, error: err?.message || 'Failed to create this listing' });
+      }
+    }
+
+    return { created, failed, totalRequested: dto.items.length, totalCreated: created.length, totalFailed: failed.length };
+  }
+
   async updateProduct(id: string, dto: UpdateProductDto, sellerId: string, isAdmin = false) {
     const product = await this.productsRepo.findById(id);
     if (!product) {
@@ -173,6 +231,12 @@ export class ProductsService {
     let targetStatus = product.status;
     const explicitStatus = (dto as any).status as ProductStatus | undefined;
     if (explicitStatus && explicitStatus !== product.status) {
+      const legalTargets = PRODUCT_STATUS_TRANSITIONS[product.status] || [];
+      if (!legalTargets.includes(explicitStatus)) {
+        throw new BadRequestException(
+          `Cannot move listing from ${product.status} to ${explicitStatus}`,
+        );
+      }
       targetStatus = explicitStatus;
       updateProductData.status = explicitStatus;
 
@@ -212,6 +276,87 @@ export class ProductsService {
     await this.searchIndexQueue.add('index', { action: 'UPDATE', productId: id });
 
     return updated;
+  }
+
+  /** Seller marks a listing Sold and selects the buyer who completed the
+   * transaction - the sole legitimate source of seller-review eligibility
+   * (see RatingEligibility in schema.prisma). Falls back to the plain
+   * explicit-status path (no buyerId) for full backward compatibility: a
+   * seller can still mark something sold without an app-tracked buyer,
+   * exactly as before, and no Order/eligibility is created in that case.
+   */
+  async markSoldWithBuyer(id: string, sellerId: string, buyerId?: string) {
+    const product = await this.productsRepo.findById(id);
+    if (!product) {
+      throw new NotFoundException(`Listing with ID ${id} not found`);
+    }
+    if (product.sellerId !== sellerId) {
+      throw new ForbiddenException('You do not have permission to modify this listing');
+    }
+
+    if (!buyerId) {
+      // Legacy path: no buyer selected, no rating eligibility created.
+      return this.updateProduct(id, { status: ProductStatus.SOLD } as any, sellerId);
+    }
+
+    const legalTargets = PRODUCT_STATUS_TRANSITIONS[product.status] || [];
+    if (!legalTargets.includes(ProductStatus.SOLD)) {
+      throw new BadRequestException(`Cannot move listing from ${product.status} to SOLD`);
+    }
+    if (buyerId === sellerId) {
+      throw new BadRequestException('You cannot select yourself as the buyer');
+    }
+
+    const buyer = await this.productsRepo.findActiveUserById(buyerId);
+    if (!buyer || buyer.deletedAt) {
+      throw new NotFoundException('Selected buyer not found');
+    }
+
+    const hasInteraction = await this.productsRepo.hasGenuineInteraction(id, sellerId, buyerId);
+    if (!hasInteraction) {
+      throw new BadRequestException(
+        'This user has no prior interaction (chat or offer) with this listing, so they cannot be selected as the buyer.',
+      );
+    }
+
+    // Configurable rather than hardcoded (see SystemSetting
+    // 'rating_eligibility_expiry_days', admin-editable, defaults to 30).
+    let expiryDays = 30;
+    try {
+      const setting = await this.adminSettingsService.getSettingByKey('rating_eligibility_expiry_days');
+      const value = (setting?.value as any)?.value;
+      if (typeof value === 'number' && value > 0) expiryDays = value;
+    } catch {
+      // Setting missing (e.g. pre-seed environment) - fall back to default.
+    }
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + expiryDays);
+
+    const { order, eligibility } = await this.productsRepo.markSoldWithBuyerTransaction({
+      productId: id,
+      sellerId,
+      buyerId,
+      price: product.price,
+      currency: product.currency,
+      expiresAt,
+    });
+
+    await this.invalidateListingCache(id, product.slug);
+    await this.searchIndexQueue.add('index', { action: 'UPDATE', productId: id });
+
+    // Non-critical side effect (buyer notification) - the sale, order, and
+    // eligibility are already durably committed above regardless of this.
+    this.eventEmitter.emit('product.sold', {
+      productId: id,
+      productTitle: product.title,
+      sellerId,
+      buyerId,
+      orderId: order.id,
+      eligibilityId: eligibility.id,
+      expiresAt,
+    });
+
+    return this.productsRepo.findById(id);
   }
 
   async deleteProduct(id: string, sellerId: string, isAdmin = false) {

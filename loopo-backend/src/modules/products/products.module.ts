@@ -17,6 +17,8 @@ import {
   ViewCounterSyncProcessor,
   SearchIndexUpdateProcessor,
 } from './processors/products.processor';
+import { ProductsScheduler } from './schedulers/products.scheduler';
+import { AdminSettingsModule } from '../admin/settings/admin-settings.module';
 
 @Module({
   imports: [
@@ -25,6 +27,7 @@ import {
     CategoriesModule,
     InteractionsModule,
     SavedSearchesModule,
+    AdminSettingsModule,
     // Injecting BullMQ queues registered globally in QueuesModule
     BullModule.registerQueue(
       // Named distinctly from chat's 'image-compression'/'thumbnail-generation'
@@ -53,6 +56,7 @@ import {
     ProductExpirationProcessor,
     ViewCounterSyncProcessor,
     SearchIndexUpdateProcessor,
+    ProductsScheduler,
   ],
   exports: [ProductsService, ProductsRepository],
 })

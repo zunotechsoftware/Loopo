@@ -15,6 +15,7 @@ import {
   Package,
   ChevronRight,
   Sparkles,
+  Star,
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import {
@@ -49,6 +50,7 @@ export default function NotificationsView() {
     if (filterTab === 'offers') return n.type === 'offer' || n.type === 'price_drop';
     if (filterTab === 'chats') return n.type === 'chat';
     if (filterTab === 'system') return n.type === 'kyc' || n.type === 'ad_boost' || n.type === 'security';
+    if (filterTab === 'ratings') return n.type === 'rating';
     return true; // 'all'
   });
 
@@ -68,6 +70,8 @@ export default function NotificationsView() {
         return { Icon: Lock, bg: 'bg-indigo-100 text-indigo-600' };
       case 'listing':
         return { Icon: Package, bg: 'bg-teal-100 text-teal-700' };
+      case 'rating':
+        return { Icon: Star, bg: 'bg-amber-100 text-amber-600' };
       default:
         return { Icon: Bell, bg: 'bg-slate-100 text-slate-600' };
     }
@@ -140,6 +144,7 @@ export default function NotificationsView() {
           { id: 'unread', label: `Unread (${unreadCount})` },
           { id: 'offers', label: 'Offers & Price Drops' },
           { id: 'chats', label: 'Chats' },
+          { id: 'ratings', label: 'Ratings & Reviews' },
           { id: 'system', label: 'Account & Safety' },
         ].map((tab) => (
           <button

@@ -26,7 +26,7 @@ import {
 
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { setSearchQuery } from '@/redux/slices/productsSlice';
-import { setLocation, setLocationData, showToast, setAuthModalOpen } from '@/redux/slices/uiSlice';
+import { setLocationData, showToast, setAuthModalOpen } from '@/redux/slices/uiSlice';
 
 
 import { logout, isAdminRole } from '@/redux/slices/authSlice';
@@ -38,6 +38,7 @@ export default function Header() {
   const pathname = usePathname();
   const dispatch = useAppDispatch();
   const location = useAppSelector((state) => state.ui.location);
+  const currentRadiusKm = useAppSelector((state) => state.ui.locationData.radiusKm);
   const favorites = useAppSelector((state) => state.products.favorites);
   const conversations = useAppSelector((state) => state.chat.conversations);
   const notifications = useAppSelector((state) => state.notifications.items);
@@ -89,13 +90,17 @@ export default function Header() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Matches location/page.tsx's popularCities coordinates - picking one
+  // here must set real lat/lng too, not just a display string, or the
+  // "nearby" search would keep using whatever coordinates were set
+  // previously (or none at all) while showing a different city name.
   const locations = [
-    'Bangalore, Karnataka',
-    'Mumbai, Maharashtra',
-    'Delhi, NCR',
-    'Hyderabad, Telangana',
-    'Chennai, Tamil Nadu',
-    'Pune, Maharashtra',
+    { name: 'Bangalore, Karnataka', lat: 12.9716, lng: 77.5946 },
+    { name: 'Mumbai, Maharashtra', lat: 19.0760, lng: 72.8777 },
+    { name: 'Delhi, NCR', lat: 28.7041, lng: 77.1025 },
+    { name: 'Hyderabad, Telangana', lat: 17.3850, lng: 78.4867 },
+    { name: 'Chennai, Tamil Nadu', lat: 13.0827, lng: 80.2707 },
+    { name: 'Pune, Maharashtra', lat: 18.5204, lng: 73.8567 },
   ];
 
   // Matching Search Results
@@ -225,17 +230,25 @@ export default function Header() {
                       navigator.geolocation.getCurrentPosition(
                         async (pos) => {
                           try {
-                            const res = await fetch(`https://ipapi.co/${pos.coords.latitude},${pos.coords.longitude}/json/`).catch(() => null);
-                            // Fallback: use IP-based geolocation
-                            const ipRes = await fetch('https://ipapi.co/json/').then(r => r.json()).catch(() => null);
-                            const city = ipRes?.city || 'Bangalore';
-                            const state = ipRes?.region || 'Karnataka';
-                            const country = ipRes?.country_name || 'India';
+                            // Real reverse-geocoding of the actual GPS fix via
+                            // BigDataCloud's free, keyless endpoint. ipapi.co
+                            // (used here previously) is an IP-lookup service
+                            // with no way to accept coordinates - passing
+                            // lat/lng into its URL just silently fell through
+                            // to an IP-based guess, ignoring the real GPS fix
+                            // entirely.
+                            const geo = await fetch(
+                              `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${pos.coords.latitude}&longitude=${pos.coords.longitude}&localityLanguage=en`
+                            ).then(r => r.json());
+                            const city = geo?.city || geo?.locality || 'Bangalore';
+                            const state = geo?.principalSubdivision || 'Karnataka';
+                            const country = geo?.countryName || 'India';
                             dispatch(setLocationData({
                               displayName: `${city}, ${state}`,
                               city, state, country,
                               latitude: pos.coords.latitude,
                               longitude: pos.coords.longitude,
+                              radiusKm: currentRadiusKm,
                             }));
                             dispatch(showToast(`📍 Location detected: ${city}, ${state}`));
                           } catch {
@@ -250,6 +263,7 @@ export default function Header() {
                             dispatch(setLocationData({
                               displayName: `${city}, ${state}`,
                               city, state, country: ipRes?.country_name || 'India',
+                              radiusKm: currentRadiusKm,
                             }));
                             dispatch(showToast(`📍 Location detected via IP: ${city}, ${state}`));
                           }).catch(() => {
@@ -272,18 +286,22 @@ export default function Header() {
                 </div>
                 {locations.map((loc) => (
                   <button
-                    key={loc}
+                    key={loc.name}
                     type="button"
                     onClick={() => {
-                      dispatch(setLocation(loc));
+                      const [city, state] = loc.name.split(',').map((s) => s.trim());
+                      dispatch(setLocationData({
+                        displayName: loc.name, city, state, country: 'India',
+                        latitude: loc.lat, longitude: loc.lng, radiusKm: currentRadiusKm,
+                      }));
                       setShowLocationDropdown(false);
                     }}
                     className={`w-full text-left px-3 py-2 text-xs font-medium hover:bg-slate-50 transition-colors flex items-center justify-between ${
-                      location === loc ? 'text-emerald-600 font-bold bg-emerald-50/50' : 'text-slate-700'
+                      location === loc.name ? 'text-emerald-600 font-bold bg-emerald-50/50' : 'text-slate-700'
                     }`}
                   >
-                    <span>{loc}</span>
-                    {location === loc && <div className="w-1.5 h-1.5 rounded-full bg-emerald-600" />}
+                    <span>{loc.name}</span>
+                    {location === loc.name && <div className="w-1.5 h-1.5 rounded-full bg-emerald-600" />}
                   </button>
                 ))}
               </div>

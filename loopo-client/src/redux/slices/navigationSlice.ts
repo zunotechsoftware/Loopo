@@ -42,6 +42,13 @@ export const navigationSlice = createSlice({
       state.selectedProductId = action.payload;
       state.activeTab = 'product-detail';
     },
+    /** Sets the "current listing" context without navigating - used by the
+     * chat view's in-conversation "Make Offer" button, which opens
+     * OfferModal (a global modal that reads `selectedProductId`) on top of
+     * the chat itself rather than leaving it for the product detail page. */
+    setSelectedProductId: (state, action: PayloadAction<string>) => {
+      state.selectedProductId = action.payload;
+    },
     openCategory: (state, action: PayloadAction<string>) => {
       state.selectedCategoryName = action.payload;
       state.activeTab = 'categories';
@@ -49,5 +56,5 @@ export const navigationSlice = createSlice({
   },
 });
 
-export const { setActiveTab, openProductDetail, openCategory } = navigationSlice.actions;
+export const { setActiveTab, openProductDetail, openCategory, setSelectedProductId } = navigationSlice.actions;
 export default navigationSlice.reducer;

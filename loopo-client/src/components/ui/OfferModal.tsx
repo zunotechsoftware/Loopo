@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { X, Tag } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { setOfferModalOpen, showToast } from '@/redux/slices/uiSlice';
+import { offersApi } from '@/services/offersApi';
 
 export default function OfferModal() {
   const dispatch = useAppDispatch();
@@ -15,6 +16,7 @@ export default function OfferModal() {
   const [offerValue, setOfferValue] = useState(
     product ? Math.round(product.price * 0.9).toString() : ''
   );
+  const [submitting, setSubmitting] = useState(false);
 
   if (!isOpen) return null;
 
@@ -40,10 +42,30 @@ export default function OfferModal() {
     Math.round(product.price * 0.85),
   ];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const amount = parseInt(offerValue, 10);
+    if (!amount || amount <= 0) {
+      dispatch(showToast('Please enter a valid offer amount.'));
+      return;
+    }
+    if (product.status === 'SOLD') {
+      // Client-side guard for UX only - the real enforcement is server-side
+      // (OffersService.createOffer rejects any non-APPROVED listing), so
+      // this can't be bypassed by skipping the check here.
+      dispatch(showToast('This listing has already been sold and can no longer accept offers.'));
+      dispatch(setOfferModalOpen(false));
+      return;
+    }
+    setSubmitting(true);
+    const res = await offersApi.createOffer({ productId: product.id, amount });
+    setSubmitting(false);
+    if (!res.success) {
+      dispatch(showToast(res.error || 'Could not send your offer. Please try again.'));
+      return;
+    }
     dispatch(setOfferModalOpen(false));
-    dispatch(showToast(`Offer of ₹${parseInt(offerValue).toLocaleString('en-IN')} sent to seller!`));
+    dispatch(showToast(`Offer of ₹${amount.toLocaleString('en-IN')} sent to seller!`));
   };
 
   return (
@@ -110,9 +132,10 @@ export default function OfferModal() {
 
           <button
             type="submit"
-            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-3.5 rounded-2xl shadow-md shadow-emerald-500/20 transition-all"
+            disabled={submitting}
+            className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold text-xs py-3.5 rounded-2xl shadow-md shadow-emerald-500/20 transition-all"
           >
-            Send Offer to Seller
+            {submitting ? 'Sending…' : 'Send Offer to Seller'}
           </button>
         </form>
       </div>

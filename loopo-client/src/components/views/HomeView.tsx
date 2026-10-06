@@ -17,21 +17,63 @@ import { getCategoryIcon } from '@/utils/categoryIcon';
 import ProductCard from '../ui/ProductCard';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { setActiveTab } from '@/redux/slices/navigationSlice';
-import { setCategoryFilter, fetchProductsThunk } from '@/redux/slices/productsSlice';
+import { setCategoryFilter, fetchProductsThunk, searchProductsThunk } from '@/redux/slices/productsSlice';
+import { setLocationData, markAutoDetectAttempted } from '@/redux/slices/uiSlice';
+import { detectCurrentLocation } from '@/utils/detectLocation';
 import { ROUTES } from '@/routes/routes';
 
 export default function HomeView() {
   const dispatch = useAppDispatch();
   const router = useRouter();
-  const products = useAppSelector((state) => state.products.items);
+  const generalFeed = useAppSelector((state) => state.products.items);
+  const nearbyResults = useAppSelector((state) => state.products.searchResults);
   const filters = useAppSelector((state) => state.products.filters);
-  const isLoading = useAppSelector((state) => state.products.loading);
+  const isLoading = useAppSelector((state) => state.products.loading || state.products.searchLoading);
+  const locationData = useAppSelector((state) => state.ui.locationData);
+  const hasAttemptedAutoDetect = useAppSelector((state) => state.ui.hasAttemptedAutoDetect);
   const { categories, loading: categoriesLoading } = useCategories();
 
-  // Fetch real products from API on mount
+  const hasCoords = locationData.latitude !== undefined && locationData.longitude !== undefined;
+
+  // "Near You" previously only ever activated once a visitor had manually
+  // gone to /location or used the header's GPS/city picker - anyone who
+  // hadn't done that always saw the generic unfiltered feed, GPS-equipped
+  // device or not. This silently detects the real current location once
+  // per session (GPS, falling back to an IP-based guess) so the section
+  // works out of the box, without overriding a location the visitor
+  // already chose explicitly.
   useEffect(() => {
-    dispatch(fetchProductsThunk({}));
-  }, [dispatch]);
+    if (!hasCoords && !hasAttemptedAutoDetect) {
+      dispatch(markAutoDetectAttempted());
+      detectCurrentLocation().then((loc) => {
+        dispatch(setLocationData({ ...loc, radiusKm: locationData.radiusKm || 15 }));
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasCoords, hasAttemptedAutoDetect, dispatch]);
+
+  // When a real browsing location is set (GPS/IP-detected or picked on
+  // /location or the header), this genuinely fetches what's nearby via
+  // GET /search's geo-radius filter. Previously this section was
+  // subtitled "Handpicked items near your location" while just showing
+  // the default unfiltered feed relabeled - no location was ever
+  // considered. Falls back to the general feed when no location is set.
+  useEffect(() => {
+    if (hasCoords) {
+      dispatch(searchProductsThunk({
+        latitude: locationData.latitude,
+        longitude: locationData.longitude,
+        radiusKm: locationData.radiusKm || 15,
+        sortBy: 'distance',
+        sortOrder: 'asc',
+        limit: 8,
+      }));
+    } else {
+      dispatch(fetchProductsThunk({}));
+    }
+  }, [hasCoords, locationData.latitude, locationData.longitude, locationData.radiusKm, dispatch]);
+
+  const products = hasCoords ? nearbyResults : generalFeed;
 
   // Filter products based on search or category if set
   const filteredProducts = products.filter((p) => {
@@ -151,8 +193,14 @@ export default function HomeView() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="font-extrabold text-slate-900 text-lg tracking-tight">Fresh Recommendations</h2>
-            <p className="text-xs text-slate-500 font-medium mt-0.5">Handpicked items near your location</p>
+            <h2 className="font-extrabold text-slate-900 text-lg tracking-tight">
+              {hasCoords ? `Near ${locationData.city || locationData.displayName}` : 'Fresh Recommendations'}
+            </h2>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">
+              {hasCoords
+                ? `Listings within ${locationData.radiusKm || 15} km of you`
+                : 'Latest listings across the marketplace'}
+            </p>
           </div>
 
           <div className="flex items-center gap-2">

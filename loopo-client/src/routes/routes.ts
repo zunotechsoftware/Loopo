@@ -14,6 +14,7 @@ export const ROUTES = {
   CATEGORY_DETAIL: (categorySlug: string) => `/categories/${categorySlug}`,
   SEARCH: '/search',
   SELLER_PROFILE: (userId: string) => `/seller/${userId}`,
+  SELLER_REVIEWS: (userId: string) => `/seller/${userId}/reviews`,
   HELP: '/help',
   HELP_ARTICLE: (articleSlug: string) => `/help/${articleSlug}`,
   SAFETY: '/safety',
@@ -31,6 +32,7 @@ export const ROUTES = {
   SELL_LOCATION: '/sell/location',
   SELL_PREVIEW: '/sell/preview',
   SELL_SUCCESS: '/sell/success',
+  SELL_BULK: '/sell/bulk',
 
   // 4. MY LISTINGS (Protected)
   MY_LISTINGS: '/my-listings',
@@ -59,6 +61,10 @@ export const ROUTES = {
 
   // 10. NOTIFICATIONS (Protected)
   NOTIFICATIONS: '/notifications',
+
+  // 10b. PENDING RATINGS (Protected)
+  PENDING_RATINGS: '/ratings/pending',
+  PENDING_RATING_DETAIL: (eligibilityId: string) => `/ratings/pending/${eligibilityId}`,
 
   // 11. USER PROFILE & SETTINGS (Protected)
   PROFILE: '/profile',

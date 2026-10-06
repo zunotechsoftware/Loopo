@@ -2,6 +2,7 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { MyAdItem } from '@/types';
 import { productsApi } from '@/services/productsApi';
 import { createProductThunk } from '@/redux/slices/productsSlice';
+import { logoutUser } from '@/redux/slices/authSlice';
 
 interface MyAdsState {
   ads: MyAdItem[];
@@ -41,25 +42,6 @@ function mapStatus(s: string): 'Active' | 'Sold' | 'Inactive' {
   return 'Inactive';
 }
 
-function loadLocalAds(): MyAdItem[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const saved = localStorage.getItem('loopo_my_ads');
-    return saved ? JSON.parse(saved) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveLocalAds(ads: MyAdItem[]) {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem('loopo_my_ads', JSON.stringify(ads));
-  } catch {
-    // ignore quota error
-  }
-}
-
 function normaliseDbItem(p: any): MyAdItem {
   let mainImage = p.image || p.imageUrl || '';
   if (!mainImage && Array.isArray(p.images) && p.images.length > 0) {
@@ -89,7 +71,7 @@ function normaliseDbItem(p: any): MyAdItem {
 }
 
 const initialState: MyAdsState = {
-  ads: loadLocalAds(),
+  ads: [],
   activeFilter: 'Active',
   loading: false,
 };
@@ -115,8 +97,9 @@ export const fetchMyAdsThunk = createAsyncThunk('myAds/fetchMyAds', async () => 
  * the API at all, so the change silently reverted on the next fetch. */
 export const markAsSoldThunk = createAsyncThunk(
   'myAds/markAsSold',
-  async (id: string, { rejectWithValue }) => {
-    const res = await productsApi.markAsSold(id);
+  async (args: string | { id: string; buyerId?: string }, { rejectWithValue }) => {
+    const { id, buyerId } = typeof args === 'string' ? { id: args, buyerId: undefined } : args;
+    const res = await productsApi.markAsSold(id, buyerId);
     if (res.success) return id;
     return rejectWithValue(res.error || 'Failed to mark listing as sold');
   }
@@ -143,7 +126,6 @@ export const myAdsSlice = createSlice({
     addMyAd: (state, action: PayloadAction<MyAdItem>) => {
       state.ads.unshift(action.payload);
       state.activeFilter = 'Active';
-      saveLocalAds(state.ads);
     },
   },
   extraReducers: (builder) => {
@@ -153,15 +135,13 @@ export const myAdsSlice = createSlice({
       })
       .addCase(fetchMyAdsThunk.fulfilled, (state, action) => {
         state.loading = false;
-        if (action.payload && action.payload.length > 0) {
-          const map = new Map<string, MyAdItem>();
-          // Put existing state ads first (so newly published ads stay)
-          state.ads.forEach((ad) => map.set(ad.id, ad));
-          // Overlay fetched ads from API
-          action.payload.forEach((ad) => map.set(ad.id, ad));
-          state.ads = Array.from(map.values());
-        }
-        saveLocalAds(state.ads);
+        // Always replace, never merge with whatever was already in state -
+        // /products/my is the sole source of truth for "my listings" and is
+        // already scoped to the logged-in user server-side. Merging with
+        // existing state (as this used to) meant a previous account's
+        // listings - or a stale empty result - could linger indefinitely
+        // across an account switch on the same browser.
+        state.ads = action.payload;
       })
       .addCase(fetchMyAdsThunk.rejected, (state) => {
         state.loading = false;
@@ -172,11 +152,9 @@ export const myAdsSlice = createSlice({
           ad.status = 'Sold';
           ad.rawStatus = 'SOLD';
         }
-        saveLocalAds(state.ads);
       })
       .addCase(deleteAdThunk.fulfilled, (state, action) => {
         state.ads = state.ads.filter((a) => a.id !== action.payload);
-        saveLocalAds(state.ads);
       })
       .addCase(createProductThunk.fulfilled, (state, action) => {
         const p = action.payload as any;
@@ -188,7 +166,13 @@ export const myAdsSlice = createSlice({
           state.ads.unshift(newAd);
         }
         state.activeFilter = 'Active';
-        saveLocalAds(state.ads);
+      })
+      // Belt-and-braces alongside the always-replace fetch above: wipes
+      // this account's listings from memory the instant they log out,
+      // rather than relying solely on the next /my-listings visit to
+      // overwrite them.
+      .addCase(logoutUser, (state) => {
+        state.ads = [];
       });
   },
 });

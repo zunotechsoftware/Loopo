@@ -118,7 +118,14 @@ export const analyticsService = {
 // PATCH, not a hard DELETE (deleting also triggers a rating-recalculation
 // job on the backend, which a hard DELETE route would have no hook for).
 export const reviewsService = {
-  getAll: (params?: { skip?: number; take?: number; type?: string }) => api.get('/admin/reviews', { params }),
+  getAll: (params?: {
+    skip?: number;
+    take?: number;
+    type?: string;
+    isVisible?: boolean;
+    search?: string;
+    reportedOnly?: boolean;
+  }) => api.get('/admin/reviews', { params }),
   getById: (id: string) => api.get(`/admin/reviews/${id}`),
   hide: (id: string) => api.patch(`/admin/reviews/${id}/hide`),
   restore: (id: string) => api.patch(`/admin/reviews/${id}/restore`),
@@ -170,8 +177,8 @@ export const auditLogsService = {
 // /admin/permissions didn't exist at all - see known-issues.md).
 export const rolesService = {
   getAll: () => api.get('/admin/roles'),
-  create: (data: { name: string; description?: string; permissionNames?: string[] }) => api.post('/admin/roles', data),
-  update: (id: string, data: { name?: string; description?: string; permissionNames?: string[] }) => api.patch(`/admin/roles/${id}`, data),
+  create: (data: { name: string; description?: string; permissionNames?: string[]; isAdminRole?: boolean }) => api.post('/admin/roles', data),
+  update: (id: string, data: { name?: string; description?: string; permissionNames?: string[]; isAdminRole?: boolean }) => api.patch(`/admin/roles/${id}`, data),
   delete: (id: string) => api.delete(`/admin/roles/${id}`),
   getPermissions: () => api.get('/admin/permissions'),
 };

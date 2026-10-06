@@ -15,6 +15,7 @@ interface Role {
   name: string;
   description: string | null;
   isProtected: boolean;
+  isAdminRole: boolean;
   userCount: number;
   permissions: string[];
 }
@@ -37,6 +38,7 @@ export default function RolesPage() {
   const [nameInput, setNameInput] = useState('');
   const [descriptionInput, setDescriptionInput] = useState('');
   const [enabledPerms, setEnabledPerms] = useState<string[]>([]);
+  const [adminPortalAccess, setAdminPortalAccess] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -72,6 +74,7 @@ export default function RolesPage() {
     setNameInput(role.name);
     setDescriptionInput(role.description || '');
     setEnabledPerms([...role.permissions]);
+    setAdminPortalAccess(role.isAdminRole);
     setActionError(null);
     setOpenDialog(true);
   };
@@ -81,6 +84,7 @@ export default function RolesPage() {
     setNameInput('');
     setDescriptionInput('');
     setEnabledPerms([]);
+    setAdminPortalAccess(false);
     setActionError(null);
     setOpenDialog(true);
   };
@@ -98,16 +102,22 @@ export default function RolesPage() {
     setActionError(null);
     try {
       if (selectedRole) {
-        const payload: { name?: string; description?: string; permissionNames?: string[] } = {
+        const payload: { name?: string; description?: string; permissionNames?: string[]; isAdminRole?: boolean } = {
           description: descriptionInput,
         };
         if (!selectedRole.isProtected) {
           payload.name = nameInput;
           payload.permissionNames = enabledPerms;
+          payload.isAdminRole = adminPortalAccess;
         }
         await rolesService.update(selectedRole.id, payload);
       } else {
-        await rolesService.create({ name: nameInput, description: descriptionInput, permissionNames: enabledPerms });
+        await rolesService.create({
+          name: nameInput,
+          description: descriptionInput,
+          permissionNames: enabledPerms,
+          isAdminRole: adminPortalAccess,
+        });
       }
       setOpenDialog(false);
       await load();
@@ -162,6 +172,9 @@ export default function RolesPage() {
                       <Tooltip title="Core system role - protected">
                         <Lock fontSize="small" sx={{ color: 'text.disabled' }} />
                       </Tooltip>
+                    )}
+                    {role.isAdminRole && (
+                      <Chip label="Admin Portal Access" size="small" color="primary" variant="outlined" />
                     )}
                   </Box>
                   <Box>
@@ -223,6 +236,25 @@ export default function RolesPage() {
                 />
               </Grid>
             </Grid>
+
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={adminPortalAccess}
+                  onChange={(e) => setAdminPortalAccess(e.target.checked)}
+                  disabled={Boolean(selectedRole?.isProtected)}
+                />
+              }
+              label={
+                <Box>
+                  <Typography variant="body2">Admin Portal Access</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Lets a user holding this role sign into the admin portal at all - separate from what
+                    permissions they have once inside. Off by default for new roles.
+                  </Typography>
+                </Box>
+              }
+            />
 
             <Divider />
             <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>

@@ -100,6 +100,9 @@ model User {
   buyerOffers             Offer[]                  @relation("BuyerOffers")
   sellerOffers            Offer[]                  @relation("SellerOffers")
   savedSearches           SavedSearch[]
+  ratingEligibilityAsBuyer  RatingEligibility[]    @relation("BuyerRatingEligibility")
+  ratingEligibilityAsSeller RatingEligibility[]    @relation("SellerRatingEligibility")
+  reviewResponses           ReviewResponse[]
 
   // Admin Module Relations
   adminSessions          AdminSession[]               @relation("AdminSessions")
@@ -124,6 +127,12 @@ model Role {
   id          String           @id @default(uuid()) @db.Uuid
   name        String           @unique // e.g. CUSTOMER, MODERATOR, ADMIN, SUPER_ADMIN
   description String?
+  // Whether a user holding this role may sign into the admin portal at all.
+  // Separate from RolePermission (which controls what an already-admitted
+  // admin can *do*) - this is the gate at the door. A custom operator role
+  // (Moderator/Support/Finance) must have this set true to ever reach the
+  // admin login screen; ordinary customer-facing roles must not.
+  isAdminRole Boolean          @default(false)
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
   deletedAt   DateTime?
@@ -676,6 +685,7 @@ model Product {
   reviews        Review[]
   orders         Order[]
   offers         Offer[]
+  ratingEligibilities RatingEligibility[]
 
   @@index([sellerId])
   @@index([categoryId])
@@ -1563,6 +1573,7 @@ enum ReportTargetType {
   CHAT_MESSAGE
   CATEGORY
   SYSTEM
+  REVIEW
 }
 
 enum ReportStatus {
@@ -1768,9 +1779,15 @@ model Review {
   targetUserId  String?    @db.Uuid
   productId     String?    @db.Uuid
   paymentId     String?    @db.Uuid
+  // Links a SELLER_REVIEW back to the RatingEligibility (pending-rating)
+  // record it was submitted against - the real, backend-verified source of
+  // the "Verified Transaction" badge (Review.isVerified). Nullable because
+  // other reviewType values (PRODUCT_REVIEW etc.) don't go through the
+  // eligibility flow at all.
+  eligibilityId String?    @unique @db.Uuid
   reviewType    ReviewType
   title         String?
-  content       String
+  content       String?
   isVerified    Boolean    @default(false)
   isVisible     Boolean    @default(true)
   editableUntil DateTime?
@@ -1778,17 +1795,117 @@ model Review {
   updatedAt     DateTime   @updatedAt
   deletedAt     DateTime?
 
-  reviewer   User             @relation("ReviewsWritten", fields: [reviewerId], references: [id], onDelete: Cascade)
-  targetUser User?            @relation("ReviewsReceived", fields: [targetUserId], references: [id], onDelete: SetNull)
-  product    Product?         @relation(fields: [productId], references: [id], onDelete: SetNull)
-  ratings    ReviewRating[]
-  reactions  ReviewReaction[]
+  reviewer    User               @relation("ReviewsWritten", fields: [reviewerId], references: [id], onDelete: Cascade)
+  targetUser  User?              @relation("ReviewsReceived", fields: [targetUserId], references: [id], onDelete: SetNull)
+  product     Product?           @relation(fields: [productId], references: [id], onDelete: SetNull)
+  eligibility RatingEligibility? @relation(fields: [eligibilityId], references: [id], onDelete: SetNull)
+  ratings     ReviewRating[]
+  reactions   ReviewReaction[]
+  tags        ReviewTag[]
+  photos      ReviewPhoto[]
+  response    ReviewResponse?
 
   @@unique([reviewerId, productId, reviewType])
   @@index([targetUserId])
   @@index([productId])
   @@index([reviewType])
+  @@index([isVisible, deletedAt])
   @@map("reviews")
+}
+
+enum RatingEligibilityStatus {
+  PENDING
+  COMPLETED
+  EXPIRED
+  CANCELLED
+}
+
+// Created when a seller marks a listing Sold and selects the buyer who
+// completed the transaction (see ProductsService.markSoldWithBuyer). This
+// is the sole legitimate source of seller-review eligibility - a buyer can
+// never "manufacture" the ability to review a seller purely from the
+// frontend, since this row is only ever created server-side off a real,
+// ownership-checked, buyer-validated transaction.
+model RatingEligibility {
+  id        String                  @id @default(uuid()) @db.Uuid
+  buyerId   String                  @db.Uuid
+  sellerId  String                  @db.Uuid
+  productId String                  @db.Uuid
+  // The Order this eligibility represents - reuses the existing Order
+  // entity (created for this direct/offline sale) rather than inventing a
+  // parallel "transaction" concept. One eligibility per order.
+  orderId   String                  @unique @db.Uuid
+  status    RatingEligibilityStatus @default(PENDING)
+  expiresAt DateTime
+  createdAt DateTime                @default(now())
+  updatedAt DateTime                @updatedAt
+
+  buyer   User    @relation("BuyerRatingEligibility", fields: [buyerId], references: [id], onDelete: Cascade)
+  seller  User    @relation("SellerRatingEligibility", fields: [sellerId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  review  Review?
+
+  // A buyer can only have one rating-eligibility (and therefore one
+  // seller-review) per product they bought from a given seller - matches
+  // the existing Review.@@unique([reviewerId, productId, reviewType])
+  // boundary rather than a coarser (buyerId, sellerId) constraint, which
+  // would incorrectly block a buyer who legitimately bought two different
+  // listings from the same seller.
+  @@unique([buyerId, sellerId, productId])
+  @@index([buyerId, status])
+  @@index([sellerId])
+  @@index([status, expiresAt])
+  @@map("rating_eligibilities")
+}
+
+// Predefined, admin-curated tags a buyer can attach to a seller review
+// (e.g. "Good communication", "Item as described"). Stored in the DB
+// rather than hardcoded in the frontend so the set is extensible and
+// every selection is validated against real rows server-side.
+model ReviewTag {
+  id        String   @id @default(uuid()) @db.Uuid
+  slug      String   @unique
+  label     String
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  reviews Review[]
+
+  @@map("review_tags")
+}
+
+model ReviewPhoto {
+  id        String   @id @default(uuid()) @db.Uuid
+  reviewId  String   @db.Uuid
+  fileUrl   String
+  fileKey   String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId])
+  @@map("review_photos")
+}
+
+// A seller's reply to a review about them. 1:1 with Review - only the
+// review's own targetUserId (the reviewed seller) may ever create/edit one
+// (enforced in ReviewsService, not just the controller).
+model ReviewResponse {
+  id        String    @id @default(uuid()) @db.Uuid
+  reviewId  String    @unique @db.Uuid
+  sellerId  String    @db.Uuid
+  content   String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  editedAt  DateTime?
+
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  seller User   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@map("review_responses")
 }
 
 model ReviewRating {
@@ -2245,6 +2362,7 @@ model Order {
   buyer   User    @relation("BuyerOrders", fields: [buyerId], references: [id], onDelete: Restrict)
   seller  User    @relation("SellerOrders", fields: [sellerId], references: [id], onDelete: Restrict)
   product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  ratingEligibility RatingEligibility?
 
   @@map("orders")
 }

@@ -44,6 +44,7 @@ export class AdminRolesService {
       data: {
         name: dto.name,
         description: dto.description,
+        isAdminRole: dto.isAdminRole ?? false,
         createdBy: adminId,
         permissions: {
           create: permissionIds.map((permissionId) => ({ permissionId, createdBy: adminId })),
@@ -65,6 +66,9 @@ export class AdminRolesService {
     if (isProtected && dto.name !== undefined && dto.name !== role.name) {
       throw new ForbiddenException(`The ${role.name} role cannot be renamed`);
     }
+    if (isProtected && dto.isAdminRole !== undefined && dto.isAdminRole !== role.isAdminRole) {
+      throw new ForbiddenException(`The ${role.name} role's admin-portal access cannot be changed through this API`);
+    }
 
     if (dto.name && dto.name !== role.name) {
       const clash = await this.prisma.role.findUnique({ where: { name: dto.name } });
@@ -76,6 +80,7 @@ export class AdminRolesService {
       data: {
         name: dto.name,
         description: dto.description,
+        isAdminRole: dto.isAdminRole,
         updatedBy: adminId,
       },
     });
@@ -135,6 +140,7 @@ export class AdminRolesService {
       name: role.name,
       description: role.description,
       isProtected: PROTECTED_ROLES.includes(role.name),
+      isAdminRole: role.isAdminRole,
       userCount: role._count?.users ?? 0,
       permissions: (role.permissions || []).map((rp: any) => rp.permission.name),
       createdAt: role.createdAt,

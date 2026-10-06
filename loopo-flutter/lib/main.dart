@@ -27,70 +27,89 @@ class NoGlowScrollBehavior extends MaterialScrollBehavior {
   }
 }
 
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+void main() {
+  // Everything - including WidgetsFlutterBinding.ensureInitialized() - must
+  // run inside this same zone as runApp(). Previously ensureInitialized()
+  // ran in the default zone while runApp() ran inside this zone, which is
+  // exactly the "Zone mismatch" Flutter's own binding assertion warns
+  // about; it surfaced as a genuinely blank screen with no visible error on
+  // web instead of a caught exception.
+  runZonedGuarded(
+    () async {
+      WidgetsFlutterBinding.ensureInitialized();
 
-  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+      await SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+      ]);
 
-  // Load the correct environment file.
-  // Run with `flutter run` for dev, or pass `--dart-define=APP_ENV=production` for prod.
-  const appEnv = String.fromEnvironment('APP_ENV', defaultValue: 'development');
-  final envFile = appEnv == 'production' ? '.env.production' : '.env.development';
+      // Load the correct environment file.
+      // Run with `flutter run` for dev, or pass `--dart-define=APP_ENV=production` for prod.
+      const appEnv = String.fromEnvironment(
+        'APP_ENV',
+        defaultValue: 'development',
+      );
+      final envFile = appEnv == 'production'
+          ? '.env.production'
+          : '.env.development';
 
-  try {
-    await dotenv.load(fileName: envFile);
-  } catch (_) {
-    // Silently fall through — ApiConfig falls back to hardcoded dev URL
-  }
+      try {
+        await dotenv.load(fileName: envFile);
+      } catch (_) {
+        // Silently fall through — ApiConfig falls back to hardcoded dev URL
+      }
 
-  // Restore saved location from SharedPreferences
-  await LocationService().loadSavedLocation();
+      // Restore saved location from SharedPreferences
+      await LocationService().loadSavedLocation();
 
-  // Restore any persisted session (access + refresh token) - previously
-  // the token only ever lived in a plain in-memory static field, so every
-  // app restart silently logged the user out even with a perfectly valid
-  // refresh token sitting unused.
-  await AuthSession.init();
+      // Restore any persisted session (access + refresh token) - previously
+      // the token only ever lived in a plain in-memory static field, so every
+      // app restart silently logged the user out even with a perfectly valid
+      // refresh token sitting unused.
+      await AuthSession.init();
 
-  // Show Flutter errors on-screen instead of a blank screen.
-  ErrorWidget.builder = (FlutterErrorDetails details) {
-    return Material(
-      color: Colors.white,
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'An error occurred',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+      // Show Flutter errors on-screen instead of a blank screen.
+      ErrorWidget.builder = (FlutterErrorDetails details) {
+        return Material(
+          color: Colors.white,
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'An error occurred',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    Text(
+                      details.exceptionAsString(),
+                      style: const TextStyle(color: Colors.red),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    Text(
+                      details.stack.toString(),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.black54,
+                      ),
+                    ),
+                  ],
                 ),
-
-                const SizedBox(height: 12),
-
-                Text(
-                  details.exceptionAsString(),
-                  style: const TextStyle(color: Colors.red),
-                ),
-
-                const SizedBox(height: 12),
-
-                Text(
-                  details.stack.toString(),
-                  style: const TextStyle(fontSize: 12, color: Colors.black54),
-                ),
-              ],
+              ),
             ),
           ),
-        ),
-      ),
-    );
-  };
+        );
+      };
 
-  await runZonedGuarded(
-    () async {
       runApp(const MyApp());
     },
     (error, stack) {

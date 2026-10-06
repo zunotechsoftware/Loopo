@@ -7,15 +7,28 @@ interface LocationData {
   country?: string;
   latitude?: number;
   longitude?: number;
+  /** Nearby-search radius in km. Used by the search page's "Near me" filter
+   * and the home page's Nearby section - previously set on the location
+   * page's map slider but never actually stored anywhere, so it was lost
+   * the moment you navigated away and never reached any real query. */
+  radiusKm?: number;
 }
 
+const DEFAULT_LOCATION: LocationData = {
+  displayName: 'Bangalore, Karnataka',
+  city: 'Bangalore',
+  state: 'Karnataka',
+  country: 'India',
+  radiusKm: 15,
+};
+
 function loadSavedLocation(): LocationData {
-  if (typeof window === 'undefined') return { displayName: 'Bangalore, Karnataka', city: 'Bangalore', state: 'Karnataka', country: 'India' };
+  if (typeof window === 'undefined') return DEFAULT_LOCATION;
   try {
     const saved = localStorage.getItem('loopo_location');
-    if (saved) return JSON.parse(saved);
+    if (saved) return { ...DEFAULT_LOCATION, ...JSON.parse(saved) };
   } catch { /* ignore */ }
-  return { displayName: 'Bangalore, Karnataka', city: 'Bangalore', state: 'Karnataka', country: 'India' };
+  return DEFAULT_LOCATION;
 }
 
 function saveLocation(loc: LocationData) {
@@ -24,10 +37,21 @@ function saveLocation(loc: LocationData) {
 }
 
 export interface ReportTarget {
-  targetType: 'LISTING' | 'USER' | 'CHAT_MESSAGE';
+  targetType: 'LISTING' | 'USER' | 'CHAT_MESSAGE' | 'REVIEW';
   targetId: string;
   /** Display-only label shown in the modal ("this listing" / a seller's name / etc). */
   label: string;
+}
+
+/** The modal can only ever rate a transaction with a real, server-issued
+ * RatingEligibility id - there's no "open blank and let the user pick a
+ * seller" mode, since the backend would reject anything that doesn't
+ * resolve to a real pending eligibility anyway. */
+export interface ReviewTarget {
+  eligibilityId: string;
+  sellerName: string;
+  productTitle: string;
+  productImage?: string | null;
 }
 
 interface UiState {
@@ -37,11 +61,16 @@ interface UiState {
   isReportModalOpen: boolean;
   reportTarget: ReportTarget | null;
   isReviewModalOpen: boolean;
+  reviewTarget: ReviewTarget | null;
   isAddressModalOpen: boolean;
   isAuthModalOpen: boolean;
   offerAmount: string;
   location: string;
   locationData: LocationData;
+  /** In-memory only (not persisted) - guards the Home page's silent
+   * auto-detect from firing more than once per session, regardless of how
+   * many times its effect re-runs or how many tabs/components mount it. */
+  hasAttemptedAutoDetect: boolean;
   toastMessage: string | null;
 }
 
@@ -54,11 +83,13 @@ const initialState: UiState = {
   isReportModalOpen: false,
   reportTarget: null,
   isReviewModalOpen: false,
+  reviewTarget: null,
   isAddressModalOpen: false,
   isAuthModalOpen: false,
   offerAmount: '',
   location: savedLoc.displayName,
   locationData: savedLoc,
+  hasAttemptedAutoDetect: false,
   toastMessage: null,
 };
 
@@ -85,6 +116,11 @@ export const uiSlice = createSlice({
     },
     setReviewModalOpen: (state, action: PayloadAction<boolean>) => {
       state.isReviewModalOpen = action.payload;
+      if (!action.payload) state.reviewTarget = null;
+    },
+    openReviewModal: (state, action: PayloadAction<ReviewTarget>) => {
+      state.isReviewModalOpen = true;
+      state.reviewTarget = action.payload;
     },
     setAddressModalOpen: (state, action: PayloadAction<boolean>) => {
       state.isAddressModalOpen = action.payload;
@@ -106,6 +142,9 @@ export const uiSlice = createSlice({
       state.location = action.payload.displayName;
       saveLocation(action.payload);
     },
+    markAutoDetectAttempted: (state) => {
+      state.hasAttemptedAutoDetect = true;
+    },
     showToast: (state, action: PayloadAction<string>) => {
       state.toastMessage = action.payload;
     },
@@ -122,10 +161,12 @@ export const {
   setReportModalOpen,
   openReportModal,
   setReviewModalOpen,
+  openReviewModal,
   setAddressModalOpen,
   setAuthModalOpen,
   setLocation,
   setLocationData,
+  markAutoDetectAttempted,
   showToast,
   clearToast,
 } = uiSlice.actions;

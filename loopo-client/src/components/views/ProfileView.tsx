@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
   User,
   MapPin,
@@ -19,10 +20,11 @@ import {
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import {
   setAddressModalOpen,
-  setReviewModalOpen,
+  openReviewModal,
   showToast,
 } from '@/redux/slices/uiSlice';
 import { initAuthThunk } from '@/redux/slices/authSlice';
+import { fetchPendingRatingsThunk } from '@/redux/slices/ratingsSlice';
 import { userApi, Address, PublicSellerProfile } from '@/services/userApi';
 import { ROUTES } from '@/routes/routes';
 
@@ -46,11 +48,16 @@ export default function ProfileView() {
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [addressesLoading, setAddressesLoading] = useState(true);
   const [sellerStats, setSellerStats] = useState<PublicSellerProfile | null>(null);
+  const pendingRatings = useAppSelector((state) => state.ratings.pendingRatings);
 
   // If not yet loaded, attempt a refresh
   useEffect(() => {
     if (!user) dispatch(initAuthThunk());
   }, [dispatch, user]);
+
+  useEffect(() => {
+    dispatch(fetchPendingRatingsThunk());
+  }, [dispatch]);
 
   useEffect(() => {
     userApi.getMyKyc().then((res) => {
@@ -136,10 +143,23 @@ export default function ProfileView() {
                 )}
               </div>
               {displaySince && <div className="text-xs text-slate-500 font-medium">{displaySince}</div>}
-              <div className="text-xs text-amber-500 font-bold flex items-center gap-1">
-                <Star className="w-3.5 h-3.5 fill-amber-400" />
-                <span>{displayRating}</span>
-              </div>
+              {user?.id ? (
+                <Link
+                  href={ROUTES.SELLER_REVIEWS(user.id)}
+                  className="text-xs text-amber-500 font-bold flex items-center gap-1 hover:underline w-fit"
+                >
+                  <Star className="w-3.5 h-3.5 fill-amber-400" />
+                  <span>{displayRating}</span>
+                  {sellerStats && sellerStats.reviewCount > 0 && (
+                    <span className="text-slate-400 font-semibold">• {Math.round(sellerStats.positivePercent)}% positive</span>
+                  )}
+                </Link>
+              ) : (
+                <div className="text-xs text-amber-500 font-bold flex items-center gap-1">
+                  <Star className="w-3.5 h-3.5 fill-amber-400" />
+                  <span>{displayRating}</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -188,6 +208,59 @@ export default function ProfileView() {
           {kycStatus === 'NOT_STARTED' ? 'Start KYC' : kycStatus === 'REJECTED' || kycStatus === 'DRAFT' ? 'Update KYC Docs' : 'View KYC Status'}
         </button>
       </div>
+
+      {/* Pending Ratings - real, server-issued rating eligibilities created
+          when a seller marks a listing Sold and selects this user as the
+          buyer (see RatingEligibility). Only ever shown if one actually
+          exists - there's no way to rate a seller without this. */}
+      {pendingRatings.length > 0 && (
+        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+          <div>
+            <h2 className="text-lg font-black text-slate-900">Pending Ratings</h2>
+            <p className="text-xs font-medium text-slate-400 mt-0.5">
+              Share your experience with these sellers before the invitation expires
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            {pendingRatings.map((p) => (
+              <div
+                key={p.id}
+                className="flex items-center justify-between gap-3 p-3 bg-slate-50 border border-slate-200/80 rounded-2xl"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <img
+                    src={p.product.images?.[0]?.thumbnailUrl || p.product.images?.[0]?.originalUrl || ''}
+                    alt={p.product.title}
+                    className="w-12 h-12 rounded-xl object-cover border border-slate-200 shrink-0 bg-slate-100"
+                  />
+                  <div className="min-w-0">
+                    <div className="font-extrabold text-xs text-slate-900 truncate">{p.product.title}</div>
+                    <div className="text-[11px] text-slate-500 font-medium truncate">
+                      Seller: {p.seller.firstName} {p.seller.lastName}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() =>
+                    dispatch(
+                      openReviewModal({
+                        eligibilityId: p.id,
+                        sellerName: `${p.seller.firstName} ${p.seller.lastName}`.trim(),
+                        productTitle: p.product.title,
+                        productImage: p.product.images?.[0]?.originalUrl,
+                      }),
+                    )
+                  }
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2 rounded-xl shrink-0 transition-colors"
+                >
+                  Rate Now
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Saved Addresses (Backend Addresses endpoint) */}
       <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">

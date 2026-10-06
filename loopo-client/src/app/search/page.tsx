@@ -5,9 +5,21 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import ProductCard from '@/components/ui/ProductCard';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
-import { fetchProductsThunk } from '@/redux/slices/productsSlice';
-import { Search, SlidersHorizontal, MapPin, ArrowUpDown, Filter, X, Check, Loader2 } from 'lucide-react';
+import { searchProductsThunk, setNearbyOnly } from '@/redux/slices/productsSlice';
+import { Search, SlidersHorizontal, MapPin, ArrowUpDown, Filter, X, Check, Loader2, Navigation } from 'lucide-react';
 import { useCategories } from '@/hooks/useCategories';
+
+/** Maps the drawer's display labels to the backend's real ProductCondition
+ * enum (NEW/LIKE_NEW/GOOD/FAIR/POOR) - sending the label string itself
+ * would just get silently stripped by the whitelist validation pipe. */
+function conditionToEnum(label: string): string | undefined {
+  const norm = label.toLowerCase();
+  if (norm.includes('brand') || norm === 'new') return 'NEW';
+  if (norm.includes('like')) return 'LIKE_NEW';
+  if (norm.includes('good')) return 'GOOD';
+  if (norm.includes('fair')) return 'FAIR';
+  return undefined;
+}
 
 function SearchContent() {
 
@@ -23,8 +35,11 @@ function SearchContent() {
   const sortParam = searchParams.get('sort') || 'newest';
 
   const dispatch = useAppDispatch();
-  const products = useAppSelector((state) => state.products.items);
-  const isLoading = useAppSelector((state) => state.products.loading);
+  const filtered = useAppSelector((state) => state.products.searchResults);
+  const searchTotal = useAppSelector((state) => state.products.searchTotal);
+  const isLoading = useAppSelector((state) => state.products.searchLoading);
+  const nearbyOnly = useAppSelector((state) => state.products.filters.nearbyOnly);
+  const locationData = useAppSelector((state) => state.ui.locationData);
   const { categories } = useCategories();
 
   const [searchQuery, setSearchQueryState] = useState(q);
@@ -42,9 +57,28 @@ function SearchContent() {
     (c) => c.name.toLowerCase() === categoryParam.toLowerCase()
   )?.id;
 
+  const hasCoords = locationData.latitude !== undefined && locationData.longitude !== undefined;
+
+  // Real GET /search: price range, condition, and sort are now applied
+  // server-side (previously fetched an unfiltered/unsorted page from
+  // /products and filtered *that* client-side, which only ever operated on
+  // whatever page happened to already be loaded). "Near me" plugs the
+  // browsing location set on /location or the header into a real geo-radius
+  // query instead of doing nothing, which is all it did before.
   useEffect(() => {
-    dispatch(fetchProductsThunk({ query: q, categoryId }));
-  }, [q, categoryId, dispatch]);
+    dispatch(searchProductsThunk({
+      query: q || undefined,
+      categoryId,
+      minPrice: minPriceParam ? Number(minPriceParam) : undefined,
+      maxPrice: maxPriceParam ? Number(maxPriceParam) : undefined,
+      condition: conditionParam ? conditionToEnum(conditionParam) as any : undefined,
+      sortBy: sortParam === 'price-low' || sortParam === 'price-high' ? 'price' : 'createdAt',
+      sortOrder: sortParam === 'price-low' ? 'asc' : 'desc',
+      ...(nearbyOnly && hasCoords
+        ? { latitude: locationData.latitude, longitude: locationData.longitude, radiusKm: locationData.radiusKm || 15 }
+        : {}),
+    }));
+  }, [q, categoryId, minPriceParam, maxPriceParam, conditionParam, sortParam, nearbyOnly, hasCoords, locationData.latitude, locationData.longitude, locationData.radiusKm, dispatch]);
 
   const applyFilters = () => {
     const params = new URLSearchParams();
@@ -60,22 +94,6 @@ function SearchContent() {
     setShowMobileFilterDrawer(false);
   };
 
-  // Filter products locally
-  let filtered = products.filter((p) => {
-    const matchesQ = !q || p.title.toLowerCase().includes(q.toLowerCase()) || p.description.toLowerCase().includes(q.toLowerCase());
-    const matchesCat = !categoryParam || p.category.toLowerCase() === categoryParam.toLowerCase();
-    const matchesMin = !minPriceParam || p.price >= Number(minPriceParam);
-    const matchesMax = !maxPriceParam || p.price <= Number(maxPriceParam);
-    const matchesCond = !conditionParam || p.condition.toLowerCase() === conditionParam.toLowerCase();
-    return matchesQ && matchesCat && matchesMin && matchesMax && matchesCond;
-  });
-
-  if (sortParam === 'price-low') {
-    filtered = [...filtered].sort((a, b) => a.price - b.price);
-  } else if (sortParam === 'price-high') {
-    filtered = [...filtered].sort((a, b) => b.price - a.price);
-  }
-
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       {/* Header Search & Filter Bar */}
@@ -86,11 +104,25 @@ function SearchContent() {
               {q ? `Results for "${q}"` : 'Marketplace Search'}
             </h1>
             <p className="text-xs text-slate-500 font-medium mt-1">
-              Showing {filtered.length} products
+              {isLoading ? 'Searching…' : `Showing ${filtered.length} of ${searchTotal} products`}
             </p>
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => dispatch(setNearbyOnly(!nearbyOnly))}
+              disabled={!hasCoords}
+              title={hasCoords ? undefined : 'Set your location first (top-right, or /location) to search nearby'}
+              className={`flex items-center gap-2 font-bold text-xs px-4 py-2.5 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
+                nearbyOnly && hasCoords
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+              }`}
+            >
+              <Navigation className="w-4 h-4" />
+              <span>Near me{hasCoords ? ` (${locationData.radiusKm || 15} km)` : ''}</span>
+            </button>
             <button
               onClick={() => setShowMobileFilterDrawer(true)}
               className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-4 py-2.5 rounded-xl transition-all"
@@ -124,11 +156,21 @@ function SearchContent() {
               Condition: {conditionParam}
             </span>
           )}
+          {nearbyOnly && hasCoords && (
+            <span className="text-xs font-bold bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full flex items-center gap-1">
+              <MapPin className="w-3 h-3" /> Within {locationData.radiusKm || 15} km of {locationData.city || locationData.displayName}
+              <X className="w-3 h-3 cursor-pointer" onClick={() => dispatch(setNearbyOnly(false))} />
+            </span>
+          )}
         </div>
       </div>
 
       {/* Results Grid */}
-      {filtered.length === 0 ? (
+      {isLoading && filtered.length === 0 ? (
+        <div className="bg-white rounded-3xl p-12 text-center border border-slate-100 text-slate-400 font-medium text-sm">
+          <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" /> Searching…
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="bg-white rounded-3xl p-12 text-center border border-slate-100 text-slate-400 font-medium text-sm">
           No products found matching your search filters.
         </div>
