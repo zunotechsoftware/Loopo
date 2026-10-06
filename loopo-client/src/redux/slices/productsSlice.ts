@@ -81,6 +81,7 @@ function normaliseProduct(p: any): Product {
       typeof p.location === 'string'
         ? p.location
         : p.location?.city || p.location?.state || 'India',
+    area: typeof p.location === 'object' ? p.location?.area || undefined : undefined,
     postedDate: p.createdAt
       ? new Date(p.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
       : 'Recently',
@@ -116,7 +117,10 @@ function normaliseProduct(p: any): Product {
     description: p.description || '',
     specs: p.specs || p.attributes || {},
     viewsCount: p.viewCount || p.viewsCount || 0,
-    distance: p.distance || '',
+    // `p.distance || ''` would silently turn a real 0km (same-location)
+    // result into an empty string, since 0 is falsy - exactly the closest,
+    // most relevant results this field exists for.
+    distance: typeof p.distance === 'number' ? p.distance : (p.distance || ''),
     likesCount: p.favoriteCount || p.likesCount || 0,
     status: p.status || 'APPROVED',
   };

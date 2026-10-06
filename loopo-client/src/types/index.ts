@@ -25,6 +25,11 @@ export interface Product {
   specs: Record<string, string>;
   viewsCount: number;
   distance: string;
+  /** Sub-city area/locality, when the listing actually has one set (the
+   * real data for most seeded listings doesn't) - falls back to undefined
+   * rather than silently defaulting to the city name, so callers can tell
+   * the two apart. */
+  area?: string;
   likesCount: number;
   /** Real backend ProductStatus (DRAFT/PENDING/APPROVED/REJECTED/EXPIRED/
    * ARCHIVED/PAUSED/SOLD/UNDER_REVIEW). Used to gate sold-state UI (hide
