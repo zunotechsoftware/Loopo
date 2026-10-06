@@ -18,6 +18,8 @@ import ProductCard from '../ui/ProductCard';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { setActiveTab } from '@/redux/slices/navigationSlice';
 import { setCategoryFilter, fetchProductsThunk, searchProductsThunk } from '@/redux/slices/productsSlice';
+import { setLocationData, markAutoDetectAttempted } from '@/redux/slices/uiSlice';
+import { detectCurrentLocation } from '@/utils/detectLocation';
 import { ROUTES } from '@/routes/routes';
 
 export default function HomeView() {
@@ -28,9 +30,27 @@ export default function HomeView() {
   const filters = useAppSelector((state) => state.products.filters);
   const isLoading = useAppSelector((state) => state.products.loading || state.products.searchLoading);
   const locationData = useAppSelector((state) => state.ui.locationData);
+  const hasAttemptedAutoDetect = useAppSelector((state) => state.ui.hasAttemptedAutoDetect);
   const { categories, loading: categoriesLoading } = useCategories();
 
   const hasCoords = locationData.latitude !== undefined && locationData.longitude !== undefined;
+
+  // "Near You" previously only ever activated once a visitor had manually
+  // gone to /location or used the header's GPS/city picker - anyone who
+  // hadn't done that always saw the generic unfiltered feed, GPS-equipped
+  // device or not. This silently detects the real current location once
+  // per session (GPS, falling back to an IP-based guess) so the section
+  // works out of the box, without overriding a location the visitor
+  // already chose explicitly.
+  useEffect(() => {
+    if (!hasCoords && !hasAttemptedAutoDetect) {
+      dispatch(markAutoDetectAttempted());
+      detectCurrentLocation().then((loc) => {
+        dispatch(setLocationData({ ...loc, radiusKm: locationData.radiusKm || 15 }));
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasCoords, hasAttemptedAutoDetect, dispatch]);
 
   // When a real browsing location is set (GPS/IP-detected or picked on
   // /location or the header), this genuinely fetches what's nearby via
