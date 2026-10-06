@@ -67,6 +67,10 @@ interface UiState {
   offerAmount: string;
   location: string;
   locationData: LocationData;
+  /** In-memory only (not persisted) - guards the Home page's silent
+   * auto-detect from firing more than once per session, regardless of how
+   * many times its effect re-runs or how many tabs/components mount it. */
+  hasAttemptedAutoDetect: boolean;
   toastMessage: string | null;
 }
 
@@ -85,6 +89,7 @@ const initialState: UiState = {
   offerAmount: '',
   location: savedLoc.displayName,
   locationData: savedLoc,
+  hasAttemptedAutoDetect: false,
   toastMessage: null,
 };
 
@@ -137,6 +142,9 @@ export const uiSlice = createSlice({
       state.location = action.payload.displayName;
       saveLocation(action.payload);
     },
+    markAutoDetectAttempted: (state) => {
+      state.hasAttemptedAutoDetect = true;
+    },
     showToast: (state, action: PayloadAction<string>) => {
       state.toastMessage = action.payload;
     },
@@ -158,6 +166,7 @@ export const {
   setAuthModalOpen,
   setLocation,
   setLocationData,
+  markAutoDetectAttempted,
   showToast,
   clearToast,
 } = uiSlice.actions;
