@@ -22,7 +22,7 @@ const DEFAULT_LOCATION: LocationData = {
   radiusKm: 15,
 };
 
-function loadSavedLocation(): LocationData {
+export function loadSavedLocation(): LocationData {
   if (typeof window === 'undefined') return DEFAULT_LOCATION;
   try {
     const saved = localStorage.getItem('loopo_location');
@@ -74,8 +74,13 @@ interface UiState {
   toastMessage: string | null;
 }
 
-const savedLoc = loadSavedLocation();
-
+// Initial state must render identically on the server and on the client's
+// first pass, or React throws a hydration mismatch - so it always starts
+// from DEFAULT_LOCATION here, never from localStorage (which only exists
+// client-side and would diverge from the server-rendered HTML). The real
+// saved location is applied post-mount instead - see ReduxProvider's
+// AppInit, which dispatches setLocationData(loadSavedLocation()) in a
+// useEffect once hydration is already done.
 const initialState: UiState = {
   isDarkMode: false,
   isOfferModalOpen: false,
@@ -87,8 +92,8 @@ const initialState: UiState = {
   isAddressModalOpen: false,
   isAuthModalOpen: false,
   offerAmount: '',
-  location: savedLoc.displayName,
-  locationData: savedLoc,
+  location: DEFAULT_LOCATION.displayName,
+  locationData: DEFAULT_LOCATION,
   hasAttemptedAutoDetect: false,
   toastMessage: null,
 };

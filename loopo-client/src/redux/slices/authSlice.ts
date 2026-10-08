@@ -43,17 +43,6 @@ function buildProfile(u: any): UserProfile | null {
   };
 }
 
-function loadLocalUser(): UserProfile | null {
-
-  if (typeof window === 'undefined') return null;
-  try {
-    const saved = localStorage.getItem('loopo_user_profile');
-    return saved ? JSON.parse(saved) : null;
-  } catch {
-    return null;
-  }
-}
-
 function saveLocalUser(user: UserProfile | null) {
   if (typeof window === 'undefined') return;
   try {
@@ -67,12 +56,17 @@ function saveLocalUser(user: UserProfile | null) {
   }
 }
 
-const initialToken = typeof window !== 'undefined' ? getAuthToken() : null;
-const initialUser = loadLocalUser();
-
+// Initial state must render identically on the server and on the client's
+// first pass, or React throws a hydration mismatch - so this never reads
+// the token/localStorage here (the server always sees "logged out", and a
+// client-side synchronous read would show "logged in" immediately,
+// diverging from the server-rendered HTML). The real session is restored
+// post-mount instead, via initAuthThunk (already dispatched in
+// ReduxProvider's AppInit effect), which re-validates the stored token
+// against the API once hydration is already done.
 const initialState: AuthState = {
-  isAuthenticated: Boolean(initialToken || initialUser),
-  user: initialUser,
+  isAuthenticated: false,
+  user: null,
   authMode: 'login',
   otpTarget: '',
   loading: false,
@@ -202,10 +196,7 @@ export const authSlice = createSlice({
       })
       .addCase(initAuthThunk.rejected, (state) => {
         state.loading = false;
-        // Keep initialUser from localStorage if available
-        if (!state.user) {
-          state.isAuthenticated = false;
-        }
+        state.isAuthenticated = false;
       })
       // Login
       .addCase(loginUserThunk.pending, (state) => {
