@@ -1,5 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  ArrayMaxSize,
+  ArrayMinSize,
   IsBoolean,
   IsEnum,
   IsInt,
@@ -134,6 +136,21 @@ export class CreateProductDto {
   @Type(() => ProductAttributeDto)
   @ValidateNested({ each: true })
   attributes?: ProductAttributeDto[];
+}
+
+/** Bulk listing - KYC-gated (see ProductsService.createBulkProducts): a
+ * single listing (plain POST /products) stays KYC-optional, but creating
+ * several at once requires a completed, approved KYC verification. Capped
+ * at 50 per request as a reasonable abuse/accidental-overload guard, not
+ * something explicitly specified. */
+export class CreateBulkProductsDto {
+  @ApiProperty({ description: 'Listings to create in one bulk request (KYC-verified sellers only)', type: [CreateProductDto] })
+  @IsNotEmpty()
+  @ArrayMinSize(2)
+  @ArrayMaxSize(50)
+  @ValidateNested({ each: true })
+  @Type(() => CreateProductDto)
+  items: CreateProductDto[];
 }
 
 export class UpdateProductDto {
@@ -294,6 +311,20 @@ export class ListingSearchQueryDto {
   @IsOptional()
   @IsEnum(ProductStatus)
   status?: ProductStatus;
+}
+
+// Optional on purpose: a seller can still mark a listing Sold with no
+// buyer selected (legacy/backward-compatible behaviour - e.g. the item
+// sold entirely outside the app). Only when a real buyerId is supplied
+// does this create an Order + RatingEligibility; ProductsService validates
+// that buyer actually has a genuine prior interaction with this listing
+// (an Offer or a chat Conversation) before accepting the selection - a
+// seller can't just type in an arbitrary stranger's id.
+export class MarkSoldDto {
+  @ApiPropertyOptional({ description: 'The buyer who completed this transaction - must have a real prior interaction (offer or chat) on this listing', example: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a14' })
+  @IsOptional()
+  @IsUUID()
+  buyerId?: string;
 }
 
 export class RejectProductDto {

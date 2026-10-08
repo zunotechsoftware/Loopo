@@ -51,6 +51,9 @@ export interface PublicSellerProfile {
   profilePicture: string | null;
   sellerRating: number;
   reviewCount: number;
+  /** % of visible reviews rated 4-5 stars - the one centralized backend
+   * definition (ReputationService.recalculateSellerStats), not recomputed here. */
+  positivePercent: number;
   memberSince: string;
   verifiedBadge: boolean;
   totalListings: number;

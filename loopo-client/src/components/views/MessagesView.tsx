@@ -17,6 +17,7 @@ import {
   Ban,
   Loader2,
   X,
+  User,
 } from 'lucide-react';
 import { userApi } from '@/services/userApi';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
@@ -35,9 +36,11 @@ import {
 import {
   setOfferModalOpen,
   openReportModal,
-  setReviewModalOpen,
+  openReviewModal,
   showToast,
 } from '@/redux/slices/uiSlice';
+import { setSelectedProductId } from '@/redux/slices/navigationSlice';
+import { fetchPendingRatingsThunk } from '@/redux/slices/ratingsSlice';
 import { useChatSocket } from '@/hooks/useChatSocket';
 
 export default function MessagesView() {
@@ -46,10 +49,21 @@ export default function MessagesView() {
   const activeConversationId = useAppSelector((state) => state.chat.activeConversationId);
   const chatFilterTab = useAppSelector((state) => state.chat.chatFilterTab);
   const currentUserId = useAppSelector((state) => state.auth.user?.id);
+  const pendingRatings = useAppSelector((state) => state.ratings.pendingRatings);
+  const myAcceptedOffers = useAppSelector((state) => state.offers.myAcceptedOffers);
+
+  // Once this buyer's offer on an item was accepted, that negotiated amount
+  // - not the seller's original listing price baked into the conversation
+  // summary - is what they actually agreed to pay.
+  const displayItemPrice = (itemId: string, fallback: string) => {
+    const accepted = myAcceptedOffers[itemId];
+    return accepted != null ? `₹${accepted.toLocaleString('en-IN')}` : fallback;
+  };
 
   // Fetch real conversations from API on mount
   useEffect(() => {
     dispatch(fetchConversationsThunk());
+    dispatch(fetchPendingRatingsThunk());
   }, [dispatch]);
 
   // Real-time: messages/conversation updates arrive over the same
@@ -195,7 +209,7 @@ export default function MessagesView() {
           <div className="flex items-center justify-between">
             <h1 className="font-black text-slate-900 text-base">Inbox & Chats</h1>
             <span className="text-[11px] font-extrabold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-              OLX Mode
+              Loopo Mode
             </span>
           </div>
 
@@ -256,11 +270,17 @@ export default function MessagesView() {
                   }`}
                 >
                   <div className="relative shrink-0">
-                    <img
-                      src={conv.otherPartyAvatar}
-                      alt={conv.otherPartyName}
-                      className="w-10 h-10 rounded-full object-cover ring-1 ring-slate-200"
-                    />
+                    {conv.otherPartyAvatar ? (
+                      <img
+                        src={conv.otherPartyAvatar}
+                        alt={conv.otherPartyName}
+                        className="w-10 h-10 rounded-full object-cover ring-1 ring-slate-200"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-slate-100 ring-1 ring-slate-200 flex items-center justify-center">
+                        <User className="w-5 h-5 text-slate-400" />
+                      </div>
+                    )}
                     {conv.unreadCount > 0 && (
                       <span className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-600 text-white text-[9px] font-extrabold rounded-full flex items-center justify-center ring-2 ring-white">
                         {conv.unreadCount}
@@ -290,7 +310,7 @@ export default function MessagesView() {
                     </div>
 
                     <div className="text-[11px] font-bold text-emerald-600 truncate mt-0.5">
-                      {conv.itemTitle} • {conv.itemPrice}
+                      {conv.itemTitle} • {displayItemPrice(conv.itemId, conv.itemPrice)}
                     </div>
                     <div className="text-[11px] font-medium text-slate-500 truncate">
                       {conv.lastMessage}
@@ -309,17 +329,28 @@ export default function MessagesView() {
           {/* Chat Top Banner Header */}
           <div className="bg-white p-3.5 px-6 border-b border-slate-100 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3 min-w-0">
-              <img
-                src={activeConv.itemImage}
-                alt={activeConv.itemTitle}
-                className="w-11 h-11 rounded-xl object-cover border border-slate-100 shrink-0"
-              />
+              {activeConv.itemImage ? (
+                <img
+                  src={activeConv.itemImage}
+                  alt={activeConv.itemTitle}
+                  className="w-11 h-11 rounded-xl object-cover border border-slate-100 shrink-0"
+                />
+              ) : (
+                <div className="w-11 h-11 rounded-xl bg-slate-100 border border-slate-100 shrink-0 flex items-center justify-center">
+                  <Package className="w-5 h-5 text-slate-400" />
+                </div>
+              )}
               <div className="min-w-0">
-                <div className="font-extrabold text-xs text-slate-900 truncate">
+                <div className="font-extrabold text-xs text-slate-900 truncate flex items-center gap-1.5">
                   {activeConv.itemTitle}
+                  {activeConv.itemStatus === 'SOLD' && (
+                    <span className="bg-slate-900 text-white text-[9px] font-extrabold px-2 py-0.5 rounded-full shrink-0">
+                      SOLD
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 text-[11px]">
-                  <span className="font-black text-emerald-600">{activeConv.itemPrice}</span>
+                  <span className="font-black text-emerald-600">{displayItemPrice(activeConv.itemId, activeConv.itemPrice)}</span>
                   <span className="text-slate-300">•</span>
                   <span className="text-slate-400 font-medium flex items-center gap-0.5 truncate">
                     <MapPin className="w-3 h-3 text-slate-400" />
@@ -339,13 +370,35 @@ export default function MessagesView() {
                 <span className="hidden sm:inline">Call</span>
               </button>
 
-              <button
-                onClick={() => dispatch(setOfferModalOpen(true))}
-                className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl shadow-sm transition-all"
-              >
-                <Tag className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Make Offer</span>
-              </button>
+              {/* Buyer-only: a seller viewing their own listing's chat can't
+                  make an offer on it. Disabled (not hidden) once sold, so
+                  it's clear why rather than silently disappearing. Sets the
+                  real listing id into navigation state first - previously
+                  this opened OfferModal with whatever product was last
+                  browsed elsewhere in the app, not the one this
+                  conversation is actually about. */}
+              {activeConv.type === 'buying' && (
+                <button
+                  onClick={() => {
+                    if (activeConv.itemStatus === 'SOLD') {
+                      dispatch(showToast('This listing has already been sold and can no longer accept offers.'));
+                      return;
+                    }
+                    if (activeConv.itemId) dispatch(setSelectedProductId(activeConv.itemId));
+                    dispatch(setOfferModalOpen(true));
+                  }}
+                  disabled={activeConv.itemStatus === 'SOLD'}
+                  title={activeConv.itemStatus === 'SOLD' ? 'This listing has already been sold' : undefined}
+                  className={`flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-xl shadow-sm transition-all ${
+                    activeConv.itemStatus === 'SOLD'
+                      ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                      : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                  }`}
+                >
+                  <Tag className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">{activeConv.itemStatus === 'SOLD' ? 'Sold' : 'Make Offer'}</span>
+                </button>
+              )}
 
               <button
                 onClick={() => dispatch(openReportModal({ targetType: 'USER', targetId: activeConv.otherPartyId, label: activeConv.otherPartyName }))}
@@ -390,12 +443,25 @@ export default function MessagesView() {
                   <strong>Safety Tip:</strong> Inspect item in person before making payment. Never transfer money online in advance.
                 </span>
               </div>
-              <button
-                onClick={() => dispatch(setReviewModalOpen(true))}
-                className="text-[11px] font-extrabold text-emerald-700 underline shrink-0 ml-2"
-              >
-                Rate Seller
-              </button>
+              {activeConv.type === 'buying' && (() => {
+                const pendingMatch = pendingRatings.find(
+                  (p) => p.sellerId === activeConv.otherPartyId && p.productId === activeConv.itemId,
+                );
+                if (!pendingMatch) return null;
+                return (
+                  <button
+                    onClick={() => dispatch(openReviewModal({
+                      eligibilityId: pendingMatch.id,
+                      sellerName: activeConv.otherPartyName,
+                      productTitle: activeConv.itemTitle,
+                      productImage: activeConv.itemImage,
+                    }))}
+                    className="text-[11px] font-extrabold text-emerald-700 underline shrink-0 ml-2"
+                  >
+                    Rate Seller
+                  </button>
+                );
+              })()}
             </div>
 
             {/* Render Messages */}

@@ -1,12 +1,13 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
-import { markAsSoldThunk, deleteAdThunk } from '@/redux/slices/myAdsSlice';
+import { deleteAdThunk } from '@/redux/slices/myAdsSlice';
 import { showToast } from '@/redux/slices/uiSlice';
 import { ROUTES } from '@/routes/routes';
 import { Edit3, Trash2, CheckCircle, Eye, Play, Pause, RefreshCw, Loader2 } from 'lucide-react';
+import MarkSoldModal from '@/components/ui/MarkSoldModal';
 
 /** Per-raw-status badge (the coarse Active/Sold/Inactive bucket on
  * ad.status collapses Draft/Pending/Rejected/etc. all into one label,
@@ -27,9 +28,11 @@ export default function MyListingsAllPage() {
   const dispatch = useAppDispatch();
   // Fetched once by the shared my-listings/layout.tsx.
   const { ads, loading } = useAppSelector((state) => state.myAds);
+  const [markSoldFor, setMarkSoldFor] = useState<string | null>(null);
 
   return (
     <div className="space-y-3">
+      {markSoldFor && <MarkSoldModal productId={markSoldFor} onClose={() => setMarkSoldFor(null)} />}
       {loading ? (
         <div className="bg-white rounded-3xl p-12 text-center border border-slate-100">
           <Loader2 className="w-8 h-8 animate-spin text-emerald-500 mx-auto" />
@@ -87,14 +90,7 @@ export default function MyListingsAllPage() {
 
               {ad.rawStatus === 'APPROVED' && (
                 <button
-                  onClick={async () => {
-                    try {
-                      await dispatch(markAsSoldThunk(ad.id)).unwrap();
-                      dispatch(showToast('Marked as Sold!'));
-                    } catch (err: any) {
-                      dispatch(showToast(err || 'Failed to mark as sold'));
-                    }
-                  }}
+                  onClick={() => setMarkSoldFor(ad.id)}
                   className="flex items-center gap-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-xs font-bold px-3 py-2 rounded-xl transition-colors"
                 >
                   <CheckCircle className="w-3.5 h-3.5" />

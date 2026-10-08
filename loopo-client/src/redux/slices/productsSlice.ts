@@ -2,6 +2,7 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { Product } from '@/types';
 import { productsApi, CreateProductPayload, UpdateProductPayload } from '@/services/productsApi';
 import { interactionsApi } from '@/services/interactionsApi';
+import { searchApi, SearchParams } from '@/services/searchApi';
 
 interface FilterState {
   searchQuery: string;
@@ -20,6 +21,16 @@ interface ProductsState {
    * any "N items" display built from it wrong for any filter matching
    * more results than one page. */
   total: number;
+  /** Results of the real GET /search call (query + price/condition/sort +
+   * geo-radius, all applied server-side) - kept separate from `items`
+   * (the home-feed/category-browse cache, which merges across fetches)
+   * so the search page renders exactly the current query's matches, in
+   * the server's chosen order, rather than filtering the accumulated
+   * cross-page item pool client-side. */
+  searchResults: Product[];
+  searchTotal: number;
+  searchLoading: boolean;
+  searchError: string | null;
   favorites: string[];
   filters: FilterState;
   loading: boolean;
@@ -29,6 +40,10 @@ interface ProductsState {
 const initialState: ProductsState = {
   items: [],
   total: 0,
+  searchResults: [],
+  searchTotal: 0,
+  searchLoading: false,
+  searchError: null,
   favorites: [],
   filters: {
     searchQuery: '',
@@ -66,6 +81,7 @@ function normaliseProduct(p: any): Product {
       typeof p.location === 'string'
         ? p.location
         : p.location?.city || p.location?.state || 'India',
+    area: typeof p.location === 'object' ? p.location?.area || undefined : undefined,
     postedDate: p.createdAt
       ? new Date(p.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
       : 'Recently',
@@ -81,18 +97,32 @@ function normaliseProduct(p: any): Product {
         seller.profile?.avatarUrl ||
         seller.avatarUrl ||
         '',
-      rating: seller.reputation?.averageRating || seller.rating || 0,
-      reviewCount: seller.reputation?.totalReviews || seller.reviewCount || 0,
+      // sellerStatistics is the one centralized rating calculation
+      // (ReputationService.recalculateSellerStats) - the backend product
+      // response previously never carried any real rating data here at all
+      // (`seller.reputation`/`seller.rating` were never actually populated
+      // by any endpoint), so this always silently rendered 0.
+      rating: seller.sellerStatistics?.averageRating || seller.reputation?.averageRating || seller.rating || 0,
+      reviewCount: seller.sellerStatistics?.totalReviews || seller.reputation?.totalReviews || seller.reviewCount || 0,
+      positivePercent: seller.sellerStatistics?.positivePercent || 0,
       memberSince: seller.createdAt
         ? new Date(seller.createdAt).getFullYear().toString()
         : '',
-      isVerified: seller.isEmailVerified || seller.isKycVerified || false,
+      // Real KYC-complete signal (Profile.verifiedBadge, set by the actual
+      // KYC approve/reject flow) - not email verification, which used to be
+      // the only thing this ever actually evaluated to, since
+      // `seller.isKycVerified` was never a field any backend endpoint sent.
+      isVerified: Boolean(seller.profile?.verifiedBadge),
     },
     description: p.description || '',
     specs: p.specs || p.attributes || {},
     viewsCount: p.viewCount || p.viewsCount || 0,
-    distance: p.distance || '',
+    // `p.distance || ''` would silently turn a real 0km (same-location)
+    // result into an empty string, since 0 is falsy - exactly the closest,
+    // most relevant results this field exists for.
+    distance: typeof p.distance === 'number' ? p.distance : (p.distance || ''),
     likesCount: p.favoriteCount || p.likesCount || 0,
+    status: p.status || 'APPROVED',
   };
 }
 
@@ -115,6 +145,23 @@ export const fetchProductsThunk = createAsyncThunk(
       // this particular page actually returned.
       const total: number = typeof data?.total === 'number' ? data.total : rawItems.length;
 
+      return { items: rawItems.map(normaliseProduct), total };
+    }
+    return { items: [], total: 0 };
+  }
+);
+
+/** Real GET /search - price range, condition, sort, and geo-radius are all
+ * applied server-side, unlike fetchProductsThunk (GET /products) which only
+ * supports category/keyword/exact-city-match. Used by the search page. */
+export const searchProductsThunk = createAsyncThunk(
+  'products/search',
+  async (params: SearchParams) => {
+    const res = await searchApi.search(params);
+    if (res.success) {
+      const data = res.data as any;
+      const rawItems: any[] = Array.isArray(data?.items) ? data.items : [];
+      const total: number = typeof data?.total === 'number' ? data.total : rawItems.length;
       return { items: rawItems.map(normaliseProduct), total };
     }
     return { items: [], total: 0 };
@@ -249,6 +296,19 @@ export const productsSlice = createSlice({
       .addCase(fetchProductsThunk.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to fetch products';
+      })
+      .addCase(searchProductsThunk.pending, (state) => {
+        state.searchLoading = true;
+        state.searchError = null;
+      })
+      .addCase(searchProductsThunk.fulfilled, (state, action) => {
+        state.searchLoading = false;
+        state.searchResults = action.payload.items;
+        state.searchTotal = action.payload.total;
+      })
+      .addCase(searchProductsThunk.rejected, (state, action) => {
+        state.searchLoading = false;
+        state.searchError = action.error.message || 'Search failed';
       })
       .addCase(createProductThunk.fulfilled, (state, action) => {
         state.items.unshift(action.payload);

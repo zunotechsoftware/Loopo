@@ -172,4 +172,15 @@ export class AuthRepository {
       where: { userId },
     });
   }
+
+  /** True if any of the given role names is flagged as admin-portal-eligible.
+   * Used to tell the admin panel whether an account may sign in at all,
+   * without the frontend hardcoding role name strings. */
+  async hasAdminPortalRole(roleNames: string[]): Promise<boolean> {
+    if (roleNames.length === 0) return false;
+    const count = await this.prisma.role.count({
+      where: { name: { in: roleNames }, isAdminRole: true, deletedAt: null },
+    });
+    return count > 0;
+  }
 }

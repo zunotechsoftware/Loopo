@@ -235,17 +235,6 @@ export class UsersRepository {
     });
   }
 
-  async getSellerRatingSummary(sellerId: string) {
-    const agg = await this.prisma.reviewRating.aggregate({
-      where: {
-        review: { targetUserId: sellerId, isVisible: true, deletedAt: null },
-      },
-      _avg: { overall: true },
-      _count: true,
-    });
-    return { average: agg._avg.overall || 0, count: agg._count };
-  }
-
   // --- Blocked Users ---
   // Block/unblock writes happen in chat.repository.ts against the same
   // BlockedUser table - this is read-only, for the "who have I blocked" list.

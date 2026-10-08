@@ -147,6 +147,30 @@ export const productsApi = {
     return apiClient.post<Product>('/products', dto);
   },
 
+  /** Bulk listing - KYC-mandatory server-side (ProductsService.
+   * createBulkProducts rejects the whole request with a 403 if the seller
+   * hasn't completed KYC - this call doesn't duplicate that check, it just
+   * surfaces whatever the backend says). Reuses the same location-shape
+   * conversion createProduct uses, per item. No photo upload here by
+   * design - bulk items are created without images and can have photos
+   * added afterward via the normal edit flow, same as it already works. */
+  async createBulkListings(items: Array<{
+    title: string; categoryId: string; description: string; price: number;
+    condition: string; city: string; negotiable?: boolean;
+  }>): Promise<ApiResponse<{ created: Product[]; failed: { index: number; title: string; error: string }[]; totalRequested: number; totalCreated: number; totalFailed: number }>> {
+    const dtoItems = items.map((item) => ({
+      title: item.title,
+      description: item.description,
+      categoryId: item.categoryId,
+      condition: mapConditionToEnum(item.condition),
+      price: Number(item.price) || 0,
+      location: parseLocationString(item.city),
+      negotiable: item.negotiable ?? false,
+    }));
+
+    return apiClient.post('/products/bulk', { items: dtoItems });
+  },
+
   async updateProduct(id: string, payload: UpdateProductPayload): Promise<ApiResponse<Product>> {
     const dto: Record<string, unknown> = {};
     if (payload.title !== undefined) dto.title = payload.title;
@@ -210,8 +234,12 @@ export const productsApi = {
     return apiClient.get<Product[]>('/products/my');
   },
 
-  async markAsSold(id: string): Promise<ApiResponse<any>> {
-    return apiClient.patch(`/products/${id}/sold`, {});
+  /** @param buyerId - the buyer who completed the transaction, selected from
+   * a real prior Offer/Conversation on this listing. Creates a rating
+   * eligibility for them server-side. Omit to keep the old no-buyer
+   * behaviour (listing marked sold, no eligibility created). */
+  async markAsSold(id: string, buyerId?: string): Promise<ApiResponse<any>> {
+    return apiClient.patch(`/products/${id}/sold`, buyerId ? { buyerId } : {});
   },
 
   async deleteAd(id: string): Promise<ApiResponse<any>> {

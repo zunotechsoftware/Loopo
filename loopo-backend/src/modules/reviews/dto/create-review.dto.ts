@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, IsOptional, IsEnum, IsInt, Min, Max, IsBoolean, IsUUID, ValidateNested } from 'class-validator';
+import { IsNotEmpty, IsString, IsOptional, IsEnum, IsInt, Min, Max, IsBoolean, IsUUID, ValidateNested, IsArray, MaxLength, ArrayMaxSize } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export enum ReviewTypeDto {
@@ -45,13 +45,35 @@ export class RatingDto {
   wouldRecommend?: boolean;
 }
 
+export class ReviewPhotoInputDto {
+  @ApiProperty({ description: 'Public URL of the already-uploaded photo (from POST /reviews/photos/upload-url)' })
+  @IsString()
+  @IsNotEmpty()
+  fileUrl: string;
+
+  @ApiProperty({ description: 'S3 object key of the already-uploaded photo' })
+  @IsString()
+  @IsNotEmpty()
+  fileKey: string;
+}
+
 export class CreateReviewDto {
   @ApiProperty({ description: 'Review type', enum: ReviewTypeDto, example: 'PRODUCT_REVIEW' })
   @IsEnum(ReviewTypeDto)
   @IsNotEmpty()
   reviewType: ReviewTypeDto;
 
-  @ApiPropertyOptional({ description: 'Target user ID (for seller/buyer reviews)' })
+  // SELLER_REVIEW is eligibility-gated (see ReviewsService.createReview):
+  // targetUserId/productId are derived from this eligibility record
+  // server-side and NOT trusted from the client, closing the IDOR/
+  // "manufactured eligibility" hole a plain client-supplied targetUserId
+  // would otherwise open. Required when reviewType is SELLER_REVIEW;
+  // ignored for other review types, which keep their pre-existing behaviour.
+  @ApiPropertyOptional({ description: 'Rating-eligibility id (required for SELLER_REVIEW) - identifies the real completed transaction this review is about' })
+  @IsUUID() @IsOptional()
+  eligibilityId?: string;
+
+  @ApiPropertyOptional({ description: 'Target user ID (for seller/buyer reviews, when not using eligibilityId)' })
   @IsUUID() @IsOptional()
   targetUserId?: string;
 
@@ -67,13 +89,25 @@ export class CreateReviewDto {
   @IsString() @IsOptional()
   title?: string;
 
-  @ApiProperty({ description: 'Review content', example: 'Product was exactly as described. Fast response.' })
+  // Whitespace-only text ("   ") would pass @MaxLength fine, so the real
+  // "not blank" check (trim, then check length) happens in
+  // ReviewsService.createReview, not here.
+  @ApiPropertyOptional({ description: 'Review content (optional, but if provided must be real text, not just whitespace)', example: 'Product was exactly as described. Fast response.' })
   @IsString()
-  @IsNotEmpty()
-  content: string;
+  @IsOptional()
+  @MaxLength(2000)
+  content?: string;
 
   @ApiProperty({ description: 'Rating details', type: RatingDto })
   @ValidateNested()
   @Type(() => RatingDto)
   rating: RatingDto;
+
+  @ApiPropertyOptional({ description: 'Predefined review tag IDs (validated against real, active ReviewTag rows)', type: [String] })
+  @IsArray() @IsOptional() @ArrayMaxSize(10) @IsUUID('4', { each: true })
+  tagIds?: string[];
+
+  @ApiPropertyOptional({ description: 'Optional photos, already uploaded via POST /reviews/photos/upload-url (max 6)', type: [ReviewPhotoInputDto] })
+  @IsArray() @IsOptional() @ArrayMaxSize(6) @ValidateNested({ each: true }) @Type(() => ReviewPhotoInputDto)
+  photos?: ReviewPhotoInputDto[];
 }

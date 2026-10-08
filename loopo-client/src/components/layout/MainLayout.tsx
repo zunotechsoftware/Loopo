@@ -20,6 +20,7 @@ import { clearToast, showToast } from '@/redux/slices/uiSlice';
 import { initAuthThunk } from '@/redux/slices/authSlice';
 import { fetchFavoritesThunk } from '@/redux/slices/productsSlice';
 import { fetchNotificationsThunk } from '@/redux/slices/notificationsSlice';
+import { fetchMyAcceptedOffersThunk } from '@/redux/slices/offersSlice';
 import { useNotificationSocket } from '@/hooks/useNotificationSocket';
 import { X, Sparkles } from 'lucide-react';
 import { ROUTES } from '@/routes/routes';
@@ -57,6 +58,16 @@ export default function MainLayout({ children }: MainLayoutProps) {
     }
   }, [isAuthenticated, dispatch]);
 
+  // So a buyer's own accepted-offer price is available everywhere that
+  // product can show up for them (card, detail page, chat) - without this,
+  // every one of those kept showing the seller's original listing price as
+  // if the negotiated offer had never happened.
+  useEffect(() => {
+    if (isAuthenticated) {
+      dispatch(fetchMyAcceptedOffersThunk());
+    }
+  }, [isAuthenticated, dispatch]);
+
   // Real-time push for the two system events that matter most to a logged
   // in user (their listing got approved/rejected) plus any admin broadcast -
   // refetches the inbox so the bell badge and list update without a reload.
@@ -64,6 +75,10 @@ export default function MainLayout({ children }: MainLayoutProps) {
     enabled: isAuthenticated,
     onNotification: (notification) => {
       dispatch(fetchNotificationsThunk());
+      // An OFFER_ACCEPTED push means this buyer's accepted-price map just
+      // changed - refresh it so the new amount shows up immediately instead
+      // of only after their next full page load.
+      dispatch(fetchMyAcceptedOffersThunk());
       if (notification?.title) {
         dispatch(showToast(notification.title));
       }

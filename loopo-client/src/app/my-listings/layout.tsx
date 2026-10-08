@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import ProtectedRoute from '@/routes/ProtectedRoute';
 import { ROUTES } from '@/routes/routes';
-import { Package, CheckCircle, Clock, FileText, CheckSquare, XCircle, Plus } from 'lucide-react';
+import { Package, CheckCircle, Clock, FileText, CheckSquare, XCircle, Plus, Layers } from 'lucide-react';
 import { useAppDispatch } from '@/redux/hooks';
 import { fetchMyAdsThunk } from '@/redux/slices/myAdsSlice';
 
@@ -49,13 +49,26 @@ export default function MyListingsLayout({ children }: MyListingsLayoutProps) {
               <p className="text-xs text-slate-500 font-medium mt-1">Manage active listings, pending moderation, drafts and sold items.</p>
             </div>
 
-            <Link
-              href={ROUTES.SELL}
-              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md shadow-emerald-500/20 transition-all self-start sm:self-auto"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Post New Ad</span>
-            </Link>
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              {/* KYC-gated (see /sell/bulk) - open to everyone here, same as
+                  "Post New Ad"; the page itself explains and enforces the
+                  requirement for unverified sellers rather than hiding the
+                  entry point outright. */}
+              <Link
+                href={ROUTES.SELL_BULK}
+                className="flex items-center gap-2 bg-white hover:bg-slate-50 border-2 border-emerald-600 text-emerald-600 font-bold text-xs px-4 py-2.5 rounded-xl transition-all"
+              >
+                <Layers className="w-4 h-4" />
+                <span>Bulk Upload</span>
+              </Link>
+              <Link
+                href={ROUTES.SELL}
+                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md shadow-emerald-500/20 transition-all"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Post New Ad</span>
+              </Link>
+            </div>
           </div>
 
           {/* Sub-route Tabs Header */}

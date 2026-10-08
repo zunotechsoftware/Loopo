@@ -68,6 +68,13 @@ function normaliseConversation(c: any, currentUserId?: string): Conversation {
       other.avatarUrl ||
       '',
     otherPartyRole: iAmSeller ? 'Buyer' : 'Seller',
+    // Previously missing entirely: MessagesView's in-chat "Make Offer"
+    // button opened the global OfferModal with whatever product happened
+    // to already be selected elsewhere in the app (or none), not the
+    // listing this conversation is actually about. itemStatus lets that
+    // same button hide/disable itself once the listing is sold.
+    itemId: product.id || c.productId || '',
+    itemStatus: product.status || '',
     itemTitle: product.title || c.productTitle || 'Item',
     itemPrice: product.price ? `₹${product.price.toLocaleString('en-IN')}` : '',
     // product.images[0] here is a real image record (originalUrl/

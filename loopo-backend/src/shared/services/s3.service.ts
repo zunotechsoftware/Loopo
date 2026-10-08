@@ -21,7 +21,7 @@ import { randomUUID } from 'crypto';
  * segment of every object key (see generatePresignedUploadUrl), which is
  * what lets the bucket policy below scope public access by prefix.
  */
-export const PUBLIC_MEDIA_CATEGORIES = ['PROFILE_IMAGE', 'COVER_IMAGE', 'listing_images', 'listing_videos'];
+export const PUBLIC_MEDIA_CATEGORIES = ['PROFILE_IMAGE', 'COVER_IMAGE', 'listing_images', 'listing_videos', 'review_photos'];
 
 @Injectable()
 export class S3Service implements OnModuleInit {

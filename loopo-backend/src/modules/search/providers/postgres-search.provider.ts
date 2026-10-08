@@ -124,6 +124,17 @@ export class PostgresSearchProvider implements ISearchProvider {
     let items = await this.prisma.product.findMany({
       where,
       include: {
+        // Matches ProductsRepository.findAll's include (the /products
+        // listing) - without seller/category, every search result card
+        // would render with no seller name and no category label, the
+        // only real fields a card actually needs beyond what was here.
+        seller: {
+          select: {
+            id: true, email: true, phone: true, firstName: true, lastName: true,
+            profile: { select: { verifiedBadge: true } },
+          },
+        },
+        category: { select: { id: true, name: true, slug: true } },
         location: true,
         images: { orderBy: { sortOrder: 'asc' } },
         statistics: true,
